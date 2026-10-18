@@ -44,12 +44,6 @@ export interface Bar {
   max: number | null
 }
 
-export interface Aura {
-  radius: number // in page units (e.g. ft)
-  color: string
-  square?: boolean
-}
-
 export interface TokenProps {
   name?: string
   image?: string
@@ -57,14 +51,9 @@ export interface TokenProps {
   show_name?: boolean
   bar1?: Bar
   bar2?: Bar
-  bar3?: Bar
-  aura1?: Aura
-  aura2?: Aura
   statuses?: string[]
   controlled_by?: string[]
   gm_notes?: string
-  flip_h?: boolean
-  flip_v?: boolean
 }
 
 export interface PathProps {
@@ -163,6 +152,14 @@ export type ObjectPatch = { id: string } & Partial<Omit<MapObject, 'id' | 'owner
 
 export type PreviewItem = { id: string; x: number; y: number; rotation?: number }
 
+/** A live measurement (ruler or token drag), in page pixels. */
+export interface Segment {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+}
+
 export type ClientMessage = { rid?: string } & (
   | { type: 'hello'; player: Omit<Player, 'online' | 'settings'> }
   | { type: 'player.update'; name?: string; color?: string; settings?: PlayerSettings }
@@ -176,6 +173,7 @@ export type ClientMessage = { rid?: string } & (
   | { type: 'obj.create'; objects: Omit<MapObject, 'owner_id' | 'z'>[] }
   | { type: 'obj.update'; patches: ObjectPatch[] }
   | { type: 'obj.preview'; items: PreviewItem[] }
+  | { type: 'measure'; page_id: string; segment: Segment | null; object_id?: string }
   | { type: 'obj.delete'; ids: string[] }
   | { type: 'obj.order'; ids: string[]; to: 'front' | 'back' }
   | { type: 'chat.send'; text: string }
@@ -206,6 +204,7 @@ export type ServerMessage =
   | { type: 'obj.upsert'; objects: MapObject[] }
   | { type: 'obj.removed'; ids: string[] }
   | { type: 'obj.preview'; items: PreviewItem[] }
+  | { type: 'measure'; page_id: string; player_id: string; color?: string; segment: Segment | null }
   | { type: 'chat'; message: ChatMessage }
   | {
       type: 'ping'

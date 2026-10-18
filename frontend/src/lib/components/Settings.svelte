@@ -77,7 +77,7 @@
         </div>
       </div>
       <p class="hint muted">
-        {MEASUREMENTS.find((m) => m.value === store.measurement)?.cell}. Switching systems converts pages and auras
+        {MEASUREMENTS.find((m) => m.value === store.measurement)?.cell}. Switching systems converts the page scales
         (5 ft = 1.5 m, 1 mi = 1.5 km) for all players.
       </p>
     {/if}

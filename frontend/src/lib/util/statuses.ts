@@ -1,10 +1,5 @@
 /** Token status markers. Ids are stored on tokens; labels shown in the UI. */
 export const STATUSES: { id: string; icon: string; label: string }[] = [
-  { id: 'red', icon: '🔴', label: 'Red' },
-  { id: 'blue', icon: '🔵', label: 'Blue' },
-  { id: 'green', icon: '🟢', label: 'Green' },
-  { id: 'yellow', icon: '🟡', label: 'Yellow' },
-  { id: 'purple', icon: '🟣', label: 'Purple' },
   { id: 'dead', icon: '💀', label: 'Dead' },
   { id: 'blinded', icon: '🙈', label: 'Blinded' },
   { id: 'charmed', icon: '💘', label: 'Charmed' },

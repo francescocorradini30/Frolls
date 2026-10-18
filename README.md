@@ -10,7 +10,7 @@ Frolls is a virtual tabletop for playing fantasy roleplaying games online, 5e co
 
 - **Shared map** with multiple pages, square, hex or no grid, configurable scale and distance rules.
 - **Layers** for map, objects and GM: whatever is on the GM layer is never seen by players.
-- **Tokens** with images, bars, auras and status markers, draggable with grid snapping.
+- **Tokens** with images, bars and status markers, draggable with grid snapping.
 - **Drawing** freehand and shapes, text, ruler and areas (circle, cone, line, cube).
 - **Ping** to point out a spot to everyone, and GM pull of the whole group's view.
 - **Chat** with whispers, emotes, narration and dice rolls right inside the message.

@@ -103,9 +103,10 @@ export const TOKEN_COLORS = [
 
 export const DEFAULT_TOKEN_COLOR = palette.ink500
 
-/** Token bars 1-3: health, resource, extra. */
-export const BAR_COLORS = [palette.mint, palette.sky, palette.rose] as const
-
-export const AURA_COLORS = [palette.butter, palette.sky] as const
+/** Token bars, in drawing order (bottom one first): stored as props[key] = { value, max }. */
+export const BARS = [
+  { key: 'bar1', label: 'HP', color: palette.mint },
+  { key: 'bar2', label: 'Temp. HP', color: palette.sky },
+] as const
 
 export const DEFAULT_DRAW_COLOR = palette.pink

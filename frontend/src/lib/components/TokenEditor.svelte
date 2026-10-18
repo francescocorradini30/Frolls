@@ -1,8 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import type { Aura, Bar, Layer, MapObject } from '../net/protocol'
+  import type { Bar, Layer, MapObject } from '../net/protocol'
   import { store } from '../state/game.svelte'
-  import { AURA_COLORS, BAR_COLORS, DEFAULT_TOKEN_COLOR } from '../theme'
+  import { BARS, DEFAULT_TOKEN_COLOR } from '../theme'
   import { STATUSES } from '../util/statuses'
   import { pickFile, uploadImage } from '../util/upload'
 
@@ -10,25 +10,16 @@
 
   // The form edits a snapshot of the object taken when the dialog opens.
   const start = untrack(() => obj)
-  const gridSize = store.page?.grid_size ?? 70
   const p = start.props
 
-  let tab = $state<'base' | 'bars' | 'auras' | 'status'>('base')
+  let tab = $state<'base' | 'bars' | 'status'>('base')
   let name = $state<string>(p.name ?? '')
-  let showName = $state<boolean>(p.show_name !== false)
   let image = $state<string>(p.image ?? '')
   let color = $state<string>(p.color ?? DEFAULT_TOKEN_COLOR)
-  let cellsW = $state(Math.round((start.width / gridSize) * 100) / 100)
-  let cellsH = $state(Math.round((start.height / gridSize) * 100) / 100)
   let layer = $state<Layer>(start.layer)
   let controlledBy = $state<string[]>([...(p.controlled_by ?? [])])
   let gmNotes = $state<string>(p.gm_notes ?? '')
-  let flipH = $state<boolean>(!!p.flip_h)
-  let flipV = $state<boolean>(!!p.flip_v)
-  let bars = $state<Bar[]>([0, 1, 2].map((i) => ({ value: null, max: null, ...(p[`bar${i + 1}`] ?? {}) })))
-  let auras = $state<Aura[]>(
-    [0, 1].map((i) => ({ radius: 0, color: AURA_COLORS[i], square: false, ...(p[`aura${i + 1}`] ?? {}) })),
-  )
+  let bars = $state<Bar[]>(BARS.map((b) => ({ value: null, max: null, ...(p[b.key] ?? {}) })))
   let statuses = $state<string[]>([...(p.statuses ?? [])])
   let uploading = $state(false)
 
@@ -63,32 +54,20 @@
   function save() {
     const props: Record<string, unknown> = {
       name: name.trim() || null,
-      show_name: showName,
       image: image || null,
       color,
-      flip_h: flipH || null,
-      flip_v: flipV || null,
       statuses: statuses.length ? statuses : null,
     }
     bars.forEach((b, i) => {
       const value = num(b.value)
       const max = num(b.max)
-      props[`bar${i + 1}`] = value === null && max === null ? null : { value, max }
-    })
-    auras.forEach((a, i) => {
-      const radius = num(a.radius)
-      props[`aura${i + 1}`] = radius ? { radius, color: a.color, square: a.square } : null
+      props[BARS[i].key] = value === null && max === null ? null : { value, max }
     })
     if (store.isGm) {
       props.controlled_by = controlledBy.length ? controlledBy : null
       props.gm_notes = gmNotes.trim() || null
     }
-    const patch: Parameters<typeof store.updateObjects>[0][0] = {
-      id: obj.id,
-      width: Math.max(0.25, num(cellsW) ?? 1) * gridSize,
-      height: Math.max(0.25, num(cellsH) ?? 1) * gridSize,
-      props,
-    }
+    const patch: Parameters<typeof store.updateObjects>[0][0] = { id: obj.id, props }
     if (store.isGm && layer !== obj.layer) patch.layer = layer
     store.updateObjects([patch])
     onClose()
@@ -114,7 +93,6 @@
       <nav class="tabs">
         <button class:active={tab === 'base'} onclick={() => (tab = 'base')}>Details</button>
         <button class:active={tab === 'bars'} onclick={() => (tab = 'bars')}>Bars</button>
-        <button class:active={tab === 'auras'} onclick={() => (tab = 'auras')}>Auras</button>
         <button class:active={tab === 'status'} onclick={() => (tab = 'status')}>Statuses</button>
       </nav>
     {/if}
@@ -133,16 +111,6 @@
         </div>
 
         <label class="field"><span>Name</span><input bind:value={name} maxlength="120" /></label>
-        <label class="check"><input type="checkbox" bind:checked={showName} /> Show name on the map</label>
-
-        <div class="grid2">
-          <label class="field"><span>Width (cells)</span><input type="number" step="0.5" min="0.25" bind:value={cellsW} /></label>
-          <label class="field"><span>Height (cells)</span><input type="number" step="0.5" min="0.25" bind:value={cellsH} /></label>
-        </div>
-        <div class="row">
-          <label class="check"><input type="checkbox" bind:checked={flipH} /> Flip horizontal</label>
-          <label class="check"><input type="checkbox" bind:checked={flipV} /> Flip vertical</label>
-        </div>
 
         {#if store.isGm}
           <label class="field">
@@ -185,25 +153,13 @@
       {:else if tab === 'bars'}
         {#each bars as bar, i (i)}
           <div class="bar-row">
-            <span class="swatch" style:background={BAR_COLORS[i]}></span>
-            <strong>Bar {i + 1}</strong>
-            <input type="number" placeholder="value" bind:value={bar.value} aria-label={`Bar ${i + 1} value`} />
+            <span class="swatch" style:background={BARS[i].color}></span>
+            <strong>{BARS[i].label}</strong>
+            <input type="number" placeholder="value" bind:value={bar.value} aria-label={`${BARS[i].label} value`} />
             <span>/</span>
-            <input type="number" placeholder="max" bind:value={bar.max} aria-label={`Bar ${i + 1} max`} />
+            <input type="number" placeholder="max" bind:value={bar.max} aria-label={`${BARS[i].label} max`} />
           </div>
         {/each}
-        <p class="muted hint">Usually: bar 1 = hit points, bar 2 = AC, bar 3 = other. Leave empty to hide.</p>
-      {:else if tab === 'auras'}
-        {#each auras as aura, i (i)}
-          <div class="bar-row">
-            <strong>Aura {i + 1}</strong>
-            <input type="number" min="0" step="5" bind:value={aura.radius} aria-label={`Aura ${i + 1} radius`} />
-            <span>{store.page?.scale_unit ?? 'ft'}</span>
-            <input type="color" bind:value={aura.color} aria-label={`Aura ${i + 1} color`} />
-            <label class="check"><input type="checkbox" bind:checked={aura.square} /> square</label>
-          </div>
-        {/each}
-        <p class="muted hint">Radius starts at the token edge. 0 = no aura.</p>
       {:else}
         <div class="statuses">
           {#each STATUSES as s (s.id)}
@@ -296,17 +252,6 @@
     gap: 6px;
     align-items: flex-start;
   }
-  .grid2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  .check {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    font-size: 0.85rem;
-  }
   .chips {
     display: flex;
     flex-wrap: wrap;
@@ -340,24 +285,15 @@
     gap: 8px;
   }
   .bar-row strong {
-    width: 64px;
+    width: 80px;
   }
   .bar-row input[type='number'] {
     width: 80px;
-  }
-  .bar-row input[type='color'] {
-    width: 36px;
-    height: 30px;
-    padding: 2px;
   }
   .swatch {
     width: 10px;
     height: 10px;
     border-radius: 2px;
-  }
-  .hint {
-    font-size: 0.8rem;
-    margin: 0;
   }
   .statuses {
     display: grid;

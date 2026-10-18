@@ -1,9 +1,8 @@
 import { Assets, Container, Graphics, Sprite, Text, Texture } from 'pixi.js'
 import type { Bar, MapObject, Page } from '../net/protocol'
 import { initials } from '../util/ids'
-import { AURA_COLORS, BAR_COLORS, canvasColors, DEFAULT_DRAW_COLOR, DEFAULT_TOKEN_COLOR } from '../theme'
+import { BARS, canvasColors, DEFAULT_DRAW_COLOR, DEFAULT_TOKEN_COLOR } from '../theme'
 import { STATUS_ICON } from '../util/statuses'
-import { unitsToPx } from './measure'
 
 // Text is rasterised once; a higher resolution keeps it crisp when zooming in.
 const TEXT_RESOLUTION = 3
@@ -23,7 +22,6 @@ export class ObjectView {
   private readonly body = new Container()
   /** Stays upright above the object (name, bars, statuses). */
   private readonly hud = new Container()
-  private readonly auras = new Graphics()
   private readonly selectionBox = new Graphics()
   private sprite: Sprite | null = null
   private imageUrl: string | null = null
@@ -31,7 +29,7 @@ export class ObjectView {
 
   constructor(obj: MapObject, page: Page) {
     this.obj = obj
-    this.root.addChild(this.auras, this.body, this.selectionBox, this.hud)
+    this.root.addChild(this.body, this.selectionBox, this.hud)
     this.root.label = obj.id
     this.update(obj, page)
   }
@@ -43,7 +41,6 @@ export class ObjectView {
     this.body.rotation = (obj.rotation * Math.PI) / 180
     this.root.alpha = obj.layer === 'gm' ? 0.55 : 1
     this.drawBody(obj)
-    this.drawAuras(obj, page)
     this.drawHud(obj)
   }
 
@@ -105,8 +102,6 @@ export class ObjectView {
       sprite.anchor.set(0.5)
       sprite.width = o.width
       sprite.height = o.height
-      sprite.scale.x = Math.abs(sprite.scale.x) * (o.props.flip_h ? -1 : 1)
-      sprite.scale.y = Math.abs(sprite.scale.y) * (o.props.flip_v ? -1 : 1)
       this.body.addChild(sprite)
       if (url !== this.imageUrl) {
         this.imageUrl = url
@@ -116,8 +111,6 @@ export class ObjectView {
             sprite.texture = tex
             sprite.width = this.obj.width
             sprite.height = this.obj.height
-            sprite.scale.x = Math.abs(sprite.scale.x) * (this.obj.props.flip_h ? -1 : 1)
-            sprite.scale.y = Math.abs(sprite.scale.y) * (this.obj.props.flip_v ? -1 : 1)
           })
           .catch(() => {})
       }
@@ -218,22 +211,7 @@ export class ObjectView {
     this.body.addChild(g)
   }
 
-  // --- Auras & HUD ------------------------------------------------------------
-
-  private drawAuras(o: MapObject, page: Page): void {
-    const g = this.auras
-    g.clear()
-    if (o.kind !== 'token') return
-    for (const key of ['aura1', 'aura2'] as const) {
-      const aura = o.props[key]
-      if (!aura || !aura.radius) continue
-      const r = unitsToPx(page, aura.radius) + Math.max(o.width, o.height) / 2
-      if (aura.square) g.rect(-r, -r, r * 2, r * 2)
-      else g.circle(0, 0, r)
-      g.fill({ color: aura.color ?? AURA_COLORS[0], alpha: 0.18 })
-      g.stroke({ width: 1.5, color: aura.color ?? AURA_COLORS[0], alpha: 0.6 })
-    }
-  }
+  // --- HUD --------------------------------------------------------------------
 
   private drawHud(o: MapObject): void {
     for (const child of this.hud.removeChildren()) child.destroy()
@@ -242,24 +220,24 @@ export class ObjectView {
     const h = o.height
 
     // Bars stacked above the token.
-    const bars = [o.props.bar1, o.props.bar2, o.props.bar3] as (Bar | undefined)[]
     let y = -h / 2 - 6
-    bars.forEach((bar, i) => {
+    BARS.forEach(({ key, color }) => {
+      const bar = o.props[key] as Bar | undefined
       if (!bar || bar.max == null || bar.max <= 0) return
       const frac = Math.max(0, Math.min(1, (bar.value ?? 0) / bar.max))
       const g = new Graphics()
         .roundRect(-w / 2, y - 6, w, 6, 3)
         .fill({ color: canvasColors.barTrack, alpha: 0.6 })
         .roundRect(-w / 2, y - 6, w * frac, 6, 3)
-        .fill(BAR_COLORS[i])
+        .fill(color)
       this.hud.addChild(g)
       y -= 8
     })
 
     // Status markers along the top-right edge.
-    const statuses: string[] = o.props.statuses ?? []
+    const statuses = ((o.props.statuses ?? []) as string[]).filter((id) => STATUS_ICON.has(id))
     statuses.slice(0, 8).forEach((id, i) => {
-      const icon = new Text({ text: STATUS_ICON.get(id) ?? '•', style: { fontSize: 14 } })
+      const icon = new Text({ text: STATUS_ICON.get(id)!, style: { fontSize: 14 } })
       icon.anchor.set(0.5)
       icon.position.set(w / 2 - 8 - (i % 4) * 15, -h / 2 + 8 + Math.floor(i / 4) * 15)
       this.hud.addChild(icon)

@@ -330,6 +330,53 @@ def test_ping_reaches_page_viewers(client: TestClient) -> None:
         assert (ping["x"], ping["y"], ping["pull"]) == (10, 20, True)
 
 
+SEGMENT = {"x1": 35, "y1": 35, "x2": 245, "y2": 35}
+
+
+def test_measure_is_shared_and_cleared(client: TestClient) -> None:
+    with client.websocket_connect(WS) as gm, client.websocket_connect(WS) as pl:
+        page = join(gm, "gm", "Master", gm=True)["page_id"]
+        join(pl, "p1", "Aria")
+        pl.send_json({"type": "measure", "page_id": page, "segment": SEGMENT})
+        shown = recv(gm, "measure")
+        assert (shown["player_id"], shown["color"], shown["segment"]) == ("p1", "#aa3355", SEGMENT)
+        pl.send_json({"type": "measure", "page_id": page, "segment": None})
+        assert recv(gm, "measure")["segment"] is None
+
+
+def test_measure_cleared_on_disconnect(client: TestClient) -> None:
+    with client.websocket_connect(WS) as gm:
+        page = join(gm, "gm", "Master", gm=True)["page_id"]
+        with client.websocket_connect(WS) as pl:
+            join(pl, "p1", "Aria")
+            pl.send_json({"type": "measure", "page_id": page, "segment": SEGMENT})
+            assert recv(gm, "measure")["segment"] == SEGMENT
+        cleared = recv(gm, "measure")
+        assert (cleared["player_id"], cleared["segment"]) == ("p1", None)
+
+
+def test_measure_of_hidden_token_drag_not_shown(client: TestClient) -> None:
+    with client.websocket_connect(WS) as gm, client.websocket_connect(WS) as pl:
+        page = join(gm, "gm", "Master", gm=True)["page_id"]
+        join(pl, "p1", "Aria")
+        gm.send_json({"type": "obj.create", "objects": [token(page, "secret", layer="gm")]})
+        gm.send_json(
+            {"type": "measure", "page_id": page, "segment": SEGMENT, "object_id": "secret"}
+        )
+        gm.send_json({"type": "ping", "page_id": page, "x": 0, "y": 0})
+        while (msg := pl.receive_json())["type"] != "ping":
+            assert msg["type"] != "measure"
+
+        # Players can't show a measurement for a token they don't control.
+        gm.send_json({"type": "obj.create", "objects": [token(page, "goblin")]})
+        pl.send_json(
+            {"type": "measure", "page_id": page, "segment": SEGMENT, "object_id": "goblin"}
+        )
+        pl.send_json({"type": "ping", "page_id": page, "x": 0, "y": 0})
+        while (msg := gm.receive_json())["type"] != "ping":
+            assert msg["type"] != "measure"
+
+
 def test_order_to_front(client: TestClient) -> None:
     with client.websocket_connect(WS) as gm:
         page = join(gm, "gm", "Master", gm=True)["page_id"]
@@ -430,14 +477,10 @@ def test_metric_is_the_default_measurement(client: TestClient) -> None:
         assert (page["scale_number"], page["scale_unit"]) == (1.5, "m")
 
 
-def test_measurement_switch_converts_pages_and_auras(client: TestClient) -> None:
+def test_measurement_switch_converts_pages(client: TestClient) -> None:
     with client.websocket_connect(WS) as gm, client.websocket_connect(WS) as pl:
         page_id = join(gm, "gm", "Master", gm=True)["page_id"]
         join(pl, "p1", "Aria")
-        aura = {"radius": 3, "color": "#ffdb7a"}
-        gm.send_json({"type": "obj.create", "objects": [token(page_id, aura1=aura)]})
-        recv(gm, "obj.upsert")
-
         pl.send_json({"type": "game.settings", "measurement": "imperial"})
         assert recv(pl, "error")["detail"] == "only the GM can do that"
 
@@ -445,8 +488,6 @@ def test_measurement_switch_converts_pages_and_auras(client: TestClient) -> None
         assert recv(pl, "game")["game"]["settings"]["measurement"] == "imperial"
         page = recv(pl, "page.updated")["page"]
         assert (page["scale_number"], page["scale_unit"]) == (5, "ft")
-        obj = recv(pl, "obj.upsert")["objects"][0]
-        assert obj["props"]["aura1"]["radius"] == 10
 
         # New pages follow the system; switching back restores the metric values.
         gm.send_json({"type": "page.create", "page": {"name": "Dungeon"}})
@@ -455,4 +496,3 @@ def test_measurement_switch_converts_pages_and_auras(client: TestClient) -> None
         gm.send_json({"type": "game.settings", "measurement": "metric"})
         recv(gm, "game")
         assert (server.pages[page_id].scale_number, server.pages[page_id].scale_unit) == (1.5, "m")
-        assert server.objects["t1"].props["aura1"]["radius"] == 3

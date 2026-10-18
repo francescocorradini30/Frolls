@@ -130,6 +130,14 @@ check('GM creates token', !!tok)
 let p = await state(pl)
 check('player sees token', p.objects.some((o) => o.id === tok.id))
 
+// Labels of the rulers other players are showing on this tab.
+const remoteRulers = (page) =>
+  page.evaluate(() => [...window.__engine.remoteRulers.values()].map((r) => r.label.text))
+const waitRemoteRulers = (page, count) =>
+  page
+    .waitForFunction((n) => window.__engine.remoteRulers.size === n, count, { timeout: 3000 })
+    .then(() => true, () => false)
+
 // 2. GM drags token ~3 cells right, snapped
 const from = await toClient(gm, tok.x, tok.y)
 const zoom = await gm.evaluate(() => window.__engine.zoom)
@@ -143,7 +151,13 @@ const mid = await gm.evaluate((id) => {
 }, tok.id)
 check('token stays on cell centres while dragged', mid.x % 70 === 35 && mid.y % 70 === 35, `${mid.x},${mid.y}`)
 await gm.mouse.move(from.x + 70 * 3 * zoom + 5, from.y, { steps: 6 })
+const dragLabel = await gm.evaluate(() => window.__engine.overlayLabel.text)
+const seenDrag = (await waitRemoteRulers(pl, 1)) && (await pl.waitForFunction(
+  (t) => [...window.__engine.remoteRulers.values()][0]?.label.text === t, dragLabel, { timeout: 3000 },
+).then(() => true, () => false))
+check('player sees the GM drag distance live', seenDrag, `${dragLabel} vs ${await remoteRulers(pl)}`)
 await gm.mouse.up()
+check('drag distance disappears for the player on drop', await waitRemoteRulers(pl, 0))
 await gm.waitForTimeout(500)
 g = await state(gm)
 p = await state(pl)
@@ -168,10 +182,8 @@ await dialog.waitFor()
 await dialog.locator('label.field input').first().fill('Aria the Ranger')
 await dialog.locator(`[data-player-id="${ariaId}"]`).click()
 await dialog.getByRole('button', { name: 'Bars' }).click()
-await dialog.getByLabel('Bar 1 value').fill('22')
-await dialog.getByLabel('Bar 1 max').fill('30')
-await dialog.getByRole('button', { name: 'Auras' }).click()
-await dialog.getByLabel('Aura 1 radius').fill('10')
+await dialog.getByLabel('HP value', { exact: true }).fill('22')
+await dialog.getByLabel('HP max', { exact: true }).fill('30')
 await dialog.getByRole('button', { name: 'Statuses' }).click()
 await dialog.getByTitle('Poisoned').click()
 await dialog.getByRole('button', { name: 'Save' }).click()
@@ -179,11 +191,10 @@ await gm.waitForTimeout(500)
 p = await state(pl)
 let t2 = p.objects.find((o) => o.id === tok.id)
 check(
-  'editor: name, control, bars, aura, statuses',
+  'editor: name, control, bars, statuses',
   t2.props.name === 'Aria the Ranger' &&
     t2.props.controlled_by?.includes(ariaId) &&
     t2.props.bar1?.value === 22 &&
-    t2.props.aura1?.radius === 10 &&
     t2.props.statuses?.includes('poisoned'),
   JSON.stringify(t2.props),
 )
@@ -232,15 +243,16 @@ await pl.waitForTimeout(500)
 g = await state(gm)
 check('player moves own token', g.objects.find((o) => o.id === tok.id).y === t2.y + 140)
 
-// 6. Player HUD relative bar change -5
+// 6. Player HUD: name and statuses only, no bar fields
 await pl.evaluate((id) => window.__store.setSelection([id]), tok.id)
 await pl.waitForTimeout(200)
-const hpInput = pl.locator('.hud .bar input').first()
-await hpInput.fill('-5')
-await hpInput.press('Enter')
+check('HUD has no bar fields', (await pl.locator('.hud input').count()) === 0)
+await pl.locator('.hud').getByRole('button', { name: 'Statuses' }).click()
+await pl.locator('.hud .statuses').getByTitle('Prone').click()
 await pl.waitForTimeout(400)
 g = await state(gm)
-check('HUD: relative bar -5', g.objects.find((o) => o.id === tok.id).props.bar1.value === 17)
+check('HUD: toggle status', g.objects.find((o) => o.id === tok.id).props.statuses?.includes('prone'))
+await pl.screenshot({ path: `${OUT}/hud.png` })
 
 // 7. GM layer secret token
 await gm.getByTitle(/GM layer/).click()
@@ -296,7 +308,14 @@ const rulerStart = await pl.evaluate(() => window.__engine.gesture.start)
 check('ruler starts at a cell centre', rulerStart.x === 105 && rulerStart.y === 455, JSON.stringify(rulerStart))
 await pl.mouse.move(r2.x, r2.y, { steps: 6 })
 await pl.screenshot({ path: `${OUT}/ruler.png` })
+const rulerLabel = await pl.evaluate(() => window.__engine.overlayLabel.text)
+const seenRuler = await gm.waitForFunction(
+  (t) => [...window.__engine.remoteRulers.values()][0]?.label.text === t, rulerLabel, { timeout: 3000 },
+).then(() => true, () => false)
+check('GM sees the player ruler live', seenRuler, `${rulerLabel} vs ${await remoteRulers(gm)}`)
+await gm.screenshot({ path: `${OUT}/ruler-shared.png` })
 await pl.mouse.up()
+check('ruler disappears for the GM on release', await waitRemoteRulers(gm, 0))
 await pl.evaluate(() => (window.__store.tool = 'select'))
 
 // 12. Text tool (GM)

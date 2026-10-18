@@ -1,6 +1,6 @@
 import { Application, Container, Graphics, Text } from 'pixi.js'
-import type { Layer, MapObject, ObjectPatch, Page, PreviewItem } from '../net/protocol'
-import type { GameStore, Ping, Tool } from '../state/game.svelte'
+import type { Layer, MapObject, ObjectPatch, Page, PreviewItem, Segment } from '../net/protocol'
+import type { GameStore, Ping, RemoteMeasure, Tool } from '../state/game.svelte'
 import { canvasColors } from '../theme'
 import { uid } from '../util/ids'
 import { anchorCell, cellCenter, drawGrid, pagePixelSize, snapCenter, snapSize, type Point } from './grid'
@@ -41,11 +41,34 @@ type Gesture =
   | { kind: 'marquee'; start: Point; additive: boolean; timer: number; startClient: Point }
   | { kind: 'resize'; id: string; handle: ResizeHandle; start: MapObject }
   | { kind: 'rotate'; id: string; deg: number | null }
-  | { kind: 'ruler'; start: Point }
+  | { kind: 'ruler'; start: Point; end?: Point }
   | { kind: 'draw'; tool: Tool; start: Point; points: number[] }
   | { kind: 'template'; tool: Tool; start: Point }
 
 const LAYERS: Layer[] = ['map', 'objects', 'gm']
+
+const LABEL_STYLE = {
+  fill: canvasColors.label,
+  fontSize: 15,
+  fontWeight: '700',
+  fontFamily: 'Inter, system-ui, sans-serif',
+  stroke: { color: canvasColors.outline, width: 4 },
+} as const
+
+/** Another player's live ruler, drawn on its own so it never clashes with mine. */
+interface RemoteRuler {
+  segment: Segment
+  color: string
+  root: Container
+  g: Graphics
+  label: Text
+}
+
+/** What I am measuring right now, shared with the other viewers. */
+interface Measured {
+  segment: Segment
+  objectId?: string
+}
 
 export class Engine {
   private readonly app = new Application()
@@ -53,16 +76,9 @@ export class Engine {
   private readonly background = new Graphics()
   private readonly layers = new Map<Layer, Container>()
   private readonly overlay = new Graphics()
-  private readonly overlayLabel = new Text({
-    text: '',
-    style: {
-      fill: canvasColors.label,
-      fontSize: 15,
-      fontWeight: '700',
-      fontFamily: 'Inter, system-ui, sans-serif',
-      stroke: { color: canvasColors.outline, width: 4 },
-    },
-  })
+  private readonly overlayLabel = new Text({ text: '', style: LABEL_STYLE })
+  private readonly remoteLayer = new Container()
+  private readonly remoteRulers = new Map<string, RemoteRuler>()
   private readonly pings = new Container()
   private readonly views = new Map<string, ObjectView>()
   private page: Page | null = null
@@ -74,6 +90,11 @@ export class Engine {
   private readonly store: GameStore
   private readonly cb: EngineCallbacks
   private mounted = false
+  // Sharing my measurement: throttled like drag previews, the latest one always goes out.
+  private sharing = false
+  private measureSentAt = 0
+  private measureTimer = 0
+  private measurePending: Measured | null = null
 
   constructor(store: GameStore, callbacks: EngineCallbacks) {
     this.store = store
@@ -100,7 +121,7 @@ export class Engine {
       this.world.addChild(c)
     }
     this.overlayLabel.anchor.set(0.5, 1.2)
-    this.world.addChild(this.overlay, this.overlayLabel, this.pings)
+    this.world.addChild(this.remoteLayer, this.overlay, this.overlayLabel, this.pings)
     this.app.stage.addChild(this.world)
 
     const canvas = this.app.canvas
@@ -124,6 +145,7 @@ export class Engine {
       s.on('preview', (items) => this.applyPreview(items)),
       s.on('selection', () => this.refreshSelection()),
       s.on('ping', (p) => this.showPing(p)),
+      s.on('measure', (m) => this.showRemoteMeasure(m)),
       s.on('focus', (x, y) => this.centerOn(x, y)),
     )
     if (s.page) this.loadPage(s.page, [...s.objects.values()])
@@ -133,6 +155,7 @@ export class Engine {
     for (const off of this.unsubscribe) off()
     window.removeEventListener('keydown', this.onKeyDown)
     window.removeEventListener('keyup', this.onKeyUp)
+    clearTimeout(this.measureTimer)
     if (this.mounted) this.app.destroy(true, { children: true })
     this.views.clear()
   }
@@ -149,6 +172,7 @@ export class Engine {
     this.world.scale.set(z)
     this.world.position.set(anchor.x - before.x * z, anchor.y - before.y * z)
     this.cb.onZoom(z)
+    this.redrawRemoteRulers()
   }
 
   zoomBy(factor: number): void {
@@ -164,6 +188,7 @@ export class Engine {
     this.world.scale.set(z)
     this.world.position.set((width - w * z) / 2, (height - h * z) / 2)
     this.cb.onZoom(z)
+    this.redrawRemoteRulers()
   }
 
   centerOn(x: number, y: number): void {
@@ -197,13 +222,18 @@ export class Engine {
     this.page = page
     drawGrid(this.background, page)
     for (const o of objects) this.upsertOne(o)
-    if (!samePage) this.fitPage()
+    if (!samePage) {
+      for (const r of this.remoteRulers.values()) r.root.destroy({ children: true })
+      this.remoteRulers.clear()
+      this.fitPage()
+    }
   }
 
   private updatePage(page: Page): void {
     this.page = page
     drawGrid(this.background, page)
     for (const v of this.views.values()) v.update(v.obj, page)
+    this.redrawRemoteRulers()
   }
 
   private upsert(objs: MapObject[]): void {
@@ -447,6 +477,9 @@ export class Engine {
         return
       }
       case 'ruler':
+        g.end = this.maybeSnapPoint(p, e)
+        this.drawOverlay()
+        return
       case 'template':
         this.drawOverlay(this.maybeSnapPoint(p, e))
         return
@@ -717,6 +750,7 @@ export class Engine {
     this.overlayLabel.text = ''
     const accent = this.store.me?.color ?? canvasColors.accent
     const gesture = this.gesture
+    let measured: Measured | null = null
 
     // Handles for the single selected object.
     const v = this.singleSelected()
@@ -748,9 +782,14 @@ export class Engine {
           from = anchorCell(this.page, from, width, height)
           to = anchorCell(this.page, to, width, height)
         }
-        this.rulerLine(g, from, to, accent)
+        this.rulerLine(g, this.overlayLabel, from, to, accent)
+        measured = { segment: segment(from, to), objectId: id }
       }
+    } else if (gesture.kind === 'ruler' && gesture.end) {
+      this.rulerLine(g, this.overlayLabel, gesture.start, gesture.end, accent)
+      measured = { segment: segment(gesture.start, gesture.end) }
     }
+    this.shareMeasure(measured)
 
     if (!cursor) return
 
@@ -764,8 +803,6 @@ export class Engine {
       )
         .fill({ color: accent, alpha: 0.1 })
         .stroke({ width: 1 / z, color: accent })
-    } else if (gesture.kind === 'ruler') {
-      this.rulerLine(g, gesture.start, cursor, accent)
     } else if (gesture.kind === 'draw') {
       const style = this.store.drawStyle
       const { start } = gesture
@@ -796,16 +833,78 @@ export class Engine {
     }
   }
 
-  private rulerLine(g: Graphics, a: Point, b: Point, color: string): void {
+  private rulerLine(g: Graphics, label: Text, a: Point, b: Point, color: string): void {
     if (!this.page) return
     const z = this.zoom
     g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 4 / z, color: canvasColors.outline, alpha: 0.6 })
     g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 2 / z, color })
     g.circle(a.x, a.y, 4 / z).fill(color)
     g.circle(b.x, b.y, 4 / z).fill(color)
-    this.overlayLabel.text = formatDistance(this.page, measure(this.page, a, b))
-    this.overlayLabel.position.set(b.x, b.y)
-    this.overlayLabel.scale.set(1 / z)
+    label.text = formatDistance(this.page, measure(this.page, a, b))
+    label.position.set(b.x, b.y)
+    label.scale.set(1 / z)
+  }
+
+  // --- Shared measurements ------------------------------------------------------
+
+  /** Send my current measurement (null = none) to the other viewers of the page. */
+  private shareMeasure(m: Measured | null): void {
+    if (!m) {
+      this.measurePending = null
+      clearTimeout(this.measureTimer)
+      this.measureTimer = 0
+      if (this.sharing) this.store.shareMeasure(null)
+      this.sharing = false
+      return
+    }
+    this.measurePending = m
+    if (this.measureTimer) return
+    const wait = PREVIEW_INTERVAL_MS - (performance.now() - this.measureSentAt)
+    if (wait <= 0) this.flushMeasure()
+    else this.measureTimer = window.setTimeout(this.flushMeasure, wait)
+  }
+
+  private flushMeasure = (): void => {
+    this.measureTimer = 0
+    const m = this.measurePending
+    if (!m) return
+    this.measurePending = null
+    this.measureSentAt = performance.now()
+    this.sharing = true
+    this.store.shareMeasure(m.segment, m.objectId)
+  }
+
+  private showRemoteMeasure(m: RemoteMeasure): void {
+    let r = this.remoteRulers.get(m.player_id)
+    if (!m.segment) {
+      r?.root.destroy({ children: true })
+      this.remoteRulers.delete(m.player_id)
+      return
+    }
+    if (!r) {
+      const root = new Container()
+      const g = new Graphics()
+      const label = new Text({ text: '', style: LABEL_STYLE })
+      label.anchor.set(0.5, 1.2)
+      root.addChild(g, label)
+      this.remoteLayer.addChild(root)
+      r = { segment: m.segment, color: m.color ?? canvasColors.accent, root, g, label }
+      this.remoteRulers.set(m.player_id, r)
+    }
+    r.segment = m.segment
+    if (m.color) r.color = m.color
+    this.drawRemoteRuler(r)
+  }
+
+  private drawRemoteRuler(r: RemoteRuler): void {
+    const { x1, y1, x2, y2 } = r.segment
+    r.g.clear()
+    this.rulerLine(r.g, r.label, { x: x1, y: y1 }, { x: x2, y: y2 }, r.color)
+  }
+
+  /** Line widths and labels follow the zoom, so redraw them when it changes. */
+  private redrawRemoteRulers(): void {
+    for (const r of this.remoteRulers.values()) this.drawRemoteRuler(r)
   }
 
   // --- Pings ----------------------------------------------------------------------
@@ -1082,6 +1181,10 @@ function drawTemplatePreview(g: Graphics, o: Point, t: TemplateGeometry, gridSiz
     g.closePath()
   }
   g.fill({ color, alpha: 0.25 }).stroke({ width: 2, color })
+}
+
+function segment(a: Point, b: Point): Segment {
+  return { x1: a.x, y1: a.y, x2: b.x, y2: b.y }
 }
 
 function isTyping(e: KeyboardEvent): boolean {

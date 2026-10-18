@@ -157,6 +157,24 @@ class ObjectPreview(_Msg):
     items: Annotated[list[PreviewItem], Field(min_length=1, max_length=500)]
 
 
+class Segment(BaseModel):
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+
+class Measure(_Msg):
+    """Live ruler or token-drag distance, shown to the other viewers of the page; never stored."""
+
+    type: Literal["measure"]
+    page_id: Id
+    # None = measuring ended.
+    segment: Segment | None = None
+    # Object being dragged: viewers who cannot see it don't get the measurement.
+    object_id: Id | None = None
+
+
 class ObjectDelete(_Msg):
     type: Literal["obj.delete"]
     ids: Annotated[list[Id], Field(min_length=1, max_length=500)]
@@ -233,6 +251,7 @@ ClientMessage = Annotated[
     | ObjectCreate
     | ObjectUpdate
     | ObjectPreview
+    | Measure
     | ObjectDelete
     | ObjectOrder
     | ChatSend

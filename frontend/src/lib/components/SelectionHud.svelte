@@ -1,7 +1,6 @@
 <script lang="ts">
-  import type { Bar, MapObject } from '../net/protocol'
+  import type { MapObject } from '../net/protocol'
   import { store } from '../state/game.svelte'
-  import { BAR_COLORS } from '../theme'
   import { STATUSES } from '../util/statuses'
 
   let { onEdit }: { onEdit: (id: string) => void } = $props()
@@ -14,21 +13,6 @@
   })
 
   let showStatuses = $state(false)
-
-  /** "12" sets the value, "-5" / "+3" change it relative to the current one. */
-  function applyBar(index: number, field: 'value' | 'max', raw: string) {
-    if (!token) return
-    const key = `bar${index + 1}`
-    const bar: Bar = { value: null, max: null, ...(token.props[key] ?? {}) }
-    const text = raw.trim()
-    let next: number | null
-    if (text === '') next = null
-    else if (/^[+-]\d+(\.\d+)?$/.test(text) && field === 'value') next = (bar.value ?? 0) + Number(text)
-    else if (Number.isFinite(Number(text))) next = Number(text)
-    else return
-    const updated = { ...bar, [field]: next }
-    store.updateProps(token.id, { [key]: updated.value === null && updated.max === null ? null : updated })
-  }
 
   function toggleStatus(id: string) {
     if (!token) return
@@ -43,26 +27,6 @@
     <button class="name" onclick={() => onEdit(token.id)} title="Open token settings">
       {token.props.name || 'Token'} ✎
     </button>
-    {#each [0, 1, 2] as i (i)}
-      {@const bar = token.props[`bar${i + 1}`]}
-      <div class="bar" style:--c={BAR_COLORS[i]}>
-        <input
-          value={bar?.value ?? ''}
-          placeholder="—"
-          title="Value (type -5 or +3 to subtract/add)"
-          onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          onchange={(e) => applyBar(i, 'value', e.currentTarget.value)}
-        />
-        <span>/</span>
-        <input
-          value={bar?.max ?? ''}
-          placeholder="max"
-          title="Max"
-          onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          onchange={(e) => applyBar(i, 'max', e.currentTarget.value)}
-        />
-      </div>
-    {/each}
     <div class="status-wrap">
       <button class="btn small" onclick={() => (showStatuses = !showStatuses)}>Statuses ▾</button>
       {#if showStatuses}
@@ -106,18 +70,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .bar {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    padding-left: 8px;
-    border-left: 3px solid var(--c);
-  }
-  .bar input {
-    width: 46px;
-    padding: 4px;
-    text-align: center;
   }
   .status-wrap {
     position: relative;

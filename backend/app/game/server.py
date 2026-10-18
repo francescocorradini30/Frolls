@@ -44,6 +44,8 @@ class Connection:
     ws: WebSocket
     player: Player | None = None
     viewing: str | None = None
+    # Page where this connection is showing a live measurement to the others.
+    measuring: str | None = None
     queue: asyncio.Queue[str] = field(default_factory=lambda: asyncio.Queue(SEND_QUEUE_SIZE))
 
     def send(self, message: dict[str, Any]) -> None:
@@ -131,6 +133,7 @@ class GameServer:
         finally:
             self.connections.discard(conn)
             writer.cancel()
+            self._end_measure(conn)
             if conn.player:
                 self._broadcast_players()
 
@@ -155,7 +158,7 @@ class GameServer:
 
         handler = getattr(self, "on_" + msg.type.replace(".", "_"))
         try:
-            if isinstance(msg, (p.ObjectPreview, p.Ping)):
+            if isinstance(msg, (p.ObjectPreview, p.Measure, p.Ping)):
                 await handler(conn, msg)
             else:
                 async with self.lock:
@@ -197,6 +200,8 @@ class GameServer:
 
     def _page_snapshot(self, conn: Connection, page_id: str) -> None:
         assert conn.player is not None
+        if conn.measuring != page_id:
+            self._end_measure(conn)
         conn.viewing = page_id
         conn.send(
             {
@@ -365,28 +370,13 @@ class GameServer:
         assert self.game is not None
         if msg.measurement is None or msg.measurement == self.measurement:
             return
-        # Convert every page (and the aura radii on it) to the new system: 5 ft <-> 1.5 m.
+        # Convert every page scale to the new system: 5 ft <-> 1.5 m.
         conversions = units.CONVERSIONS[msg.measurement]
         pages: list[tuple[Page, str, float]] = [
             (pg, *conversions[pg.scale_unit])
             for pg in self.pages.values()
             if pg.scale_unit in conversions
         ]
-        factors = {pg.id: factor for pg, _, factor in pages}
-        changed: list[tuple[MapObject, dict[str, Any]]] = []
-        for o in self.objects.values():
-            if o.page_id not in factors:
-                continue
-            props = dict(o.props)
-            for key in ("aura1", "aura2"):
-                aura = props.get(key)
-                if isinstance(aura, dict) and isinstance(aura.get("radius"), int | float):
-                    props[key] = {
-                        **aura,
-                        "radius": units.convert(aura["radius"], factors[o.page_id]),
-                    }
-            if props != o.props:
-                changed.append((o, props))
         game_settings = {**self.game.settings, "measurement": msg.measurement}
         async with session_scope() as s:
             await s.execute(
@@ -398,21 +388,14 @@ class GameServer:
                     .where(Page.id == pg.id)
                     .values(scale_number=units.convert(pg.scale_number, factor), scale_unit=unit)
                 )
-            for o, props in changed:
-                await s.execute(update(MapObject).where(MapObject.id == o.id).values(props=props))
         self.game.settings = game_settings
         for pg, unit, factor in pages:
             pg.scale_number, pg.scale_unit = units.convert(pg.scale_number, factor), unit
-        for o, props in changed:
-            o.props = props
         self._broadcast_game()
         self._broadcast_pages()
         for pg, _, _ in pages:
             for c in self._viewers(pg.id):
                 c.send({"type": "page.updated", "page": page_dict(pg)})
-            objs = [o for o, _ in changed if o.page_id == pg.id]
-            if objs:
-                self._broadcast_objects(pg.id, objs)
 
     # --- Pages ---------------------------------------------------------------
 
@@ -718,6 +701,45 @@ class GameServer:
         for c in self.connections:
             if c.player and self._chat_visible(c.player, row):
                 c.send_raw(payload)
+
+    # --- Live measurement ----------------------------------------------------
+
+    async def on_measure(self, conn: Connection, msg: p.Measure) -> None:
+        player = conn.player
+        assert player is not None
+        if msg.segment is None or msg.page_id != conn.viewing:
+            self._end_measure(conn)
+            return
+        obj = self.objects.get(msg.object_id) if msg.object_id else None
+        if msg.object_id and (obj is None or not permissions.controls(player, obj)):
+            return
+        if conn.measuring and conn.measuring != msg.page_id:
+            self._end_measure(conn)
+        conn.measuring = msg.page_id
+        payload = {
+            "type": "measure",
+            "page_id": msg.page_id,
+            "player_id": player.id,
+            "color": player.color,
+            "segment": msg.segment.model_dump(),
+        }
+        for c in self._viewers(msg.page_id):
+            if c is conn:
+                continue
+            assert c.player is not None
+            if obj is None or permissions.can_see(c.player, obj):
+                c.send(payload)
+
+    def _end_measure(self, conn: Connection) -> None:
+        """Tell the page's viewers that this connection stopped measuring."""
+        page_id = conn.measuring
+        if page_id is None or conn.player is None:
+            return
+        conn.measuring = None
+        payload = {"type": "measure", "page_id": page_id, "player_id": conn.player.id, "segment": None}
+        for c in self._viewers(page_id):
+            if c is not conn:
+                c.send(payload)
 
     # --- Ping ----------------------------------------------------------------
 

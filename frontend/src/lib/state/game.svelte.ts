@@ -10,6 +10,7 @@ import type {
   Player,
   PlayerSettings,
   PreviewItem,
+  Segment,
   ServerMessage,
   TurnEntry,
 } from '../net/protocol'
@@ -32,6 +33,13 @@ export type Tool =
   | 'template-line'
   | 'template-square'
 
+/** Another player's live measurement; segment null = they stopped measuring. */
+export interface RemoteMeasure {
+  player_id: string
+  color?: string
+  segment: Segment | null
+}
+
 export interface Ping {
   x: number
   y: number
@@ -47,6 +55,7 @@ export interface EngineEvents {
   removed: (ids: string[]) => void
   preview: (items: PreviewItem[]) => void
   ping: (ping: Ping) => void
+  measure: (m: RemoteMeasure) => void
   selection: (ids: string[]) => void
   focus: (x: number, y: number) => void
 }
@@ -94,6 +103,7 @@ export class GameStore {
     removed: new Set(),
     preview: new Set(),
     ping: new Set(),
+    measure: new Set(),
     selection: new Set(),
     focus: new Set(),
   }
@@ -227,6 +237,9 @@ export class GameStore {
         this.chat.push(msg.message)
         if (this.chat.length > 500) this.chat.splice(0, this.chat.length - 500)
         break
+      case 'measure':
+        if (msg.page_id === this.page?.id) this.emit('measure', msg)
+        break
       case 'ping':
         if (msg.page_id === this.page?.id) this.emit('ping', msg)
         break
@@ -307,6 +320,11 @@ export class GameStore {
 
   preview(items: PreviewItem[]): void {
     this.send({ type: 'obj.preview', items })
+  }
+
+  /** Show my ruler / drag distance to the other viewers; null hides it. */
+  shareMeasure(segment: Segment | null, objectId?: string): void {
+    if (this.page) this.send({ type: 'measure', page_id: this.page.id, segment, object_id: objectId })
   }
 
   sendChat(text: string): void {
