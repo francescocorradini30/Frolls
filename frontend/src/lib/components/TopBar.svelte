@@ -6,6 +6,21 @@
   const statusLabel = { connecting: 'Connecting…', online: 'Online', offline: 'Offline' }
 
   let menuFor = $state<string | null>(null)
+  // The page strip scrolls horizontally, which would clip an absolutely
+  // positioned dropdown: the menu is fixed and anchored to the tab instead.
+  let menuPos = $state({ left: 0, top: 0 })
+  const MENU_W = 220
+
+  function toggleMenu(e: MouseEvent, id: string) {
+    e.stopPropagation()
+    if (menuFor === id) {
+      menuFor = null
+      return
+    }
+    const tab = (e.currentTarget as HTMLElement).closest('.tab')!.getBoundingClientRect()
+    menuPos = { left: Math.max(4, Math.min(tab.left, window.innerWidth - MENU_W - 4)), top: tab.bottom + 4 }
+    menuFor = id
+  }
 
   function playersOn(pageId: string) {
     const game = store.game
@@ -29,13 +44,13 @@
   }
 </script>
 
-<svelte:window onclick={() => (menuFor = null)} />
+<svelte:window onclick={() => (menuFor = null)} onresize={() => (menuFor = null)} />
 
 <header class="topbar">
   <span class="brand text-gradient">Frolls</span>
 
   {#if store.isGm}
-    <nav class="pages" aria-label="Pages">
+    <nav class="pages" aria-label="Pages" onscroll={() => (menuFor = null)}>
       {#each store.pages as pg (pg.id)}
         {@const here = playersOn(pg.id)}
         <div class="tab" class:active={store.page?.id === pg.id}>
@@ -52,13 +67,11 @@
           <button
             class="tab-menu"
             aria-label="Page actions"
-            onclick={(e) => {
-              e.stopPropagation()
-              menuFor = menuFor === pg.id ? null : pg.id
-            }}>▾</button
+            aria-expanded={menuFor === pg.id}
+            onclick={(e) => toggleMenu(e, pg.id)}>▾</button
           >
           {#if menuFor === pg.id}
-            <div class="menu panel" role="menu">
+            <div class="menu panel" role="menu" style:left="{menuPos.left}px" style:top="{menuPos.top}px">
               <button onclick={() => store.send({ type: 'game.player_page', page_id: pg.id })}>
                 Move all players here
               </button>
@@ -133,6 +146,7 @@
     align-items: center;
     gap: 4px;
     overflow-x: auto;
+    overflow-y: hidden;
     min-width: 0;
     flex: 1;
     scrollbar-width: thin;
@@ -191,13 +205,11 @@
     border-radius: 50%;
   }
   .menu {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
+    position: fixed;
     z-index: 50;
     display: flex;
     flex-direction: column;
-    min-width: 220px;
+    min-width: 220px; /* MENU_W */
     padding: 4px;
   }
   .menu button {

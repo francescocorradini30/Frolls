@@ -3,7 +3,7 @@ import type { Layer, MapObject, ObjectPatch, Page, PreviewItem } from '../net/pr
 import type { GameStore, Ping, Tool } from '../state/game.svelte'
 import { canvasColors } from '../theme'
 import { uid } from '../util/ids'
-import { drawGrid, pagePixelSize, snapCenter, snapPoint, snapSize, type Point } from './grid'
+import { anchorCell, cellCenter, drawGrid, pagePixelSize, snapCenter, snapSize, type Point } from './grid'
 import { formatDistance, measure } from './measure'
 import { ObjectView } from './views'
 
@@ -35,6 +35,8 @@ type Gesture =
       origins: Map<string, Point>
       moved: boolean
       lastSent: number
+      // Alt held on the last move: free placement, no grid snapping.
+      noSnap?: boolean
     }
   | { kind: 'marquee'; start: Point; additive: boolean; timer: number; startClient: Point }
   | { kind: 'resize'; id: string; aspect: number }
@@ -397,11 +399,14 @@ export class Engine {
         const dy = p.y - g.start.y
         if (!g.moved && Math.hypot(dx, dy) * this.zoom < CLICK_SLOP_PX) return
         g.moved = true
+        g.noSnap = e.altKey
         const items: PreviewItem[] = []
         for (const [id, origin] of g.origins) {
-          const x = origin.x + dx
-          const y = origin.y + dy
-          this.views.get(id)?.setPosition(x, y)
+          const v = this.views.get(id)
+          if (!v) continue
+          // Tokens hop from cell to cell while dragged, so they never sit off the grid.
+          const { x, y } = this.snapObject(v.obj, { x: origin.x + dx, y: origin.y + dy }, e.altKey)
+          v.setPosition(x, y)
           items.push({ id, x, y })
         }
         this.sendPreview(g, items)
@@ -524,16 +529,14 @@ export class Engine {
 
   private maybeSnapPoint(p: Point, e: { altKey: boolean }): Point {
     if (!this.page || !this.page.snap || e.altKey) return p
-    // Rulers and templates start from cell centres/corners like on a real grid.
-    if (this.page.grid_type === 'square') {
-      const s = this.page.grid_size
-      const half = { x: Math.floor(p.x / s) * s + s / 2, y: Math.floor(p.y / s) * s + s / 2 }
-      const corner = snapPoint(this.page, p)
-      const dHalf = Math.hypot(half.x - p.x, half.y - p.y)
-      const dCorner = Math.hypot(corner.x - p.x, corner.y - p.y)
-      return dCorner < dHalf ? corner : half
-    }
-    return snapPoint(this.page, p)
+    // Rulers and templates always start and end at cell centres, never at corners.
+    return cellCenter(this.page, p)
+  }
+
+  private snapObject(o: MapObject, p: Point, noSnap: boolean): Point {
+    const page = this.page
+    if (!page || !page.snap || noSnap || (o.kind !== 'token' && o.kind !== 'image')) return p
+    return snapCenter(page, p, o.width, o.height)
   }
 
   private sendPreview(g: Extract<Gesture, { kind: 'drag' }>, items: PreviewItem[]): void {
@@ -545,17 +548,12 @@ export class Engine {
   }
 
   private commitDrag(g: Extract<Gesture, { kind: 'drag' }>, noSnap: boolean): void {
-    const page = this.page
-    if (!page) return
+    if (!this.page) return
     const patches: ObjectPatch[] = []
     for (const id of g.origins.keys()) {
       const v = this.views.get(id)
       if (!v) continue
-      let pos = { x: v.root.x, y: v.root.y }
-      const o = v.obj
-      if (page.snap && !noSnap && (o.kind === 'token' || o.kind === 'image')) {
-        pos = snapCenter(page, pos, o.width, o.height)
-      }
+      const pos = this.snapObject(v.obj, { x: v.root.x, y: v.root.y }, noSnap)
       v.setPosition(pos.x, pos.y)
       patches.push({ id, x: pos.x, y: pos.y })
     }
@@ -737,8 +735,16 @@ export class Engine {
       const [id, origin] = gesture.origins.entries().next().value ?? []
       const view = id ? this.views.get(id) : undefined
       if (view && origin) {
-        const to = { x: view.root.x, y: view.root.y }
-        this.rulerLine(g, origin, to, accent)
+        let from = origin
+        let to = { x: view.root.x, y: view.root.y }
+        const snaps = view.obj.kind === 'token' || view.obj.kind === 'image'
+        if (snaps && this.page.snap && !gesture.noSnap) {
+          // Measure cell centre to cell centre, like the ruler.
+          const { width, height } = view.obj
+          from = anchorCell(this.page, from, width, height)
+          to = anchorCell(this.page, to, width, height)
+        }
+        this.rulerLine(g, from, to, accent)
       }
     }
 

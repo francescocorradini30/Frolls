@@ -85,13 +85,26 @@ export function snapSize(page: Page, size: number): number {
   return Math.max(1, Math.round(size / s)) * s
 }
 
-export function snapPoint(page: Page, p: Point): Point {
+/** Centre of the grid cell containing a point (never a corner). */
+export function cellCenter(page: Page, p: Point): Point {
   if (page.grid_type === 'none') return p
   if (page.grid_type === 'square') {
     const s = page.grid_size
-    return { x: Math.round(p.x / s) * s, y: Math.round(p.y / s) * s }
+    return { x: Math.floor(p.x / s) * s + s / 2, y: Math.floor(p.y / s) * s + s / 2 }
   }
   return hexCenter(page, p)
+}
+
+/**
+ * Cell an object is measured from: its own centre cell, or for objects spanning an even
+ * number of square cells (whose centre is a grid corner) the top-left cell of the footprint.
+ */
+export function anchorCell(page: Page, center: Point, width: number, height: number): Point {
+  if (page.grid_type !== 'square') return cellCenter(page, center)
+  const s = page.grid_size
+  const cw = Math.max(1, Math.round(width / s))
+  const ch = Math.max(1, Math.round(height / s))
+  return cellCenter(page, { x: center.x - ((cw - 1) * s) / 2, y: center.y - ((ch - 1) * s) / 2 })
 }
 
 // --- Hex math (axial coordinates) ---------------------------------------------

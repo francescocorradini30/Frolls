@@ -133,7 +133,17 @@ check('player sees token', p.objects.some((o) => o.id === tok.id))
 // 2. GM drags token ~3 cells right, snapped
 const from = await toClient(gm, tok.x, tok.y)
 const zoom = await gm.evaluate(() => window.__engine.zoom)
-await drag(gm, from, { x: from.x + 70 * 3 * zoom + 5, y: from.y }, 12)
+await gm.mouse.move(from.x, from.y)
+await gm.mouse.down()
+// Mid-drag the token must already sit on a cell centre, not glide freely.
+await gm.mouse.move(from.x + 70 * 1.4 * zoom, from.y + 70 * 0.3 * zoom, { steps: 6 })
+const mid = await gm.evaluate((id) => {
+  const r = window.__engine.views.get(id).root
+  return { x: r.x, y: r.y }
+}, tok.id)
+check('token stays on cell centres while dragged', mid.x % 70 === 35 && mid.y % 70 === 35, `${mid.x},${mid.y}`)
+await gm.mouse.move(from.x + 70 * 3 * zoom + 5, from.y, { steps: 6 })
+await gm.mouse.up()
 await gm.waitForTimeout(500)
 g = await state(gm)
 p = await state(pl)
@@ -227,8 +237,8 @@ check('freehand drawing', !!free && free.props.points.length > 10)
 
 // 10. Template cone, 3 cells
 await pl.evaluate(() => (window.__store.tool = 'template-cone'))
-const c1 = await toClient(pl, 700, 700)
-const c2 = await toClient(pl, 910, 700)
+const c1 = await toClient(pl, 735, 735)
+const c2 = await toClient(pl, 945, 735)
 await pl.mouse.move(c1.x, c1.y)
 await pl.mouse.down()
 await pl.mouse.move(c2.x, c2.y, { steps: 6 })
@@ -241,10 +251,13 @@ check('cone template created (3 cells)', !!cone && Math.abs(cone.props.size - 21
 
 // 11. Ruler (screenshot)
 await pl.evaluate(() => (window.__store.tool = 'ruler'))
-const r1 = await toClient(pl, 105, 525)
+// Start right next to a grid corner: the ruler must still begin at the cell centre.
+const r1 = await toClient(pl, 138, 488)
 const r2 = await toClient(pl, 105 + 280, 525 + 210)
 await pl.mouse.move(r1.x, r1.y)
 await pl.mouse.down()
+const rulerStart = await pl.evaluate(() => window.__engine.gesture.start)
+check('ruler starts at a cell centre', rulerStart.x === 105 && rulerStart.y === 455, JSON.stringify(rulerStart))
 await pl.mouse.move(r2.x, r2.y, { steps: 6 })
 await pl.screenshot({ path: `${OUT}/ruler.png` })
 await pl.mouse.up()
@@ -293,6 +306,14 @@ await gm.waitForTimeout(400)
 const pages = await gm.evaluate(() => window.__store.pages.map((x) => ({ id: x.id, name: x.name })))
 const newPage = pages[pages.length - 1]
 await gm.locator('.tab', { hasText: newPage.name }).locator('.tab-menu').click()
+const menuLayout = await gm.evaluate(() => {
+  const bar = document.querySelector('.topbar').getBoundingClientRect()
+  const menu = document.querySelector('.topbar .menu').getBoundingClientRect()
+  const strip = document.querySelector('.topbar .pages')
+  return { overflows: menu.bottom > bar.bottom + 100, noScroll: strip.scrollHeight <= strip.clientHeight }
+})
+check('page menu drops below the top bar', menuLayout.overflows && menuLayout.noScroll)
+await gm.screenshot({ path: `${OUT}/page-menu.png` })
 await gm.getByRole('button', { name: 'Move all players here' }).click()
 await pl.waitForTimeout(500)
 p = await state(pl)
