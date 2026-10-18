@@ -1,7 +1,7 @@
 {
   "name": "frolls",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "scripts": {
     "dev": "\"backend/.venv/Scripts/python\" scripts/dev.py",
     "setup": "cd backend && python -m venv .venv && \".venv/Scripts/python\" -m pip install -e \".[dev]\" && cd .. && npm install && npm --prefix frontend install",
