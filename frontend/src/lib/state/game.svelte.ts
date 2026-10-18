@@ -20,7 +20,6 @@ import { saveIdentity, type Identity } from './identity'
 
 export type Tool =
   | 'select'
-  | 'pan'
   | 'ruler'
   | 'draw-free'
   | 'draw-line'
@@ -29,9 +28,6 @@ export type Tool =
   | 'draw-polygon'
   | 'text'
   | 'template-circle'
-  | 'template-cone'
-  | 'template-line'
-  | 'template-square'
 
 /** Another player's live measurement; segment null = they stopped measuring. */
 export interface RemoteMeasure {

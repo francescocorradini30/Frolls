@@ -43,7 +43,7 @@ type Gesture =
   | { kind: 'rotate'; id: string; deg: number | null }
   | { kind: 'ruler'; start: Point; end?: Point }
   | { kind: 'draw'; tool: Tool; start: Point; points: number[] }
-  | { kind: 'template'; tool: Tool; start: Point }
+  | { kind: 'template'; start: Point; snapped: boolean }
 
 const LAYERS: Layer[] = ['map', 'objects', 'gm']
 
@@ -335,7 +335,7 @@ export class Engine {
     const p = this.toWorld(screen)
     const tool = this.store.tool
 
-    if (e.button === 1 || e.button === 2 || tool === 'pan' || this.spaceHeld) {
+    if (e.button === 1 || e.button === 2 || this.spaceHeld) {
       this.gesture = {
         kind: 'pan',
         startX: screen.x,
@@ -409,8 +409,10 @@ export class Engine {
       return
     }
 
-    if (tool.startsWith('template-')) {
-      this.gesture = { kind: 'template', tool, start: this.maybeSnapPoint(p, e) }
+    if (tool === 'template-circle') {
+      // Areas start at a cell centre; the circle then covers whole cells (see areaRadius).
+      const snapped = this.page.snap && !e.altKey && this.page.grid_type !== 'none'
+      this.gesture = { kind: 'template', start: this.maybeSnapPoint(p, e), snapped }
     }
   }
 
@@ -489,7 +491,7 @@ export class Engine {
         this.drawOverlay()
         return
       case 'template':
-        this.drawOverlay(this.maybeSnapPoint(p, e))
+        this.drawOverlay(p)
         return
       case 'draw':
         if (g.tool === 'draw-free') {
@@ -543,7 +545,7 @@ export class Engine {
         this.commitDrawing(g, p)
         break
       case 'template':
-        this.commitTemplate(g, this.maybeSnapPoint(p, e))
+        this.commitTemplate(g, p)
         break
     }
     this.drawOverlay()
@@ -578,7 +580,10 @@ export class Engine {
 
   private snapObject(o: MapObject, p: Point, noSnap: boolean): Point {
     const page = this.page
-    if (!page || !page.snap || noSnap || (o.kind !== 'token' && o.kind !== 'image')) return p
+    if (!page || !page.snap || noSnap) return p
+    // Spell areas keep their centre on a cell centre, like when they are created.
+    if (o.kind === 'template' && o.props.shape === 'circle') return cellCenter(page, p)
+    if (o.kind !== 'token' && o.kind !== 'image') return p
     return snapCenter(page, p, o.width, o.height)
   }
 
@@ -707,8 +712,9 @@ export class Engine {
 
   private commitTemplate(g: Extract<Gesture, { kind: 'template' }>, end: Point): void {
     if (!this.page) return
-    const geom = templateGeometry(g.tool, g.start, end)
-    if (geom.size * this.zoom < CLICK_SLOP_PX) return
+    // A click, or a drag shorter than one cell, creates nothing.
+    const { cells, size } = areaRadius(this.page, g.start, end, g.snapped)
+    if (cells < 1) return
     this.store.createObjects([
       {
         id: uid(),
@@ -719,10 +725,10 @@ export class Engine {
         y: g.start.y,
         width: 1,
         height: 1,
-        rotation: geom.rotation,
+        rotation: 0,
         props: {
-          shape: geom.shape,
-          size: geom.size,
+          shape: 'circle',
+          size,
           width: this.page.grid_size,
           color: this.store.me?.color ?? canvasColors.template,
         },
@@ -827,11 +833,13 @@ export class Engine {
       }
       g.stroke({ width: style.strokeWidth, color: style.stroke, cap: 'round', join: 'round' })
     } else if (gesture.kind === 'template' && this.page) {
-      const geom = templateGeometry(gesture.tool, gesture.start, cursor)
-      drawTemplatePreview(g, gesture.start, geom, this.page.grid_size, accent)
-      this.overlayLabel.text = formatDistance(this.page, (geom.size / this.page.grid_size) * this.page.scale_number)
-      this.overlayLabel.position.set(cursor.x, cursor.y)
-      this.overlayLabel.scale.set(1 / z)
+      // Radius grows one whole cell at a time; the label is the radius.
+      const o = gesture.start
+      const { cells, size, end } = areaRadius(this.page, o, cursor, gesture.snapped)
+      if (cells < 1) return
+      g.circle(o.x, o.y, size).fill({ color: accent, alpha: 0.25 }).stroke({ width: 2 / z, color: accent })
+      this.rulerLine(g, this.overlayLabel, o, end, accent)
+      this.overlayLabel.text = formatDistance(this.page, cells * this.page.scale_number)
     } else if (this.polygon && this.store.tool === 'draw-polygon') {
       const pts = this.polygon
       g.moveTo(pts[0], pts[1])
@@ -997,7 +1005,7 @@ export class Engine {
       return
     }
     if (mod) return
-    const shortcuts: Record<string, Tool> = { v: 'select', h: 'pan', r: 'ruler', d: 'draw-free', t: 'text' }
+    const shortcuts: Record<string, Tool> = { v: 'select', r: 'ruler', d: 'draw-free', t: 'text' }
     const tool = shortcuts[e.key.toLowerCase()]
     if (tool) s.tool = tool
   }
@@ -1154,41 +1162,18 @@ function contains(v: ObjectView, p: Point): boolean {
   return Math.abs(local.x) <= w / 2 + pad && Math.abs(local.y) <= h / 2 + pad
 }
 
-interface TemplateGeometry {
-  shape: 'circle' | 'cone' | 'line' | 'square'
-  size: number
-  rotation: number
-}
-
-function templateGeometry(tool: Tool, start: Point, end: Point): TemplateGeometry {
-  const size = Math.hypot(end.x - start.x, end.y - start.y)
-  const rotation = (Math.atan2(end.y - start.y, end.x - start.x) * 180) / Math.PI
-  const shape = tool.replace('template-', '') as TemplateGeometry['shape']
-  if (shape === 'square') {
-    return { shape, size: Math.max(Math.abs(end.x - start.x), Math.abs(end.y - start.y)), rotation: 0 }
-  }
-  return { shape, size, rotation: shape === 'circle' ? 0 : rotation }
-}
-
-function drawTemplatePreview(g: Graphics, o: Point, t: TemplateGeometry, gridSize: number, color: string): void {
-  const a = (t.rotation * Math.PI) / 180
-  if (t.shape === 'circle') g.circle(o.x, o.y, t.size)
-  else if (t.shape === 'square') g.rect(o.x - t.size, o.y - t.size, t.size * 2, t.size * 2)
-  else if (t.shape === 'line') {
-    const half = gridSize / 2
-    const nx = -Math.sin(a) * half
-    const ny = Math.cos(a) * half
-    const ex = o.x + Math.cos(a) * t.size
-    const ey = o.y + Math.sin(a) * t.size
-    g.poly([o.x + nx, o.y + ny, ex + nx, ey + ny, ex - nx, ey - ny, o.x - nx, o.y - ny])
-  } else {
-    const half = ((53.13 / 2) * Math.PI) / 180
-    g.moveTo(o.x, o.y)
-    g.lineTo(o.x + t.size * Math.cos(a - half), o.y + t.size * Math.sin(a - half))
-    g.arc(o.x, o.y, t.size, a - half, a + half)
-    g.closePath()
-  }
-  g.fill({ color, alpha: 0.25 }).stroke({ width: 2, color })
+/**
+ * Spell area radius in whole cells (0 until the cursor reaches a neighbouring cell), measured from the origin cell's centre like
+ * the ruler. When snapped the drawn circle reaches the outer edge of the last cell (half a cell
+ * further), so it fills whole cells: radius 1 = the origin cell plus its ring, 3x3 cells.
+ * `end` is the radius line's end: the centre of the last cell, towards the cursor.
+ */
+function areaRadius(page: Page, o: Point, cursor: Point, snapped: boolean): { cells: number; size: number; end: Point } {
+  const dist = Math.hypot(cursor.x - o.x, cursor.y - o.y)
+  const cells = Math.round(dist / page.grid_size)
+  const len = cells * page.grid_size
+  const end = dist > 0 ? { x: o.x + ((cursor.x - o.x) / dist) * len, y: o.y + ((cursor.y - o.y) / dist) * len } : { x: o.x + len, y: o.y }
+  return { cells, size: (cells + (snapped ? 0.5 : 0)) * page.grid_size, end }
 }
 
 function segment(a: Point, b: Point): Segment {

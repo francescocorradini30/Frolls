@@ -18,7 +18,6 @@
 
   const TOOLS: { id: Tool; icon: string; label: string; key?: string }[] = [
     { id: 'select', icon: '➤', label: 'Select and move', key: 'V' },
-    { id: 'pan', icon: '✋', label: 'Pan the map (or hold Space)', key: 'H' },
     { id: 'ruler', icon: '📏', label: 'Ruler', key: 'R' },
   ]
   const DRAW: { id: Tool; icon: string; label: string }[] = [
@@ -29,22 +28,15 @@
     { id: 'draw-polygon', icon: '⬠', label: 'Polygon (click to add points, double-click to close)' },
     { id: 'text', icon: 'T', label: 'Text (T)' },
   ]
-  const TEMPLATES: { id: Tool; icon: string; label: string }[] = [
-    { id: 'template-circle', icon: '◎', label: 'Area: sphere/circle' },
-    { id: 'template-cone', icon: '◢', label: 'Area: cone' },
-    { id: 'template-line', icon: '━', label: 'Area: line' },
-    { id: 'template-square', icon: '▣', label: 'Area: cube' },
-  ]
   const LAYERS: { id: Layer; icon: string; label: string }[] = [
     { id: 'map', icon: '🗺', label: 'Map layer (backgrounds and scenery)' },
     { id: 'objects', icon: '♟', label: 'Objects & Tokens layer' },
     { id: 'gm', icon: '👁', label: 'GM layer (hidden from players)' },
   ]
 
-  let open = $state<'draw' | 'template' | null>(null)
+  let open = $state<'draw' | null>(null)
 
   const drawActive = $derived(DRAW.find((t) => t.id === store.tool))
-  const templateActive = $derived(TEMPLATES.find((t) => t.id === store.tool))
 </script>
 
 <svelte:window onclick={() => (open = null)} />
@@ -97,26 +89,12 @@
     {/if}
   </div>
 
-  <div class="group">
-    <button
-      class="tool"
-      class:active={!!templateActive}
-      title="Spell areas"
-      onclick={(e) => {
-        e.stopPropagation()
-        open = open === 'template' ? null : 'template'
-      }}>{templateActive?.icon ?? '◎'}</button
-    >
-    {#if open === 'template'}
-      <div class="flyout panel">
-        {#each TEMPLATES as t (t.id)}
-          <button class="tool" class:active={store.tool === t.id} title={t.label} onclick={() => (store.tool = t.id)}
-            >{t.icon}</button
-          >
-        {/each}
-      </div>
-    {/if}
-  </div>
+  <button
+    class="tool"
+    class:active={store.tool === 'template-circle'}
+    title="Spell area (drag from the centre)"
+    onclick={() => (store.tool = 'template-circle')}>◎</button
+  >
 
   {#if store.isGm}
     <hr />

@@ -20,6 +20,7 @@
 
   const ids = $derived(objectId ? store.selection : [])
   const first = $derived(objectId ? store.objects.get(objectId) : undefined)
+  const allAreas = $derived(ids.every((id) => store.objects.get(id)?.kind === 'template'))
   const anyToken = $derived(ids.some((id) => store.objects.get(id)?.kind === 'token'))
   const deletable = $derived(ids.some((id) => {
     const o = store.objects.get(id)
@@ -56,8 +57,10 @@
       <button onclick={() => act(() => store.addToTurnOrder(ids))}>Add to Turn Order</button>
       <button onclick={() => act(toggleName)}>{first.props.show_name === false ? 'Show' : 'Hide'} name</button>
     {/if}
-    <button onclick={() => act(() => store.send({ type: 'obj.order', ids, to: 'front' }))}>To Front</button>
-    <button onclick={() => act(() => store.send({ type: 'obj.order', ids, to: 'back' }))}>To Back</button>
+    {#if !allAreas}
+      <button onclick={() => act(() => store.send({ type: 'obj.order', ids, to: 'front' }))}>To Front</button>
+      <button onclick={() => act(() => store.send({ type: 'obj.order', ids, to: 'back' }))}>To Back</button>
+    {/if}
     {#if store.isGm}
       <hr />
       <span class="label">Move to layer</span>
