@@ -51,6 +51,14 @@ textarea {
   min-width: 0;
 }
 
+/* Sliders: no text-field box, so the thumb runs the full width of the track. */
+input[type='range'] {
+  padding: 0;
+  border: none;
+  background: transparent;
+  accent-color: var(--accent);
+}
+
 input:focus,
 select:focus,
 textarea:focus {

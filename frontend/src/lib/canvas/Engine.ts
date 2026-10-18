@@ -3,7 +3,7 @@ import type { Layer, MapObject, ObjectPatch, Page, PreviewItem, Segment } from '
 import type { GameStore, Ping, RemoteMeasure, Tool } from '../state/game.svelte'
 import { canvasColors } from '../theme'
 import { uid } from '../util/ids'
-import { anchorCell, cellCenter, drawGrid, pagePixelSize, snapCenter, snapSize, type Point } from './grid'
+import { anchorCell, cellCenter, drawBackground, drawGrid, pagePixelSize, snapCenter, snapSize, type Point } from './grid'
 import { formatDistance, measure } from './measure'
 import { ObjectView } from './views'
 
@@ -73,7 +73,8 @@ interface Measured {
 export class Engine {
   private readonly app = new Application()
   private readonly world = new Container()
-  private readonly background = new Graphics()
+  private readonly background = new Graphics({ label: 'background' })
+  private readonly grid = new Graphics({ label: 'grid' })
   private readonly layers = new Map<Layer, Container>()
   private readonly overlay = new Graphics()
   private readonly overlayLabel = new Text({ text: '', style: LABEL_STYLE })
@@ -116,9 +117,11 @@ export class Engine {
 
     this.world.addChild(this.background)
     for (const layer of LAYERS) {
-      const c = new Container({ sortableChildren: true })
+      const c = new Container({ sortableChildren: true, label: `layer:${layer}` })
       this.layers.set(layer, c)
       this.world.addChild(c)
+      // Grid lines go right above the map layer: over the maps, under the tokens.
+      if (layer === 'map') this.world.addChild(this.grid)
     }
     this.overlayLabel.anchor.set(0.5, 1.2)
     this.world.addChild(this.remoteLayer, this.overlay, this.overlayLabel, this.pings)
@@ -220,7 +223,7 @@ export class Engine {
     for (const v of this.views.values()) v.destroy()
     this.views.clear()
     this.page = page
-    drawGrid(this.background, page)
+    this.drawPage(page)
     for (const o of objects) this.upsertOne(o)
     if (!samePage) {
       for (const r of this.remoteRulers.values()) r.root.destroy({ children: true })
@@ -231,9 +234,14 @@ export class Engine {
 
   private updatePage(page: Page): void {
     this.page = page
-    drawGrid(this.background, page)
+    this.drawPage(page)
     for (const v of this.views.values()) v.update(v.obj, page)
     this.redrawRemoteRulers()
+  }
+
+  private drawPage(page: Page): void {
+    drawBackground(this.background, page)
+    drawGrid(this.grid, page)
   }
 
   private upsert(objs: MapObject[]): void {

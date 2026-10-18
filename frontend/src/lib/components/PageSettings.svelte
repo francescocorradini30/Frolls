@@ -3,6 +3,8 @@
   import { store } from '../state/game.svelte'
 
   const page = $derived(store.page)
+  // Slider position while dragging; saved (and broadcast) only on release.
+  let opacityDrag = $state<number | null>(null)
   // Units offered for the page scale, from the game measurement system.
   const units = $derived(store.measurement === 'metric' ? ['m', 'km'] : ['ft', 'mi'])
 
@@ -60,8 +62,19 @@
       </label>
     </div>
     <label class="field">
-      <span>Grid opacity: {Math.round(page.grid_opacity * 100)}%</span>
-      <input type="range" min="0" max="1" step="0.05" value={page.grid_opacity} onchange={(e) => patch({ grid_opacity: Number(e.currentTarget.value) })} />
+      <span>Grid opacity: {Math.round((opacityDrag ?? page.grid_opacity) * 100)}%</span>
+      <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={page.grid_opacity}
+        oninput={(e) => (opacityDrag = Number(e.currentTarget.value))}
+        onchange={(e) => {
+          opacityDrag = null
+          patch({ grid_opacity: Number(e.currentTarget.value) })
+        }}
+      />
     </label>
     <label class="check">
       <input type="checkbox" checked={page.snap} onchange={(e) => patch({ snap: e.currentTarget.checked })} />

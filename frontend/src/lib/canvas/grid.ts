@@ -12,12 +12,18 @@ export function pagePixelSize(page: Page): { w: number; h: number } {
   return { w: page.width * page.grid_size, h: page.height * page.grid_size }
 }
 
-/** Draw the page background and grid lines. */
+/** Draw the page background colour. */
+export function drawBackground(g: Graphics, page: Page): void {
+  const { w, h } = pagePixelSize(page)
+  g.clear()
+  g.rect(0, 0, w, h).fill(page.background_color)
+}
+
+/** Draw the grid lines (they sit above the map layer, so maps never hide them). */
 export function drawGrid(g: Graphics, page: Page): void {
   const { w, h } = pagePixelSize(page)
   const s = page.grid_size
   g.clear()
-  g.rect(0, 0, w, h).fill(page.background_color)
   if (page.grid_type === 'none') return
 
   if (page.grid_type === 'square') {

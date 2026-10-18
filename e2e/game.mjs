@@ -430,6 +430,30 @@ await gm.getByRole('button', { name: 'Metric' }).click()
 await gm.waitForTimeout(300)
 await gm.screenshot({ path: `${OUT}/settings.png` })
 
+// 21. Page settings: the grid opacity slider reaches both ends
+await gm.getByRole('button', { name: /Page$/ }).click()
+const slider = gm.locator('input[type="range"]').first()
+const sb = await slider.boundingBox()
+const opacity = () => gm.evaluate(() => window.__store.page.grid_opacity)
+await gm.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2)
+await gm.mouse.down()
+await gm.mouse.move(sb.x - 40, sb.y + sb.height / 2, { steps: 8 })
+await gm.mouse.up()
+await gm.waitForTimeout(300)
+const low = await opacity()
+await gm.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2)
+await gm.mouse.down()
+await gm.mouse.move(sb.x + sb.width + 40, sb.y + sb.height / 2, { steps: 8 })
+await gm.mouse.up()
+await gm.waitForTimeout(300)
+const high = await opacity()
+await slider.screenshot({ path: `${OUT}/opacity-slider.png` })
+check('grid opacity slider reaches 0% and 100%', low === 0 && high === 1, `${low} / ${high}`)
+
+// 22. The grid is drawn over the map layer, under tokens
+const order = await gm.evaluate(() => window.__engine.world.children.map((c) => c.label || ''))
+check('grid sits between map layer and objects', order.indexOf('layer:map') < order.indexOf('grid') && order.indexOf('grid') < order.indexOf('layer:objects'), order.join(','))
+
 } catch (e) {
   results.push(`FAIL aborted: ${e.message.split('\n')[0]}`)
 } finally {
