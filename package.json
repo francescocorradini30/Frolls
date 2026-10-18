@@ -1,7 +1,7 @@
 {
   "name": "frolls",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "scripts": {
     "dev": "concurrently -k -n api,web -c yellow,cyan \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "cd backend && \".venv/Scripts/python\" -m uvicorn app.main:app --reload --port 8000 --timeout-graceful-shutdown 1",
