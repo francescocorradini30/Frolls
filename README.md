@@ -1,34 +1,23 @@
 # Frolls
 
-Virtual tabletop per giocare di ruolo fantasy online, compatibile 5e.
+**Tira i dadi, non la connessione.**
 
-## Requisiti
+Frolls è un virtual tabletop per giocare di ruolo fantasy online, compatibile 5e. Mappa, token, chat e dadi in tempo reale nel browser, senza installare nulla: veloce, leggero, pensato per far giocare il tavolo invece di farlo aspettare.
 
-- Python 3.12+
-- Node.js 22+
-- PostgreSQL 15+ in locale, con utente `frolls` (password `frolls`) e database `frolls_dev` e `frolls_test`:
+> Progetto in sviluppo attivo (versione 0.1.0). Funzionalità e interfaccia possono cambiare.
 
-  ```bash
-  psql -U postgres -c "CREATE ROLE frolls LOGIN PASSWORD 'frolls' CREATEDB;" \
-       -c "CREATE DATABASE frolls_dev OWNER frolls;" \
-       -c "CREATE DATABASE frolls_test OWNER frolls;"
-  ```
+## Cosa c'è già
 
-## Avvio in sviluppo
+- **Mappa condivisa** a più pagine, con griglia quadrata, esagonale o libera, scala e regole di distanza configurabili.
+- **Livelli** mappa, oggetti e GM: quello che è sul livello GM i giocatori non lo vedono mai.
+- **Token** con immagini, barre, aure e stati, trascinabili con aggancio alla griglia.
+- **Disegno** a mano libera e forme, testo, righello e aree (cerchio, cono, linea, cubo).
+- **Ping** per indicare un punto a tutti, e richiamo della vista del gruppo da parte del GM.
+- **Chat** con sussurri, azioni, narrazione e tiri di dadi direttamente nel messaggio.
+- **Motore dadi** completo: vantaggio e svantaggio, esplosioni, rilanci, conteggio successi, dadi Fate.
+- **Tracker iniziativa** con ordinamento, turni e round.
 
-Dalla root del progetto:
-
-```bash
-npm run setup                                   # solo la prima volta
-cd backend && .venv/Scripts/alembic upgrade head && cd ..   # crea/aggiorna le tabelle
-npm run dev                                     # backend (8000) + frontend (5173)
-```
-
-Apri http://localhost:5173. Ogni scheda del browser è un giocatore diverso: aprine una come **Game Master** e una o più come **Giocatore** per provare la partita.
-
-`Ctrl+C` ferma tutto. Nel log, `[api]` è il backend e `[web]` è il frontend.
-
-## Comandi di gioco
+## Come si gioca
 
 | Azione | Come |
 |---|---|
@@ -43,42 +32,10 @@ Apri http://localhost:5173. Ogni scheda del browser è un giocatore diverso: apr
 | Strumenti | `V` seleziona, `H` mano, `R` righello, `D` matita, `T` testo |
 | Token | doppio clic = impostazioni, tasto destro = menu, `Canc` elimina, frecce spostano, `Ctrl+C/V/D` copia/incolla/duplica, `Alt` durante il drag disattiva lo snap |
 
-## Test
+## In arrivo
 
-```bash
-npm test        # pytest backend (DB frolls_test) + type-check frontend
-npm run e2e     # con l'app avviata: due schede Chrome (GM + giocatore) provano le meccaniche
-```
+Journal con personaggi e handout, macro, schede 5e per personaggi e PNG, compendium SRD, tabelle casuali e mazzi di carte, account e partite multiple.
 
-Lint del backend: `cd backend && .venv/Scripts/ruff check . && .venv/Scripts/ruff format --check .`
+## Note legali
 
-## Struttura
-
-```
-backend/
-  app/
-    main.py          # FastAPI app, lifespan, router
-    config.py        # Settings da env (prefisso FROLLS_)
-    db.py, models.py # SQLAlchemy async + modelli
-    dice/            # Parser e motore dadi
-    game/            # Server di gioco: protocollo, permessi, chat, stato
-    api/             # REST: health, upload immagini
-    ws/              # Endpoint WebSocket /ws/game
-  migrations/        # Alembic
-  tests/
-frontend/
-  src/
-    App.svelte
-    lib/canvas/      # Motore mappa PixiJS: griglia, misure, viste, input
-    lib/components/  # UI Svelte
-    lib/net/         # Client WebSocket e tipi del protocollo
-    lib/state/       # GameStore e identità della scheda
-docs/
-  roll20-features.md # Specifica funzionale (riferimento clean-room)
-e2e/
-  game.mjs           # Collaudo nel browser
-```
-
-## Protocollo WebSocket
-
-Endpoint unico `/ws/game`. Messaggi JSON con campo `type`; il primo messaggio del client è sempre `hello`. Le definizioni stanno in `backend/app/game/protocol.py` (client → server) e `frontend/src/lib/net/protocol.ts` (entrambe le direzioni): vanno tenute allineate.
+Frolls è un prodotto indipendente compatibile con la quinta edizione. Usa esclusivamente contenuti del System Reference Document 5.1 / 5.2, rilasciati sotto licenza [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). Non è affiliato né approvato da Wizards of the Coast.

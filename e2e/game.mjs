@@ -236,7 +236,7 @@ await gm.evaluate((id) => window.__store.updateObjects([{ id, layer: 'objects' }
 await gm.waitForTimeout(300)
 
 // 15. Whisper
-await pl.getByPlaceholder(/Scrivi o tira/).fill('/w gm ho un piano segreto')
+await pl.getByLabel('Messaggio chat').fill('/w gm ho un piano segreto')
 await pl.keyboard.press('Enter')
 await gm.waitForTimeout(400)
 check('sussurro al GM', (await gm.locator('.log').innerText()).includes('ho un piano segreto'))

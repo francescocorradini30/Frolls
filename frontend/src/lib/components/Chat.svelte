@@ -86,7 +86,7 @@
       onkeydown={onKey}
       rows="2"
       maxlength="4000"
-      placeholder="Scrivi o tira i dadi (es. 1d20+5)…"
+      aria-label="Messaggio chat"
     ></textarea>
     <div class="actions">
       <button class="icon-btn" title="Aiuto comandi" onclick={() => (showHelp = !showHelp)}>?</button>
