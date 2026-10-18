@@ -110,3 +110,16 @@ export const BARS = [
 ] as const
 
 export const DEFAULT_DRAW_COLOR = palette.pink
+
+/** Border colours offered by the token stamp (gold, silver, bronze-like tones first). */
+export const STAMP_BORDER_COLORS = [
+  palette.butter,
+  palette.lavender,
+  palette.peach,
+  palette.violet,
+  palette.sky,
+  palette.mint,
+  palette.pink,
+  palette.rose,
+  palette.ink950,
+] as const

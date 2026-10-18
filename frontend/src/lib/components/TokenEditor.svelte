@@ -5,6 +5,7 @@
   import { BARS, DEFAULT_TOKEN_COLOR } from '../theme'
   import { STATUSES } from '../util/statuses'
   import { pickFile, uploadImage } from '../util/upload'
+  import TokenStamp from './TokenStamp.svelte'
 
   let { obj, onClose }: { obj: MapObject; onClose: () => void } = $props()
 
@@ -22,6 +23,8 @@
   let bars = $state<Bar[]>(BARS.map((b) => ({ value: null, max: null, ...(p[b.key] ?? {}) })))
   let statuses = $state<string[]>([...(p.statuses ?? [])])
   let uploading = $state(false)
+  // Picture waiting to be framed in the token stamp before upload.
+  let stamping = $state<File | null>(null)
 
   const isToken = start.kind === 'token'
   const players = $derived(
@@ -35,6 +38,12 @@
   async function chooseImage() {
     const file = await pickFile()
     if (!file) return
+    if (isToken) stamping = file
+    else await upload(file)
+  }
+
+  async function upload(file: File) {
+    stamping = null
     uploading = true
     try {
       image = await uploadImage(file)
@@ -177,6 +186,10 @@
     </footer>
   </div>
 </div>
+
+{#if stamping}
+  <TokenStamp file={stamping} onDone={upload} onCancel={() => (stamping = null)} />
+{/if}
 
 <style>
   .backdrop {

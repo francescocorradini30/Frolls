@@ -454,6 +454,72 @@ check('grid opacity slider reaches 0% and 100%', low === 0 && high === 1, `${low
 const order = await gm.evaluate(() => window.__engine.world.children.map((c) => c.label || ''))
 check('grid sits between map layer and objects', order.indexOf('layer:map') < order.indexOf('grid') && order.indexOf('grid') < order.indexOf('layer:objects'), order.join(','))
 
+// 23. Token stamp: an image dropped on the map is framed before becoming a token
+await gm.evaluate(() => (window.__store.layer = 'objects'))
+const pngBase64 = await gm.evaluate(() => {
+  const c = document.createElement('canvas')
+  c.width = 300
+  c.height = 200
+  const ctx = c.getContext('2d')
+  ctx.fillStyle = 'rgb(200 80 120)'
+  ctx.fillRect(0, 0, 300, 200)
+  ctx.fillStyle = 'rgb(80 200 160)'
+  ctx.fillRect(100, 50, 100, 100)
+  return c.toDataURL('image/png').split(',')[1]
+})
+const tokensBefore = (await state(gm)).objects.filter((o) => o.kind === 'token').length
+await gm.evaluate((b64) => {
+  const bytes = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0))
+  const dt = new DataTransfer()
+  dt.items.add(new File([bytes], 'hero.png', { type: 'image/png' }))
+  const map = document.querySelector('.map')
+  const r = map.getBoundingClientRect()
+  map.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true }))
+}, pngBase64)
+const stampDialog = gm.getByRole('dialog', { name: 'Token stamp' })
+await stampDialog.waitFor({ timeout: 3000 })
+const stampCanvas = await stampDialog.locator('canvas').boundingBox()
+await drag(gm, { x: stampCanvas.x + 170, y: stampCanvas.y + 170 }, { x: stampCanvas.x + 200, y: stampCanvas.y + 150 })
+await stampDialog.getByRole('button', { name: 'Double' }).click()
+await gm.screenshot({ path: `${OUT}/token-stamp.png` })
+await stampDialog.getByRole('button', { name: 'Create token' }).click()
+await gm.waitForFunction((n) => [...window.__store.objects.values()].filter((o) => o.kind === 'token').length > n, tokensBefore, { timeout: 5000 }).catch(() => {})
+const stamped = (await state(gm)).objects.filter((o) => o.kind === 'token').at(-1)
+const stampedSize = stamped && (await gm.evaluate((src) => new Promise((ok) => {
+  const i = new Image()
+  i.onload = () => ok([i.naturalWidth, i.naturalHeight])
+  i.onerror = () => ok(null)
+  i.src = src
+}), stamped.props.image))
+check(
+  'dropped image framed into a 512 px square token',
+  !!stamped && stamped.props.name === 'hero' && stampedSize?.[0] === 512 && stampedSize?.[1] === 512 && stamped.width === 70,
+  JSON.stringify({ name: stamped?.props.name, stampedSize, w: stamped?.width }),
+)
+
+// 24. Token editor: "Upload image" opens the stamp too
+await gm.evaluate(() => window.__store.setSelection([]))
+const sc = await toClient(gm, stamped.x, stamped.y)
+await gm.mouse.dblclick(sc.x, sc.y)
+const editor = gm.getByRole('dialog', { name: 'Token settings' })
+await editor.waitFor()
+const chooser = gm.waitForEvent('filechooser')
+await editor.getByRole('button', { name: 'Upload image' }).click()
+await (await chooser).setFiles({ name: 'villain.png', mimeType: 'image/png', buffer: Buffer.from(pngBase64, 'base64') })
+await stampDialog.waitFor({ timeout: 3000 })
+// Double click on the rotation slider puts it back to 0°.
+const rotation = stampDialog.getByLabel('Rotation')
+await rotation.fill('90')
+await rotation.dblclick()
+check('stamp rotation resets on double click', (await rotation.inputValue()) === '0')
+await stampDialog.getByRole('button', { name: 'Create token' }).click()
+await stampDialog.waitFor({ state: 'detached', timeout: 5000 })
+await gm.waitForFunction(() => !document.querySelector('.dialog button[disabled]'), null, { timeout: 5000 }).catch(() => {})
+await editor.getByRole('button', { name: 'Save' }).click()
+await gm.waitForTimeout(500)
+const restamped = (await state(gm)).objects.find((o) => o.id === stamped.id)
+check('editor upload goes through the stamp', restamped.props.image !== stamped.props.image && restamped.props.image.endsWith('.png'), restamped.props.image)
+
 } catch (e) {
   results.push(`FAIL aborted: ${e.message.split('\n')[0]}`)
 } finally {

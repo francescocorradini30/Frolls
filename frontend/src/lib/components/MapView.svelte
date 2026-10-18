@@ -10,6 +10,7 @@
   import ContextMenu from './ContextMenu.svelte'
   import SelectionHud from './SelectionHud.svelte'
   import TokenEditor from './TokenEditor.svelte'
+  import TokenStamp from './TokenStamp.svelte'
 
   let { zoom = $bindable(1) }: { zoom?: number } = $props()
 
@@ -19,6 +20,17 @@
   let editing = $state<MapObject | null>(null)
   let textInput = $state<{ world: Point; x: number; y: number; value: string } | null>(null)
   let dropActive = $state(false)
+  let stamping = $state<{ file: File; resolve: (file: File | null) => void } | null>(null)
+
+  /** Let the user frame a picture as a token; null if they cancel. */
+  function stampFile(file: File): Promise<File | null> {
+    return new Promise((resolve) => (stamping = { file, resolve }))
+  }
+
+  function endStamp(file: File | null) {
+    stamping?.resolve(file)
+    stamping = null
+  }
 
   onMount(() => {
     let disposed = false
@@ -82,13 +94,16 @@
   export async function uploadAndPlace(file?: File, at?: Point) {
     const page = store.page
     if (!engine || !page) return
-    const f = file ?? (await pickFile())
+    const picked = file ?? (await pickFile())
+    if (!picked) return
+    const isMap = store.layer === 'map'
+    // Tokens are framed first; maps go up untouched.
+    const f = isMap ? picked : await stampFile(picked)
     if (!f) return
     try {
       const url = await uploadImage(f)
       const size = await imageSize(url).catch(() => ({ w: page.grid_size, h: page.grid_size }))
       const point = at ?? engine.viewCenter()
-      const isMap = store.layer === 'map'
       // Maps keep their natural size; tokens fit one cell.
       const scale = isMap ? 1 : page.grid_size / Math.max(size.w, size.h)
       const w = Math.max(1, size.w * scale)
@@ -120,7 +135,11 @@
     if (!store.isGm || !engine) return
     const files = [...(e.dataTransfer?.files ?? [])].filter((f) => f.type.startsWith('image/'))
     const at = engine.clientToWorld(e.clientX, e.clientY)
-    files.forEach((f, i) => uploadAndPlace(f, { x: at.x + i * 20, y: at.y + i * 20 }))
+    // One after the other, so each token gets its own stamp dialog.
+    files.reduce<Promise<void>>(
+      (prev, f, i) => prev.then(() => uploadAndPlace(f, { x: at.x + i * 20, y: at.y + i * 20 })),
+      Promise.resolve(),
+    )
   }
 
   function commitText() {
@@ -182,6 +201,10 @@
 
 {#if editing}
   <TokenEditor obj={editing} onClose={() => (editing = null)} />
+{/if}
+
+{#if stamping}
+  <TokenStamp file={stamping.file} onDone={endStamp} onCancel={() => endStamp(null)} />
 {/if}
 
 <style>
