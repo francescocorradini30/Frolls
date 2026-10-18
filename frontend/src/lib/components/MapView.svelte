@@ -137,7 +137,7 @@
   class="map"
   class:drop={dropActive}
   role="application"
-  aria-label="Mappa di gioco"
+  aria-label="Game map"
   ondragenter={(e) => {
     if (store.isGm && e.dataTransfer?.types.includes('Files')) dropActive = true
   }}
@@ -159,7 +159,7 @@
       style:top="{textInput.y}px"
       bind:value={textInput.value}
       autofocus
-      placeholder="Scrivi e premi Invio"
+      placeholder="Type and press Enter"
       onkeydown={(e) => {
         if (e.key === 'Enter') commitText()
         if (e.key === 'Escape') textInput = null
@@ -193,7 +193,7 @@
     overflow: hidden;
   }
   .map.drop::after {
-    content: 'Rilascia per caricare l’immagine';
+    content: 'Drop to upload the image';
     position: absolute;
     inset: 12px;
     display: grid;

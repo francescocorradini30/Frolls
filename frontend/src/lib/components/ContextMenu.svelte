@@ -50,30 +50,30 @@
 <div class="menu panel" role="menu" tabindex="-1" style:left="{left}px" style:top="{top}px" onpointerdown={(e) => e.stopPropagation()}>
   {#if first}
     {#if ids.length === 1 && (first.kind === 'token' || first.kind === 'image')}
-      <button onclick={() => act(() => onEdit(first.id))}>Modifica…</button>
+      <button onclick={() => act(() => onEdit(first.id))}>Edit…</button>
     {/if}
     {#if anyToken}
-      <button onclick={() => act(() => store.addToTurnOrder(ids))}>Aggiungi all'iniziativa</button>
-      <button onclick={() => act(toggleName)}>{first.props.show_name === false ? 'Mostra' : 'Nascondi'} nome</button>
+      <button onclick={() => act(() => store.addToTurnOrder(ids))}>Add to Turn Order</button>
+      <button onclick={() => act(toggleName)}>{first.props.show_name === false ? 'Show' : 'Hide'} name</button>
     {/if}
-    <button onclick={() => act(() => store.send({ type: 'obj.order', ids, to: 'front' }))}>Porta in primo piano</button>
-    <button onclick={() => act(() => store.send({ type: 'obj.order', ids, to: 'back' }))}>Porta in fondo</button>
+    <button onclick={() => act(() => store.send({ type: 'obj.order', ids, to: 'front' }))}>To Front</button>
+    <button onclick={() => act(() => store.send({ type: 'obj.order', ids, to: 'back' }))}>To Back</button>
     {#if store.isGm}
       <hr />
-      <span class="label">Sposta sul livello</span>
-      <button disabled={first.layer === 'map'} onclick={() => act(() => moveTo('map'))}>🗺 Mappa</button>
-      <button disabled={first.layer === 'objects'} onclick={() => act(() => moveTo('objects'))}>♟ Oggetti e token</button>
+      <span class="label">Move to layer</span>
+      <button disabled={first.layer === 'map'} onclick={() => act(() => moveTo('map'))}>🗺 Map</button>
+      <button disabled={first.layer === 'objects'} onclick={() => act(() => moveTo('objects'))}>♟ Objects & Tokens</button>
       <button disabled={first.layer === 'gm'} onclick={() => act(() => moveTo('gm'))}>👁 GM</button>
       <hr />
-      <button onclick={() => act(onDuplicate)}>Duplica (Ctrl+D)</button>
+      <button onclick={() => act(onDuplicate)}>Duplicate (Ctrl+D)</button>
     {/if}
     {#if deletable}
-      <button class="danger" onclick={() => act(() => store.deleteObjects(ids))}>Elimina (Canc)</button>
+      <button class="danger" onclick={() => act(() => store.deleteObjects(ids))}>Delete (Del)</button>
     {/if}
   {:else}
-    <button onclick={() => act(() => (store.tool = 'select'))}>Strumento selezione</button>
-    <button onclick={() => act(() => (store.tool = 'ruler'))}>Righello</button>
-    <p class="muted hint">Tieni premuto su un punto vuoto per fare un ping{store.isGm ? ' (Maiusc: porta lì la vista di tutti)' : ''}.</p>
+    <button onclick={() => act(() => (store.tool = 'select'))}>Select tool</button>
+    <button onclick={() => act(() => (store.tool = 'ruler'))}>Ruler</button>
+    <p class="muted hint">Hold down on an empty spot to ping{store.isGm ? ' (Shift: pull everyone’s view there)' : ''}.</p>
   {/if}
 </div>
 

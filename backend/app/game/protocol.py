@@ -26,10 +26,21 @@ class Hello(_Msg):
     player: PlayerInfo
 
 
+class PlayerSettings(BaseModel):
+    wheel: Literal["zoom", "pan"] | None = None
+    chat_timestamps: bool | None = None
+
+
 class PlayerUpdate(_Msg):
     type: Literal["player.update"]
     name: Annotated[str, Field(min_length=1, max_length=60)] | None = None
     color: Color | None = None
+    settings: PlayerSettings | None = None
+
+
+class GameSettings(_Msg):
+    type: Literal["game.settings"]
+    measurement: Literal["metric", "imperial"] | None = None
 
 
 class PageView(_Msg):
@@ -212,6 +223,7 @@ class TurnSort(_Msg):
 ClientMessage = Annotated[
     Hello
     | PlayerUpdate
+    | GameSettings
     | PageView
     | PageCreate
     | PageUpdate

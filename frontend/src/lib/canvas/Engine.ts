@@ -503,6 +503,13 @@ export class Engine {
 
   private onWheel = (e: WheelEvent): void => {
     e.preventDefault()
+    // "Pan" setting: the wheel scrolls the map, Ctrl+wheel (and trackpad pinch) still zooms.
+    if (this.store.settings.wheel === 'pan' && !e.ctrlKey) {
+      const dx = e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX
+      const dy = e.shiftKey && !e.deltaX ? 0 : e.deltaY
+      this.world.position.set(this.world.x - dx, this.world.y - dy)
+      return
+    }
     const factor = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015))
     this.setZoom(this.zoom * factor, this.local(e))
   }

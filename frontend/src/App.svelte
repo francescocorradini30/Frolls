@@ -11,7 +11,7 @@
 
   let identity = $state<Identity | null>(loadIdentity())
   let zoom = $state(1)
-  let sidebarTab = $state<'chat' | 'players' | 'page'>('chat')
+  let sidebarTab = $state<'chat' | 'players' | 'page' | 'settings'>('chat')
   let trackerOpen = $state(false)
   let map: MapView | undefined = $state()
 
@@ -53,7 +53,7 @@
         onUploadImage={() => map?.uploadAndPlace()}
       />
       <MapView bind:this={map} bind:zoom />
-      <Sidebar bind:tab={sidebarTab} onToggleTracker={() => (trackerOpen = !trackerOpen)} />
+      <Sidebar bind:tab={sidebarTab} onToggleTracker={() => (trackerOpen = !trackerOpen)} onLeave={leave} />
     </div>
   </div>
   {#if trackerOpen}

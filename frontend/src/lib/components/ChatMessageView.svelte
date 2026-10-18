@@ -25,7 +25,7 @@
   const whisperLabel = $derived.by(() => {
     if (msg.kind !== 'whisper' || !msg.recipients) return ''
     const names = msg.recipients.map((r) => (r === 'gm' ? 'GM' : store.playerName(r)))
-    return msg.player_id === store.me?.id ? `a ${names.join(', ')}` : 'a te'
+    return msg.player_id === store.me?.id ? `to ${names.join(', ')}` : 'to you'
   })
 
   const time = $derived(
@@ -37,10 +37,10 @@
   {#if !compact && msg.kind !== 'emote' && msg.kind !== 'desc'}
     <header>
       <span class="who" style:color={msg.color}>{msg.speaker}</span>
-      {#if msg.kind === 'whisper'}<span class="tag">sussurro {whisperLabel}</span>{/if}
-      {#if msg.gm_only}<span class="tag">tiro al GM</span>{/if}
-      {#if msg.kind === 'ooc'}<span class="tag">fuori gioco</span>{/if}
-      <time>{time}</time>
+      {#if msg.kind === 'whisper'}<span class="tag">whisper {whisperLabel}</span>{/if}
+      {#if msg.gm_only}<span class="tag">roll to GM</span>{/if}
+      {#if msg.kind === 'ooc'}<span class="tag">out of character</span>{/if}
+      {#if store.settings.chat_timestamps}<time>{time}</time>{/if}
     </header>
   {/if}
 

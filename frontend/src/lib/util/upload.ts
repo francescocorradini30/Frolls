@@ -4,7 +4,7 @@ export async function uploadImage(file: File): Promise<string> {
   const res = await fetch('/api/assets', { method: 'POST', body })
   if (!res.ok) {
     const detail = await res.json().catch(() => null)
-    throw new Error(detail?.detail ?? `Upload fallito (${res.status})`)
+    throw new Error(detail?.detail ?? `Upload failed (${res.status})`)
   }
   return ((await res.json()) as { url: string }).url
 }

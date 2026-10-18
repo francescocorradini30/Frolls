@@ -64,19 +64,19 @@
     {#each store.chat as msg, i (msg.id)}
       <ChatMessageView {msg} compact={compact(i)} />
     {:else}
-      <p class="empty muted">Nessun messaggio. Prova a scrivere <code>d20</code>.</p>
+      <p class="empty muted">No messages yet. Try typing <code>d20</code>.</p>
     {/each}
   </div>
 
   {#if showHelp}
     <div class="help">
-      <p><code>d20</code>, <code>2d6+3</code>, <code>4d6dl1</code> → tiro diretto</p>
-      <p><code>2d20kh1</code> vantaggio · <code>2d20kl1</code> svantaggio</p>
-      <p><code>8d6!</code> esplode · <code>5d10&gt;8</code> successi · <code>1d20r1</code> ritira</p>
-      <p><code>Colpisco per [[1d8+3]]</code> → tiro nel testo</p>
-      <p><code>/w Nome msg</code> sussurro · <code>/w gm msg</code></p>
-      <p><code>/gr 1d20</code> tiro solo al GM · <code>/em</code> azione · <code>/ooc</code></p>
-      {#if store.isGm}<p><code>/desc testo</code> narrazione</p>{/if}
+      <p><code>d20</code>, <code>2d6+3</code>, <code>4d6dl1</code> → direct roll</p>
+      <p><code>2d20kh1</code> advantage · <code>2d20kl1</code> disadvantage</p>
+      <p><code>8d6!</code> exploding · <code>5d10&gt;8</code> successes · <code>1d20r1</code> reroll</p>
+      <p><code>I hit for [[1d8+3]]</code> → inline roll</p>
+      <p><code>/w Name msg</code> whisper · <code>/w gm msg</code></p>
+      <p><code>/gr 1d20</code> roll to GM only · <code>/em</code> emote · <code>/ooc</code></p>
+      {#if store.isGm}<p><code>/desc text</code> narration</p>{/if}
     </div>
   {/if}
 
@@ -86,11 +86,11 @@
       onkeydown={onKey}
       rows="2"
       maxlength="4000"
-      aria-label="Messaggio chat"
+      aria-label="Chat message"
     ></textarea>
     <div class="actions">
-      <button class="icon-btn" title="Aiuto comandi" onclick={() => (showHelp = !showHelp)}>?</button>
-      <button class="btn primary small" onclick={send} disabled={!text.trim()}>Invia</button>
+      <button class="icon-btn" title="Command help" onclick={() => (showHelp = !showHelp)}>?</button>
+      <button class="btn primary small" onclick={send} disabled={!text.trim()}>Send</button>
     </div>
   </div>
 </section>

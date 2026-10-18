@@ -4,6 +4,13 @@ export type Layer = 'map' | 'objects' | 'gm'
 export type ObjectKind = 'token' | 'image' | 'path' | 'text' | 'template'
 export type GridType = 'square' | 'hex_v' | 'hex_h' | 'none'
 export type DiagonalRule = '5e' | 'pf' | 'euclid' | 'manhattan'
+export type Measurement = 'metric' | 'imperial'
+
+/** Personal preferences, only ever sent to the player itself. */
+export interface PlayerSettings {
+  wheel?: 'zoom' | 'pan'
+  chat_timestamps?: boolean
+}
 
 export interface Player {
   id: string
@@ -11,6 +18,7 @@ export interface Player {
   color: string
   is_gm: boolean
   online: boolean
+  settings?: PlayerSettings
 }
 
 export interface Page {
@@ -109,7 +117,7 @@ export interface GameState {
   player_page_id: string | null
   player_page_overrides: Record<string, string>
   turn_order: TurnEntry[]
-  settings: { round?: number; [k: string]: unknown }
+  settings: { round?: number; measurement?: Measurement; [k: string]: unknown }
 }
 
 export interface Die {
@@ -156,8 +164,9 @@ export type ObjectPatch = { id: string } & Partial<Omit<MapObject, 'id' | 'owner
 export type PreviewItem = { id: string; x: number; y: number; rotation?: number }
 
 export type ClientMessage = { rid?: string } & (
-  | { type: 'hello'; player: Omit<Player, 'online'> }
-  | { type: 'player.update'; name?: string; color?: string }
+  | { type: 'hello'; player: Omit<Player, 'online' | 'settings'> }
+  | { type: 'player.update'; name?: string; color?: string; settings?: PlayerSettings }
+  | { type: 'game.settings'; measurement?: Measurement }
   | { type: 'page.view'; page_id: string }
   | { type: 'page.create'; page?: Partial<Page> }
   | { type: 'page.update'; id: string; patch: Partial<Page> }

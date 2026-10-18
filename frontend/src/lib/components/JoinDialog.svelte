@@ -1,9 +1,9 @@
 <script lang="ts">
   import { newIdentity, type Identity } from '../state/identity'
   import { PLAYER_COLORS } from '../theme'
+  import ColorSwatches from './ColorSwatches.svelte'
 
   let { onJoin }: { onJoin: (identity: Identity) => void } = $props()
-
 
   let name = $state('')
   let color = $state<string>(PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)])
@@ -20,41 +20,28 @@
 <div class="backdrop">
   <form class="card" onsubmit={submit}>
     <h1 class="text-gradient">Frolls</h1>
-    <p class="muted">Entra nella partita. Ogni scheda del browser è un giocatore diverso.</p>
+    <p class="muted">Join the game. Each browser tab is a different player.</p>
 
     <label class="field">
-      <span>Nome</span>
+      <span>Name</span>
       <!-- svelte-ignore a11y_autofocus -->
-      <input bind:value={name} maxlength="60" placeholder="Es. Aria la Ranger" autofocus />
+      <input bind:value={name} maxlength="60" placeholder="e.g. Aria the Ranger" autofocus />
     </label>
 
     <div class="field">
-      <span>Colore</span>
-      <div class="swatches">
-        {#each PLAYER_COLORS as c (c)}
-          <button
-            type="button"
-            class="swatch"
-            class:active={color === c}
-            style:background={c}
-            style:--c={c}
-            aria-label={`Colore ${c}`}
-            onclick={() => (color = c)}
-          ></button>
-        {/each}
-        <input type="color" bind:value={color} aria-label="Colore personalizzato" />
-      </div>
+      <span>Color</span>
+      <ColorSwatches value={color} onchange={(c) => (color = c)} />
     </div>
 
     <div class="field">
-      <span>Ruolo</span>
+      <span>Role</span>
       <div class="segmented">
-        <button type="button" class:active={!isGm} onclick={() => (isGm = false)}>Giocatore</button>
+        <button type="button" class:active={!isGm} onclick={() => (isGm = false)}>Player</button>
         <button type="button" class:active={isGm} onclick={() => (isGm = true)}>Game Master</button>
       </div>
     </div>
 
-    <button class="btn primary" type="submit" disabled={!name.trim()}>Entra</button>
+    <button class="btn primary" type="submit" disabled={!name.trim()}>Join</button>
   </form>
 </div>
 
@@ -88,29 +75,5 @@
   }
   p {
     margin: -8px 0 0;
-  }
-  .swatches {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-  .swatch {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    cursor: pointer;
-  }
-  .swatch.active {
-    border-color: var(--text);
-    box-shadow: 0 0 0 2px var(--bg), 0 0 12px var(--c, transparent);
-  }
-  input[type='color'] {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border: none;
-    background: none;
   }
 </style>

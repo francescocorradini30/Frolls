@@ -40,7 +40,7 @@
 
 {#if token}
   <div class="hud panel">
-    <button class="name" onclick={() => onEdit(token.id)} title="Apri impostazioni token">
+    <button class="name" onclick={() => onEdit(token.id)} title="Open token settings">
       {token.props.name || 'Token'} ✎
     </button>
     {#each [0, 1, 2] as i (i)}
@@ -49,7 +49,7 @@
         <input
           value={bar?.value ?? ''}
           placeholder="—"
-          title="Valore (scrivi -5 o +3 per sottrarre/aggiungere)"
+          title="Value (type -5 or +3 to subtract/add)"
           onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           onchange={(e) => applyBar(i, 'value', e.currentTarget.value)}
         />
@@ -57,14 +57,14 @@
         <input
           value={bar?.max ?? ''}
           placeholder="max"
-          title="Massimo"
+          title="Max"
           onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           onchange={(e) => applyBar(i, 'max', e.currentTarget.value)}
         />
       </div>
     {/each}
     <div class="status-wrap">
-      <button class="btn small" onclick={() => (showStatuses = !showStatuses)}>Stati ▾</button>
+      <button class="btn small" onclick={() => (showStatuses = !showStatuses)}>Statuses ▾</button>
       {#if showStatuses}
         <div class="statuses panel">
           {#each STATUSES as s (s.id)}

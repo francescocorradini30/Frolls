@@ -25,7 +25,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.config import settings
 from app.db import session_scope
-from app.game import chat, permissions
+from app.game import chat, permissions, units
 from app.game import protocol as p
 from app.game.serialize import chat_dict, game_dict, object_dict, page_dict, player_dict
 from app.models import DEFAULT_GAME_ID, ChatMessage, Game, MapObject, Page, Player
@@ -78,7 +78,7 @@ class GameServer:
                     name="Frolls",
                     player_page_overrides={},
                     turn_order=[],
-                    settings={"round": 0},
+                    settings={"round": 0, "measurement": units.DEFAULT_MEASUREMENT},
                 )
                 s.add(game)
                 await s.flush()
@@ -90,7 +90,7 @@ class GameServer:
                 pg.id: pg for pg in await s.scalars(select(Page).where(Page.game_id == game.id))
             }
             if not self.pages:
-                page = self._new_page(name="Mappa iniziale", sort_order=0)
+                page = self._new_page(name="Starting map", sort_order=0)
                 s.add(page)
                 self.pages[page.id] = page
             if game.player_page_id not in self.pages:
@@ -103,12 +103,18 @@ class GameServer:
             }
         self._loaded = True
 
+    @property
+    def measurement(self) -> units.Measurement:
+        assert self.game is not None
+        return self.game.settings.get("measurement", units.DEFAULT_MEASUREMENT)
+
     def _new_page(self, **fields: Any) -> Page:
         defaults = {
             column.key: column.default.arg
             for column in Page.__table__.columns
             if column.default is not None and not callable(column.default.arg)
         }
+        defaults["scale_number"], defaults["scale_unit"] = units.CELL_SCALE[self.measurement]
         return Page(id=str(uuid.uuid4()), game_id=DEFAULT_GAME_ID, **{**defaults, **fields})
 
     # --- Connections ---------------------------------------------------------
@@ -159,7 +165,7 @@ class GameServer:
         except Exception:
             # Never let one bad message kill the connection.
             log.exception("error handling %s", msg.type)
-            conn.send({"type": "error", "rid": msg.rid, "detail": "errore interno del server"})
+            conn.send({"type": "error", "rid": msg.rid, "detail": "internal server error"})
 
     # --- Helpers -------------------------------------------------------------
 
@@ -263,31 +269,47 @@ class GameServer:
     def _require_gm(self, conn: Connection) -> Player:
         assert conn.player is not None
         if not conn.player.is_gm:
-            raise GameError("solo il GM può farlo")
+            raise GameError("only the GM can do that")
         return conn.player
 
     def _get_object(self, obj_id: str) -> MapObject:
         obj = self.objects.get(obj_id)
         if obj is None:
-            raise GameError(f"oggetto {obj_id} inesistente")
+            raise GameError(f"object {obj_id} does not exist")
         return obj
 
     def _get_page(self, page_id: str) -> Page:
         page = self.pages.get(page_id)
         if page is None:
-            raise GameError(f"pagina {page_id} inesistente")
+            raise GameError(f"page {page_id} does not exist")
         return page
 
     # --- Session -------------------------------------------------------------
 
     async def on_hello(self, conn: Connection, msg: p.Hello) -> None:
         info = msg.player
+        player_id = info.id
+        if player_id not in self.players:
+            # Joining with the name of an offline player takes that player back,
+            # so new tabs don't pile up duplicates. The client adopts the id from `welcome`.
+            online = self._online_ids()
+            key = info.name.strip().casefold()
+            match = next(
+                (
+                    pl
+                    for pl in self.players.values()
+                    if pl.id not in online and pl.name.strip().casefold() == key
+                ),
+                None,
+            )
+            if match is not None:
+                player_id = match.id
         values = {"name": info.name, "color": info.color, "is_gm": info.is_gm}
         async with session_scope() as s:
             # Upsert: safe even if the row exists but this process hasn't seen it yet.
             await s.execute(
                 pg_insert(Player)
-                .values(id=info.id, game_id=DEFAULT_GAME_ID, **values)
+                .values(id=player_id, game_id=DEFAULT_GAME_ID, **values)
                 .on_conflict_do_update(index_elements=[Player.id], set_=values)
             )
             history = list(
@@ -298,9 +320,9 @@ class GameServer:
                     .limit(settings.chat_history_limit)
                 )
             )
-        player = self.players.get(info.id)
+        player = self.players.get(player_id)
         if player is None:
-            player = Player(id=info.id, game_id=DEFAULT_GAME_ID, **values)
+            player = Player(id=player_id, game_id=DEFAULT_GAME_ID, **values)
             self.players[player.id] = player
         else:
             player.name, player.color, player.is_gm = info.name, info.color, info.is_gm
@@ -309,7 +331,7 @@ class GameServer:
         conn.send(
             {
                 "type": "welcome",
-                "you": player_dict(player, True),
+                "you": player_dict(player, True, private=True),
                 "game": self._game_for(player),
                 "players": [player_dict(pl, pl.id in online) for pl in self.players.values()],
                 "pages": self._pages_for(player),
@@ -322,14 +344,75 @@ class GameServer:
     async def on_player_update(self, conn: Connection, msg: p.PlayerUpdate) -> None:
         player = conn.player
         assert player is not None
-        values = msg.model_dump(exclude_none=True, exclude={"type", "rid"})
+        values = msg.model_dump(exclude_none=True, exclude={"type", "rid", "settings"})
+        if msg.settings is not None:
+            values["settings"] = {
+                **(player.settings or {}),
+                **msg.settings.model_dump(exclude_none=True),
+            }
         if not values:
             return
         async with session_scope() as s:
             await s.execute(update(Player).where(Player.id == player.id).values(**values))
         for k, v in values.items():
             setattr(player, k, v)
-        self._broadcast_players()
+        # Settings are private and already applied by the client: only name/colour are news.
+        if values.keys() - {"settings"}:
+            self._broadcast_players()
+
+    async def on_game_settings(self, conn: Connection, msg: p.GameSettings) -> None:
+        self._require_gm(conn)
+        assert self.game is not None
+        if msg.measurement is None or msg.measurement == self.measurement:
+            return
+        # Convert every page (and the aura radii on it) to the new system: 5 ft <-> 1.5 m.
+        conversions = units.CONVERSIONS[msg.measurement]
+        pages: list[tuple[Page, str, float]] = [
+            (pg, *conversions[pg.scale_unit])
+            for pg in self.pages.values()
+            if pg.scale_unit in conversions
+        ]
+        factors = {pg.id: factor for pg, _, factor in pages}
+        changed: list[tuple[MapObject, dict[str, Any]]] = []
+        for o in self.objects.values():
+            if o.page_id not in factors:
+                continue
+            props = dict(o.props)
+            for key in ("aura1", "aura2"):
+                aura = props.get(key)
+                if isinstance(aura, dict) and isinstance(aura.get("radius"), int | float):
+                    props[key] = {
+                        **aura,
+                        "radius": units.convert(aura["radius"], factors[o.page_id]),
+                    }
+            if props != o.props:
+                changed.append((o, props))
+        game_settings = {**self.game.settings, "measurement": msg.measurement}
+        async with session_scope() as s:
+            await s.execute(
+                update(Game).where(Game.id == self.game.id).values(settings=game_settings)
+            )
+            for pg, unit, factor in pages:
+                await s.execute(
+                    update(Page)
+                    .where(Page.id == pg.id)
+                    .values(scale_number=units.convert(pg.scale_number, factor), scale_unit=unit)
+                )
+            for o, props in changed:
+                await s.execute(update(MapObject).where(MapObject.id == o.id).values(props=props))
+        self.game.settings = game_settings
+        for pg, unit, factor in pages:
+            pg.scale_number, pg.scale_unit = units.convert(pg.scale_number, factor), unit
+        for o, props in changed:
+            o.props = props
+        self._broadcast_game()
+        self._broadcast_pages()
+        for pg, _, _ in pages:
+            for c in self._viewers(pg.id):
+                c.send({"type": "page.updated", "page": page_dict(pg)})
+            objs = [o for o, _ in changed if o.page_id == pg.id]
+            if objs:
+                self._broadcast_objects(pg.id, objs)
 
     # --- Pages ---------------------------------------------------------------
 
@@ -337,13 +420,13 @@ class GameServer:
         assert conn.player is not None
         self._get_page(msg.page_id)
         if not conn.player.is_gm and msg.page_id != self.player_page(conn.player):
-            raise GameError("non puoi vedere questa pagina")
+            raise GameError("you cannot see this page")
         self._page_snapshot(conn, msg.page_id)
 
     async def on_page_create(self, conn: Connection, msg: p.PageCreate) -> None:
         self._require_gm(conn)
         fields = msg.page.model_dump(exclude_none=True)
-        fields.setdefault("name", f"Pagina {len(self.pages) + 1}")
+        fields.setdefault("name", f"Page {len(self.pages) + 1}")
         fields.setdefault(
             "sort_order", max((pg.sort_order for pg in self.pages.values()), default=0) + 1
         )
@@ -373,7 +456,7 @@ class GameServer:
         assert self.game is not None
         page = self._get_page(msg.id)
         if len(self.pages) == 1:
-            raise GameError("non puoi eliminare l'ultima pagina")
+            raise GameError("you cannot delete the last page")
         remaining = sorted(
             (pg for pg in self.pages.values() if pg.id != page.id), key=lambda pg: pg.sort_order
         )
@@ -438,7 +521,7 @@ class GameServer:
             player_page, overrides = msg.page_id, {}
         else:
             if msg.player_id not in self.players:
-                raise GameError("giocatore inesistente")
+                raise GameError("player does not exist")
             player_page = self.game.player_page_id
             overrides = {**self.game.player_page_overrides, msg.player_id: msg.page_id}
         async with session_scope() as s:
@@ -466,9 +549,9 @@ class GameServer:
         for data in msg.objects:
             self._get_page(data.page_id)
             if data.id in self.objects:
-                raise GameError(f"id {data.id} già usato")
+                raise GameError(f"id {data.id} already in use")
             if not permissions.can_create(player, data.model_dump()):
-                raise GameError("non puoi creare questo oggetto")
+                raise GameError("you cannot create this object")
             top += 1
             fields = data.model_dump()
             fields["z"] = top if data.z is None else data.z
@@ -494,7 +577,7 @@ class GameServer:
             obj = self._get_object(patch.id)
             values = patch.model_dump(exclude_unset=True, exclude={"id"})
             if not permissions.controls(player, obj):
-                raise GameError("non controlli questo oggetto")
+                raise GameError("you do not control this object")
             if error := permissions.check_patch(player, values):
                 raise GameError(error)
             if "page_id" in values:
@@ -557,7 +640,7 @@ class GameServer:
                 obj.owner_id == player.id and obj.kind in permissions.DRAWING_KINDS
             )
             if not gm_or_owner:
-                raise GameError("non puoi eliminare questo oggetto")
+                raise GameError("you cannot delete this object")
         async with session_scope() as s:
             await s.execute(delete(MapObject).where(MapObject.id.in_([o.id for o in objs])))
         by_page: dict[str, list[str]] = {}
@@ -575,7 +658,7 @@ class GameServer:
         objs = [self._get_object(i) for i in msg.ids]
         for obj in objs:
             if not permissions.controls(player, obj):
-                raise GameError("non controlli questo oggetto")
+                raise GameError("you do not control this object")
         objs.sort(key=lambda o: o.z)
         if msg.to == "front":
             base = self._top_z()
@@ -602,7 +685,7 @@ class GameServer:
             return ["gm"]
         matches = [pl.id for pl in self.players.values() if pl.name.lower() == target.lower()]
         if not matches:
-            raise GameError(f'nessun giocatore si chiama "{target}"')
+            raise GameError(f'no player is named "{target}"')
         return matches
 
     async def on_chat_send(self, conn: Connection, msg: p.ChatSend) -> None:
@@ -681,7 +764,7 @@ class GameServer:
         for i, e in enumerate(self.game.turn_order):
             if e["id"] == entry_id:
                 return i
-        raise GameError("voce non trovata nel tracker")
+        raise GameError("entry not found in the turn tracker")
 
     async def on_turn_set(self, conn: Connection, msg: p.TurnSet) -> None:
         self._require_gm(conn)
@@ -693,7 +776,7 @@ class GameServer:
         entry = msg.entry.model_dump()
         if not player.is_gm:
             if not entry["object_id"] or not self._controls_entry(player, entry):
-                raise GameError("puoi aggiungere solo token che controlli")
+                raise GameError("you can only add tokens you control")
         if entry["object_id"] and not entry["name"]:
             obj = self.objects.get(entry["object_id"])
             entry["name"] = (obj.props.get("name") if obj else None) or "Token"
@@ -708,7 +791,7 @@ class GameServer:
         i = self._find_entry(msg.id)
         entry = dict(self.game.turn_order[i])
         if not self._controls_entry(player, entry):
-            raise GameError("non controlli questa voce")
+            raise GameError("you do not control this entry")
         if msg.value is not None:
             entry["value"] = msg.value
         if msg.name is not None:
@@ -722,7 +805,7 @@ class GameServer:
         assert player is not None and self.game is not None
         i = self._find_entry(msg.id)
         if not self._controls_entry(player, self.game.turn_order[i]):
-            raise GameError("non controlli questa voce")
+            raise GameError("you do not control this entry")
         await self._save_turns([e for e in self.game.turn_order if e["id"] != msg.id])
 
     async def on_turn_next(self, conn: Connection, msg: p.TurnNext) -> None:
@@ -732,7 +815,7 @@ class GameServer:
         if not order:
             return
         if not self._controls_entry(player, order[0]):
-            raise GameError("non è il tuo turno")
+            raise GameError("it is not your turn")
         rotated = [*order[1:], order[0]]
         round_ = self.game.settings.get("round", 0)
         # A new round starts when the first entry of the sorted order comes back on top.
@@ -770,7 +853,7 @@ def _round_head(order: list[dict[str, Any]]) -> str:
 def _validation_summary(e: ValidationError) -> str:
     first = e.errors()[0]
     loc = ".".join(str(x) for x in first["loc"])
-    return f"messaggio non valido ({loc}: {first['msg']})"
+    return f"invalid message ({loc}: {first['msg']})"
 
 
 server = GameServer()

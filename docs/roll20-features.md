@@ -1,264 +1,264 @@
-# Roll20: specifica funzionale per Frolls
+# Roll20: functional specification for Frolls
 
-> Documento di specifica **clean-room**. Descrive solo il **comportamento** di Roll20 osservabile da fonti pubbliche (wiki della community, Help Center, blog, forum, recensioni). Nessun codice Roll20 è stato letto o copiato. Ogni sezione dice cosa fa la funzione, come si comporta per l'utente, chi può usarla (GM o giocatore), quali dati servono, i casi limite e le lamentele note che Frolls deve risolvere.
+> **Clean-room** specification document. It describes only Roll20 **behavior** observable from public sources (community wiki, Help Center, blog, forums, reviews). No Roll20 code was read or copied. Each section states what the feature does, how it behaves for the user, who can use it (GM or player), what data is needed, edge cases, and the known complaints Frolls must solve.
 >
-> Ricerca del 2026-10-18. Il wiki Roll20 e l'Help Center bloccano l'accesso automatico, quindi le pagine del wiki sono state lette da copie del Wayback Machine (revisioni 2022-2025). Roll20 ha rilasciato il nuovo motore "Jumpgate" a gennaio 2025: dove il comportamento nuovo è diverso da quello legacy, lo indico.
+> Research dated 2026-10-18. The Roll20 wiki and Help Center block automated access, so wiki pages were read from Wayback Machine copies (2022-2025 revisions). Roll20 released the new "Jumpgate" engine in January 2025: where the new behavior differs from the legacy one, I point it out.
 >
-> **Esclusi per decisione utente** (solo elenco finale): voce/video, audio/jukebox, fog of war, luci dinamiche, visione/linea di vista.
+> **Excluded by user decision** (final list only): voice/video, audio/jukebox, fog of war, dynamic lighting, vision/line of sight.
 
-## Legenda
+## Legend
 
-- **GM**: Game Master. In Roll20 esistono tre ruoli: **Creatore** (uno solo, possiede la partita, i suoi abbonamenti sbloccano le funzioni), **GM** (promosso dal Creatore, può essere più d'uno), **Giocatore**.
-- **"Controllato da"**: elenco di giocatori (o "Tutti i giocatori") con permesso di controllo su un token o personaggio.
-- **[Frolls+]**: miglioria consigliata rispetto a Roll20, motivata da una lamentela documentata.
-- **[Decisione Frolls]**: punto in cui Roll20 non definisce il comportamento, o lo definisce male, e Frolls deve scegliere.
+- **GM**: Game Master. Roll20 has three roles: **Creator** (only one, owns the game, their subscriptions unlock features), **GM** (promoted by the Creator, there can be more than one), **Player**.
+- **"Controlled by"**: list of players (or "All players") with control permission over a token or character.
+- **[Frolls+]**: recommended improvement over Roll20, motivated by a documented complaint.
+- **[Frolls decision]**: point where Roll20 does not define the behavior, or defines it poorly, and Frolls has to choose.
 
 ---
 
-## 1. Account, partite e ruoli
+## 1. Accounts, games and roles
 
-### Cosa fa
-Un account crea partite ("Game"/"Campaign"). Ogni partita ha una pagina **Dettagli partita** fuori dal tavolo virtuale (VTT), con giocatori, impostazioni, archivio chat, forum privato e pulsante "Avvia partita".
+### What it does
+An account creates games ("Game"/"Campaign"). Each game has a **Game Details** page outside the virtual tabletop (VTT), with players, settings, chat archive, private forum and a "Launch Game" button.
 
-### Comportamento
-- **Creazione partita**: nome, scelta facoltativa del template di scheda (o "Nessuno"), tag. Per Frolls il template sarà sempre "5e (SRD)".
-- **Invito**: il pulsante "Invita giocatori" mostra un **link di invito unico** da copiare e permette inviti via email con lista degli inviti in sospeso. Chiunque abbia il link può entrare. Lo può condividere qualsiasi GM.
-- **Espulsione**: "Espelli dalla partita" rimuove il giocatore **e rigenera il link di invito**, così il vecchio link smette di funzionare. Per far rientrare qualcuno serve il link nuovo.
-- **Promozione**: solo il Creatore può fare "Promuovi a GM" o "Retrocedi a giocatore" passando sull'icona del giocatore. Il GM ha un'etichetta "GM" blu sull'avatar.
-- **Più GM** possono essere collegati insieme.
-- **Entra come giocatore**: un GM può fare "Rientra come giocatore" (perde gli strumenti GM fino a "Rientra come GM") per vedere ciò che vede un giocatore. C'è un link apposito con `?desiredrole=player`.
-- **Lascia la partita**: unica opzione delle impostazioni disponibile ai giocatori.
-- **Info partita**: sistema giocato, data e ora della prossima sessione (convertita nel fuso dell'utente; solo orologio a 12 ore, lamentato), descrizione in Markdown, icona.
-- **Copia partita** (Creatore): sceglie cosa copiare: giocatori e impostazioni (macro incluse), pagine, mazzi e tabelle, log chat, journal, playlist, forum. Il template di scheda torna a "Nessuno" e va riscelto (bug di UX).
-- **Elimina partita**: con conferma, irreversibile.
-- **Rollback** (solo Pro): uno snapshot al giorno tra le 4 e le 6 PST, conservato per 7 giorni; si sceglie la data e si ripristina.
-- **Forum della partita**: discussioni con thread e risposte; GM e Creatore possono mettere in evidenza, affondare, eliminare e ripristinare.
-- **Cerco giocatori (LFG)**: annuncio pubblico della partita in una directory (fuori dallo scope iniziale).
+### Behavior
+- **Game creation**: name, optional choice of sheet template (or "None"), tags. For Frolls the template will always be "5e (SRD)".
+- **Invite**: the "Invite Players" button shows a **unique invite link** to copy and allows email invites with a list of pending invites. Anyone with the link can join. Any GM can share it.
+- **Kick**: "Kick from game" removes the player **and regenerates the invite link**, so the old link stops working. To let someone back in, the new link is needed.
+- **Promotion**: only the Creator can "Promote to GM" or "Demote to player" by hovering over the player's icon. The GM has a blue "GM" label on their avatar.
+- **Multiple GMs** can be connected at the same time.
+- **Join as player**: a GM can "Rejoin as player" (losing GM tools until "Rejoin as GM") to see what a player sees. There is a dedicated link with `?desiredrole=player`.
+- **Leave game**: the only settings option available to players.
+- **Game info**: system played, date and time of the next session (converted to the user's time zone; 12-hour clock only, complained about), Markdown description, icon.
+- **Copy game** (Creator): chooses what to copy: players and settings (macros included), pages, decks and tables, chat log, journal, playlists, forum. The sheet template resets to "None" and must be chosen again (UX bug).
+- **Delete game**: with confirmation, irreversible.
+- **Rollback** (Pro only): one snapshot per day between 4 and 6 AM PST, kept for 7 days; you pick the date and restore.
+- **Game forum**: discussions with threads and replies; GM and Creator can pin, sink, delete and restore.
+- **Looking for Group (LFG)**: public listing of the game in a directory (out of initial scope).
 
-### Dati
+### Data
 `User(id, username, display_name, avatar, color)`, `Game(id, name, creator_id, sheet_template, description_md, next_session_at, tags, invite_token, created_at)`, `GameMember(game_id, user_id, role: creator|gm|player, joined_at)`, `Invite(email, status)`.
 
-### Casi limite
-- Ruoli per partita, non per account: lo stesso utente è GM in una partita e giocatore in un'altra.
-- I nomi dei giocatori compaiono nei menu dei permessi solo **dopo** che sono entrati almeno una volta nella partita.
-- Il Creatore non può essere retrocesso.
+### Edge cases
+- Roles are per game, not per account: the same user is GM in one game and player in another.
+- Player names appear in permission menus only **after** they have joined the game at least once.
+- The Creator cannot be demoted.
 
-### Lamentele e cosa fare meglio
-- [Frolls+] Data e ora della sessione con orologio a 24 ore e fuso esplicito.
-- [Frolls+] Rollback per tutti, non a pagamento, e più granulare: Frolls ha già un log di eventi delta e può offrire uno storico per oggetto.
-- [Frolls+] La copia della partita deve conservare il template di scheda.
-- Sicurezza: nel dicembre 2018 Roll20 ha subito una violazione con circa 4 milioni di account (email, IP, hash bcrypt, ultime 4 cifre della carta) ([HIBP](https://haveibeenpwned.com/Breach/Roll20)). Frolls: minimizzare i dati personali, nessun dato di pagamento in casa.
+### Complaints and what to do better
+- [Frolls+] Session date and time with a 24-hour clock and explicit time zone.
+- [Frolls+] Rollback for everyone, not paid, and more granular: Frolls already has a delta event log and can offer per-object history.
+- [Frolls+] Copying a game must preserve the sheet template.
+- Security: in December 2018 Roll20 suffered a breach of about 4 million accounts (emails, IPs, bcrypt hashes, last 4 card digits) ([HIBP](https://haveibeenpwned.com/Breach/Roll20)). Frolls: minimize personal data, no payment data in-house.
 
-> Nota: per decisione utente auth e account si fanno **per ultimi**. Fino ad allora esiste una sola partita persistente e il ruolo si sceglie all'ingresso.
-
----
-
-## 2. Struttura dell'interfaccia
-
-- **Tabletop** (centro): canvas della pagina corrente.
-- **Toolbar** (sinistra), dall'alto: Seleziona/Sposta (con modalità Pan), Layer (solo GM), Strumenti di disegno, Testo (separato dopo il redesign), Effetti FX, Zoom, Misura, Strumento Posiziona (luci/porte/finestre, escluso), Fog of War (escluso), Turn Tracker (solo GM), Dadi (GUI), Aiuto. Dopo il redesign del 2023-2024 i layer stanno in fondo alla toolbar (ordine: GM, Luci, Mappa, più Primo piano dal 2025).
-- **Page Toolbar** (in alto, solo GM): elenco delle pagine e Player Ribbon.
-- **Sidebar** (destra, ridimensionabile), schede: Chat, Art Library (solo GM), Journal, Compendium, Jukebox (escluso), Collezioni (macro, mazzi, tabelle), Impostazioni personali.
-- **Area giocatori** (in basso a sinistra): avatar di ogni giocatore connesso con nome e colore. Ci si possono trascinare sopra le carte (per darle in mano), gli handout (per mostrarli) e i giocatori sulle pagine (split party).
-- **Macro Quick Bar** (in basso): pulsanti macro del singolo utente.
-- **Barra Token Actions** (in alto): appare quando un token è selezionato.
-- **Popout**: chat, schede personaggio e handout si possono aprire in una finestra separata. In popout alcune funzioni della scheda (drag dei pulsanti, sezioni ripetute, Charactermancer) non funzionano: è una lamentela nota.
-- **Modalità scura** (dal 2022).
-
-[Frolls+] Interfaccia separata tra GM e giocatore: era uno degli obiettivi dichiarati del redesign Roll20 ([wiki](https://wiki.roll20.net/Toolbar_%26_Layers_Redesign)). Usabile anche su tablet: Owlbear Rodeo è apprezzato per questo.
+> Note: by user decision, auth and accounts come **last**. Until then there is a single persistent game and the role is chosen on entry.
 
 ---
 
-## 3. Pagine (mappe)
+## 2. Interface layout
 
-### Cosa fa
-Una partita contiene più **pagine** (scene, mappe, incontri). Si vede una pagina alla volta. Il GM può stare su una pagina diversa da quella dei giocatori, ad esempio per preparare la scena successiva.
+- **Tabletop** (center): canvas of the current page.
+- **Toolbar** (left), from the top: Select/Move (with Pan mode), Layers (GM only), Drawing tools, Text (separated after the redesign), FX effects, Zoom, Measure, Place tool (lights/doors/windows, excluded), Fog of War (excluded), Turn Tracker (GM only), Dice (GUI), Help. After the 2023-2024 redesign the layers sit at the bottom of the toolbar (order: GM, Lighting, Map, plus Foreground since 2025).
+- **Page Toolbar** (top, GM only): page list and Player Ribbon.
+- **Sidebar** (right, resizable), tabs: Chat, Art Library (GM only), Journal, Compendium, Jukebox (excluded), Collections (macros, decks, tables), My Settings.
+- **Player area** (bottom left): avatar of each connected player with name and color. You can drag cards onto them (to hand them over), handouts (to show them) and players onto pages (split party).
+- **Macro Quick Bar** (bottom): the individual user's macro buttons.
+- **Token Actions bar** (top): appears when a token is selected.
+- **Popout**: chat, character sheets and handouts can be opened in a separate window. In popout some sheet features (button drag, repeating sections, Charactermancer) do not work: a known complaint.
+- **Dark mode** (since 2022).
 
-### Page Toolbar (solo GM)
-- Elenco orizzontale di miniature; si scorre con Maiusc+rotella.
-- **Crea nuova pagina**; **rinomina** cliccando sul nome (Invio per salvare).
-- **Riordina** con il drag & drop.
-- Al passaggio del mouse compaiono **Impostazioni** (ingranaggio) e **Duplica**.
-- **Duplica pagina**: copia impostazioni **e** contenuto. La copia completa esiste solo dal dicembre 2020; prima serviva uno script.
-- **Cartelle di pagine** (da ottobre 2023, molto richieste).
-- **Icona della pagina** = l'immagine più grande presente sulla pagina. Per cambiarla il trucco è un'immagine enorme mandata in fondo: pessima UX. [Frolls+] Miniatura scelta esplicitamente oppure generata automaticamente dalla mappa.
-- **Archivia pagina**: la nasconde in un'area "Archiviate" a destra, da cui si ripristina. Le pagine archiviate però **si caricano comunque all'avvio** e non migliorano le prestazioni ([wiki Archiving](https://wiki.roll20.net/Archiving)). [Frolls+] Caricamento lazy: archiviate e non viste non si caricano.
-- **Elimina pagina**: in fondo alle impostazioni. **Non si può eliminare** la pagina dove si trova il Player Ribbon né quella che si sta guardando.
+[Frolls+] Separate interface for GM and player: it was one of the stated goals of the Roll20 redesign ([wiki](https://wiki.roll20.net/Toolbar_%26_Layers_Redesign)). Usable on tablets too: Owlbear Rodeo is appreciated for this.
 
-### Player Ribbon e split party
-- Il **Player Ribbon** (segnalibro rosso) indica la pagina dei giocatori. Il GM lo **trascina** su un'altra pagina e tutti i giocatori vengono spostati lì. Il GM **non** si sposta: per andarci deve fare doppio clic sulla pagina.
-- **Split the Party**: il GM trascina l'avatar di un giocatore dall'area giocatori su una pagina. Compare un'iconcina del giocatore su quella pagina. Trascinandola su un'altra pagina lo si sposta; trascinandola **sul Ribbon** (non basta la stessa pagina) il giocatore torna al gruppo.
-- **Define Party / Place Party** (Jumpgate, agosto 2025): i personaggi hanno la proprietà "Membro del party", attivabile dal menu contestuale o dalla scheda. "Place Party" porta in due clic tutti i token del party in un punto di una pagina, sposta il Ribbon e centra la vista ([BoLS](https://www.belloflostsouls.net/2025/08/roll20-unleashes-powerful-new-party-tools-after-recent-jumpgate-upgrades.html), [forum](https://app.roll20.net/forum/post/12465889/gm-time-save-alert-party-tools-are-here)).
-- **Spostare token tra pagine**: Ctrl+C sulla selezione, si cambia pagina, Ctrl+V. Il punto di incolla è l'ultimo clic sul tavolo.
-- Al caricamento di una pagina la vista parte dall'**angolo in alto a sinistra**: è una lamentela, il GM deve usare il pull-ping. [Frolls+] Vista iniziale centrata sui token del giocatore, oppure un punto di partenza salvato per pagina.
+---
 
-### Impostazioni pagina (solo GM)
-I valori di default delle nuove pagine si impostano nelle Impostazioni partita.
-- **Nome**.
-- **Dimensioni**: larghezza e altezza in unità da 70 px (oppure in pixel, convertiti). Base: **70 px = 1 cella = 1 pollice al 100%**. Jumpgate permette di fare pan oltre i bordi.
-- **Colore di sfondo** (selettore con esadecimale).
-- **Scala**: quanto vale una cella (default **5**), unità **ft, m, km, mi** o personalizzata. Senza griglia la scala vale ogni 70 px.
-- **Griglia**: attiva o disattiva (disattivarla toglie anche lo snap); tipo **quadrata, esagonale orizzontale, esagonale verticale** (in Roll20 c'è anche "isometrica" nelle versioni recenti, da verificare); **dimensione della cella** come moltiplicatore (0.5 = 35 px) o in pixel; **colore** e **opacità** delle linee (opacità 0 = linee invisibili ma snap attivo); **etichette** delle celle (solo esagoni); **misura delle diagonali** (vedi §5).
-- **Play on load**: traccia audio (esclusa).
-- **Archivia** ed **Elimina**.
-- Le sezioni Fog of War e Luci dinamiche sono escluse.
+## 3. Pages (maps)
 
-### Dati
+### What it does
+A game contains multiple **pages** (scenes, maps, encounters). One page is viewed at a time. The GM can be on a different page from the players, for example to prepare the next scene.
+
+### Page Toolbar (GM only)
+- Horizontal list of thumbnails; scroll with Shift+wheel.
+- **Create new page**; **rename** by clicking on the name (Enter to save).
+- **Reorder** with drag & drop.
+- On hover, **Settings** (gear) and **Duplicate** appear.
+- **Duplicate page**: copies settings **and** content. Full copying only exists since December 2020; before that a script was needed.
+- **Page folders** (since October 2023, highly requested).
+- **Page icon** = the largest image on the page. To change it the trick is a huge image sent to the back: terrible UX. [Frolls+] Thumbnail chosen explicitly or generated automatically from the map.
+- **Archive page**: hides it in an "Archived" area on the right, from which it can be restored. Archived pages however **still load at startup** and do not improve performance ([wiki Archiving](https://wiki.roll20.net/Archiving)). [Frolls+] Lazy loading: archived and unviewed pages are not loaded.
+- **Delete page**: at the bottom of the settings. You **cannot delete** the page where the Player Ribbon is, nor the one you are looking at.
+
+### Player Ribbon and split party
+- The **Player Ribbon** (red bookmark) marks the players' page. The GM **drags** it onto another page and all players are moved there. The GM does **not** move: to go there they must double-click the page.
+- **Split the Party**: the GM drags a player's avatar from the player area onto a page. A small player icon appears on that page. Dragging it onto another page moves the player; dragging it **onto the Ribbon** (the same page is not enough) returns the player to the group.
+- **Define Party / Place Party** (Jumpgate, August 2025): characters have a "Party member" property, toggled from the context menu or the sheet. "Place Party" brings all party tokens to a spot on a page in two clicks, moves the Ribbon and centers the view ([BoLS](https://www.belloflostsouls.net/2025/08/roll20-unleashes-powerful-new-party-tools-after-recent-jumpgate-upgrades.html), [forum](https://app.roll20.net/forum/post/12465889/gm-time-save-alert-party-tools-are-here)).
+- **Moving tokens between pages**: Ctrl+C on the selection, change page, Ctrl+V. The paste point is the last click on the tabletop.
+- When a page loads, the view starts from the **top-left corner**: a complaint, the GM has to use the pull ping. [Frolls+] Initial view centered on the player's tokens, or a saved starting point per page.
+
+### Page settings (GM only)
+Default values for new pages are set in the Game Settings.
+- **Name**.
+- **Size**: width and height in 70 px units (or in pixels, converted). Base: **70 px = 1 cell = 1 inch at 100%**. Jumpgate allows panning past the edges.
+- **Background color** (picker with hex).
+- **Scale**: what one cell is worth (default **5**), unit **ft, m, km, mi** or custom. Without a grid the scale applies every 70 px.
+- **Grid**: on or off (turning it off also removes snapping); type **square, horizontal hex, vertical hex** (recent Roll20 versions also have "isometric", to be verified); **cell size** as a multiplier (0.5 = 35 px) or in pixels; line **color** and **opacity** (opacity 0 = invisible lines but snapping active); cell **labels** (hexes only); **diagonal measurement** (see §5).
+- **Play on load**: audio track (excluded).
+- **Archive** and **Delete**.
+- The Fog of War and Dynamic Lighting sections are excluded.
+
+### Data
 `Page(id, game_id, name, folder_id, order, width_units, height_units, bg_color, scale_number, scale_unit, grid_type, cell_size, grid_color, grid_opacity, grid_labels, diagonal_rule, archived, thumbnail_asset_id)`, `Game.player_page_id`, `PlayerPageOverride(user_id, page_id)`, `Character.is_party_member`.
 
-### Casi limite
-- Un giocatore in split party resta sulla sua pagina anche quando il Ribbon si sposta.
-- Il turn tracker è globale tra le pagine (vedi §10).
-- Il Ribbon non può puntare a una pagina archiviata.
+### Edge cases
+- A player in split party stays on their page even when the Ribbon moves.
+- The turn tracker is global across pages (see §10).
+- The Ribbon cannot point to an archived page.
 
 ---
 
-## 4. Layer
+## 4. Layers
 
-| Layer | Chi lo vede | Uso | Note |
+| Layer | Who sees it | Use | Notes |
 |---|---|---|---|
-| **Mappa e sfondo** | tutti | mappe, arredi statici, token di nemici sconfitti | quando è attivo, i token degli altri layer sono grigi e non selezionabili |
-| **Oggetti e token** | tutti | token e oggetti con cui si gioca; solo qui ci sono menu radiale, barre e marker | i giocatori sono **sempre** su questo layer e non possono cambiarlo |
-| **GM Info Overlay** | solo GM | note, trappole, token nascosti | gli oggetti appaiono **sempre grigi e semitrasparenti** al GM per ricordargli che sono nascosti; selezionabili solo con il layer attivo |
-| **Primo piano** (giugno 2025) | tutti | tetti, chiome di alberi, meteo sopra i token | richiesto per anni ([wiki](https://wiki.roll20.net/Foreground_Layer)) |
-| Luci dinamiche / Muri | solo GM | **escluso** | |
+| **Map and background** | everyone | maps, static furniture, tokens of defeated enemies | when active, tokens on other layers are grayed out and not selectable |
+| **Objects and tokens** | everyone | tokens and objects in play; radial menu, bars and markers exist only here | players are **always** on this layer and cannot change it |
+| **GM Info Overlay** | GM only | notes, traps, hidden tokens | objects **always appear gray and semi-transparent** to the GM as a reminder they are hidden; selectable only when the layer is active |
+| **Foreground** (June 2025) | everyone | roofs, tree canopies, weather above tokens | requested for years ([wiki](https://wiki.roll20.net/Foreground_Layer)) |
+| Dynamic lighting / Walls | GM only | **excluded** | |
 
-### Comportamento
-- Si cambia layer dalla toolbar o con **Ctrl+M** (mappa), **Ctrl+O** (oggetti), **Ctrl+K** (GM).
-- Per **spostare la selezione** di layer: tasto destro, Layer, nome del layer, oppure **Ctrl+Maiusc+M/O/K** (cambia layer attivo e sposta gli oggetti).
-- Un oggetto nuovo nasce sul **layer attivo**.
-- Caso d'uso tipico: nemici preparati sul layer GM e spostati sul layer oggetti per l'imboscata.
-- I disegni e i testi seguono le stesse regole dei layer.
+### Behavior
+- Switch layer from the toolbar or with **Ctrl+M** (map), **Ctrl+O** (objects), **Ctrl+K** (GM).
+- To **move the selection** to another layer: right-click, Layer, layer name, or **Ctrl+Shift+M/O/K** (switches active layer and moves the objects).
+- A new object is created on the **active layer**.
+- Typical use case: enemies prepared on the GM layer and moved to the objects layer for an ambush.
+- Drawings and text follow the same layer rules.
 
-### Lamentele
-- [Frolls+] Rivelare un gruppo di token del layer GM in un clic ("incontri"): oggi serve lo script EncounterHelper.
-- [Frolls+] Layer bloccabili, così da non spostare per errore la mappa.
+### Complaints
+- [Frolls+] Reveal a group of GM-layer tokens in one click ("encounters"): today the EncounterHelper script is needed.
+- [Frolls+] Lockable layers, so the map isn't moved by mistake.
 
 ---
 
-## 5. Griglia, scala e misura
+## 5. Grid, scale and measurement
 
 ### Snap
-- Con la griglia attiva lo snap vale per **spostamento, ridimensionamento e rotazione**. **Alt** tenuto premuto lo disattiva temporaneamente.
-- Su griglia quadrata il token si aggancia all'**angolo** (in Roll20 "in basso a destra" della cella), su esagonale al **centro** dell'esagono.
-- Rotazione con snap: passi di **45°** su griglia quadrata e **30°** su esagonale.
-- I token piccoli (meno di una cella) si agganciano all'angolo, non al centro della cella. È una lamentela con **+235 voti** ([forum](https://app.roll20.net/forum/post/2309394/)). [Frolls+] Token piccoli centrati nella cella, o 4 sotto-posizioni.
+- With the grid active, snapping applies to **movement, resizing and rotation**. Holding **Alt** temporarily disables it.
+- On a square grid the token snaps to the **corner** (in Roll20 the "bottom right" of the cell), on hex to the **center** of the hex.
+- Rotation with snap: steps of **45°** on square grid and **30°** on hex.
+- Small tokens (less than one cell) snap to the corner, not the cell center. It is a complaint with **+235 votes** ([forum](https://app.roll20.net/forum/post/2309394/)). [Frolls+] Small tokens centered in the cell, or 4 sub-positions.
 
-### Regole per le diagonali
-**Griglia quadrata:**
-1. **D&D 5E/4E** (default): ogni passo diagonale vale 1 cella (5 ft).
-2. **Pathfinder/3.5**: le diagonali si alternano 1 e 2 celle (5, 15, 20, 30 ft...), cioè 1.5 per diagonale arrotondato per difetto.
-3. **Manhattan**: diagonale = 2 celle.
-4. **Euclidea**: diagonale = √2 ≈ 1.414.
+### Diagonal rules
+**Square grid:**
+1. **D&D 5E/4E** (default): each diagonal step counts as 1 cell (5 ft).
+2. **Pathfinder/3.5**: diagonals alternate 1 and 2 cells (5, 15, 20, 30 ft...), i.e. 1.5 per diagonal rounded down.
+3. **Manhattan**: diagonal = 2 cells.
+4. **Euclidean**: diagonal = √2 ≈ 1.414.
 
-**Griglia esagonale:**
-1. **Percorso esagonale**: +1 per ogni esagono attraversato sul percorso più breve.
-2. **Euclidea**.
+**Hex grid:**
+1. **Hex path**: +1 for each hex crossed on the shortest path.
+2. **Euclidean**.
 
-### Dati
-Su `Page`: `grid_type ∈ {none, square, hex_h, hex_v}`, `diagonal_rule ∈ {dnd5e, pf35, manhattan, euclidean, hexpath}`, `cell_size_px`, `scale_number`, `scale_unit`.
-
----
-
-## 6. Navigazione del canvas
-
-- **Zoom**: menu nella toolbar con passi del 10%; slider +/- con percentuale (doppio clic sullo slider = 100%); **Alt/Ctrl/Cmd + rotella**; tasti **+ e -** (ignorati se un menu contestuale come i marker è aperto). Lo zoom è **per utente**.
-- **Comportamento della rotella** configurabile per partita e come default dell'account:
-  - "Rotella = pan": Alt/Ctrl+rotella zooma, Maiusc+rotella fa pan orizzontale.
-  - "Rotella = zoom": Alt/Ctrl+rotella fa pan verticale, Alt+Maiusc+rotella fa pan orizzontale.
-- **Pan**: modalità Pan della toolbar, oppure **trascinamento con il tasto destro** in qualunque momento, oppure barre di scorrimento.
-- **Ping**: tenendo premuto il clic sinistro su un punto compaiono anelli radar animati **del colore dell'utente**, visibili a tutti sulla stessa pagina.
-- **Pull ping** (solo GM): **Maiusc + tenere premuto** centra la vista di **tutti** i giocatori su quel punto. In Roll20 legacy funzionava solo sui layer mappa e oggetti.
-- **Zoom view**: tasto **Z** con un oggetto selezionato apre un popup ingrandito dell'immagine. **Maiusc+Z** (GM) lo mostra a tutti i giocatori **sulla stessa pagina**.
-- **Frecce**: spostano il token selezionato di una cella; **Alt+frecce** di pochi pixel.
-
-### Casi limite
-- Il pull ping deve funzionare anche per chi sta su un'altra pagina? In Roll20 no, vale solo per chi è sulla pagina. [Decisione Frolls] Solo stessa pagina.
-- [Frolls+] Ping anche dei giocatori con un modificatore, ad esempio un ping che "chiama il GM".
+### Data
+On `Page`: `grid_type ∈ {none, square, hex_h, hex_v}`, `diagonal_rule ∈ {dnd5e, pf35, manhattan, euclidean, hexpath}`, `cell_size_px`, `scale_number`, `scale_unit`.
 
 ---
 
-## 7. Oggetti grafici e token
+## 6. Canvas navigation
 
-### 7.1 Creazione
-- Un'immagine trascinata sul layer **oggetti** o **GM** diventa un **token**; sul layer mappa è un'immagine "di sfondo" senza funzioni da token.
-- Fonti: Art Library (GM), file dal computer (upload e posizionamento), personaggio dal Journal (il suo token di default, per GM e per chi lo controlla), compendium (crea un PNG, vedi §18), carta da un mazzo, tabella casuale (token multi-faccia).
-- **"Come disegno"** (Avanzate > Is Drawing): toglie le funzioni da token (niente barre, bolle, snap) ed è selezionabile insieme ai disegni con Alt.
+- **Zoom**: toolbar menu with 10% steps; +/- slider with percentage (double-click on the slider = 100%); **Alt/Ctrl/Cmd + wheel**; **+ and -** keys (ignored if a context menu such as markers is open). Zoom is **per user**.
+- **Wheel behavior** configurable per game and as account default:
+  - "Wheel = pan": Alt/Ctrl+wheel zooms, Shift+wheel pans horizontally.
+  - "Wheel = zoom": Alt/Ctrl+wheel pans vertically, Alt+Shift+wheel pans horizontally.
+- **Pan**: toolbar Pan mode, or **right-button drag** at any time, or scrollbars.
+- **Ping**: holding left-click on a spot shows animated radar rings **in the user's color**, visible to everyone on the same page.
+- **Pull ping** (GM only): **Shift + hold** centers the view of **all** players on that spot. In legacy Roll20 it only worked on the map and objects layers.
+- **Zoom view**: **Z** with an object selected opens an enlarged popup of the image. **Shift+Z** (GM) shows it to all players **on the same page**.
+- **Arrows**: move the selected token by one cell; **Alt+arrows** by a few pixels.
 
-### 7.2 Manipolazione (strumento Seleziona)
-- **Selezione**: clic. **Selezione a rettangolo**: trascinare su un'area vuota. **Maiusc+clic** aggiunge o toglie dalla selezione. **Alt+rettangolo** seleziona solo i disegni, **Ctrl+rettangolo** solo i token. Si seleziona solo sul layer attivo. **Ctrl+A** seleziona tutto il layer.
-- **Spostamento**: trascinare dall'interno (non dal bordo, che ridimensiona). Il gruppo selezionato si muove insieme.
-- **Waypoint**: durante il trascinamento di un token, **Q** mostra un righello della distanza percorsa e ogni Q successivo aggiunge un waypoint. Al rilascio tutti vedono il percorso.
-- **Ultimo movimento**: **X** con un token selezionato mostra il suo ultimo movimento con i waypoint, conservato **senza scadenza** (utile per il gioco via forum).
-- **Ridimensionamento** (**solo GM**): maniglie agli angoli (proporzionale) e ai lati (un asse), dal centro, con snap alla griglia (Alt lo ignora). "Imposta dimensioni" accetta valori esatti in pixel o celle. **I giocatori non possono ridimensionare i propri token** ([wiki Player](https://wiki.roll20.net/Player)).
-- **Rotazione**: maniglia sporgente in alto (il "fronte" del token). **E+rotella** ruota a passi di 45° o 30°, **Alt+E+rotella** di 1°.
-- **Rifletti** orizzontale o verticale (Avanzate).
-- **Raggruppa / Separa** (Avanzate): il gruppo si muove come un blocco; un clic su un singolo membro lo trascina da solo.
-- **Ordine (z-order)** (solo GM): tasto destro, "In primo piano" o "In fondo".
-- **Copia/Incolla/Elimina**: Ctrl+C, Ctrl+V, Canc o Backspace.
-- **Annulla**: Ctrl+Z. È **un solo livello** e premendolo di nuovo si alterna tra fatto e annullato: lamentela forte ([forum](https://app.roll20.net/forum/post/3210982/please-review-the-undo-slash-redo-code), [forum](https://app.roll20.net/forum/post/5809236/problem-with-undoing)). I giocatori non avevano l'annulla ([forum](https://app.roll20.net/forum/post/8760735/player-undo-button-ctrl-plus-z)). [Frolls+] Annulla/ripeti a più livelli per utente, anche per i giocatori sui propri oggetti.
-- **Blocco token** (GM, da marzo 2022): impedisce a giocatori **e GM** di spostarlo, finché non viene sbloccato.
+### Edge cases
+- Should the pull ping also work for those on another page? In Roll20 no, it only applies to those on the page. [Frolls decision] Same page only.
+- [Frolls+] Player pings with a modifier too, for example a ping that "calls the GM".
 
-### 7.3 Regole dello z-order (dal 2019)
-- Di default l'ultimo token rilasciato sta sopra.
-- Il GM riordina liberamente.
-- **Per il giocatore che lo controlla**, un token "con vista" appare sempre sopra quelli che non controlla, anche se il GM l'ha messo sotto. Gli altri vedono l'ordine del GM.
-- I token controllati **senza vista** (ad esempio i template incantesimo) non vengono portati in primo piano.
-- Lamentele: ordine incoerente tra GM e giocatori ([forum](https://app.roll20.net/forum/post/8928459/)); i giocatori non possono riordinare i propri token ([forum](https://app.roll20.net/forum/post/7892438/)); richiesta di poter disattivare il "sempre sopra" ([forum](https://app.roll20.net/forum/post/11577293/)).
-- Senza la visione (esclusa), [Decisione Frolls]: z-order unico e coerente per tutti; opzione per partita "token dei giocatori sempre sopra"; i giocatori possono riordinare i token che controllano rispetto ad altri token che controllano.
+---
 
-### 7.4 Menu radiale (token selezionato)
-Visibile al selezionatore secondo i permessi:
-1. **Tre bolle** di valore (verde, blu, rossa) per barra 1, 2 e 3. Clic per modificare: valore assoluto (`20`, anche testo `ABC`) oppure **relativo** (`+5`, `-10`). Colori configurabili dal GM.
-2. **Nameplate** (se attivo).
-3. **Modifica/Impostazioni** (solo GM; anche doppio clic sul token).
-4. **Marker di stato** (menu a tendina).
-5. **Pausa animazione** (token animati).
+## 7. Graphic objects and tokens
 
-### 7.5 Impostazioni token (dialogo)
-Schede: Dettagli, Note GM, (Luci e visione: escluse). Le modifiche si applicano in tempo reale.
+### 7.1 Creation
+- An image dragged onto the **objects** or **GM** layer becomes a **token**; on the map layer it is a "background" image without token features.
+- Sources: Art Library (GM), files from the computer (upload and placement), character from the Journal (its default token, for the GM and whoever controls it), compendium (creates an NPC, see §18), card from a deck, rollable table (multi-sided token).
+- **"As drawing"** (Advanced > Is Drawing): removes token features (no bars, bubbles, snapping) and is selectable together with drawings with Alt.
 
-**Dettagli**
-- **Nome** e checkbox **Nameplate** (mostra il nome sotto il token). Permessi per il nome: *Vedono* (i giocatori vedono il nameplate) ed *Editabile* (chi controlla può modificarlo).
-- **Rappresenta il personaggio**: menu di tutti i personaggi in ordine alfabetico, oppure "Nessuno/Generico".
-- **Controllato da**: multiselezione di giocatori o "Tutti i giocatori". Se il token rappresenta un personaggio, il controllo **eredita** il "Controllato da" del personaggio.
-- **Tooltip** (ottobre 2021): testo di massimo **150 caratteri** mostrato **sotto il token al passaggio del mouse**, con checkbox "Mostra". Spazi e a capo vengono rimossi (lamentela), le emoji sono supportate. È pensato anche per gli screen reader.
-- **Barre 1-3**: ognuna ha **valore** e **max** (opzionale; se c'è, la barra visiva mostra il riempimento valore/max). Se il token rappresenta un personaggio, la barra può essere **collegata a un attributo**: la modifica dalla bolla, dal dialogo, dalla scheda o da uno script aggiorna **entrambi**. Permessi per barra: *Vedono* e *Editabile*, più visibilità dei numeri: **nessuno / solo chi controlla / tutti**.
-- **4ª barra**: aggiunta di recente come impostazione "Numero massimo di bolle/barre". Le richieste di più barre esistevano da anni ([forum](https://app.roll20.net/forum/post/1285136/), [forum](https://app.roll20.net/forum/post/11729667/)).
-- **Opzioni barre**: **posizione** (Sopra [default], Sovrapposta in alto, Sovrapposta in basso, Sotto) e **stile** (Standard o Compatto in alto/basso/sovrapposto). La posizione "sovrapposta in basso" collide con il nameplate: bug noto.
-- **Aure 1-2**: cerchio o **quadrato** ("Square") semitrasparente che parte dal **centro del token**. Ha **raggio** in unità di scala misurato **dal bordo del token** (raggio 0 disegna l'aura sul bordo; per toglierla si **svuota** il campo, non si mette 0), **colore** e permessi *Vedono*/*Editabile*.
-- **Tinta**: colore che si sovrappone all'immagine.
-- **Note GM**: testo ricco privato del GM, con link al journal.
+### 7.2 Manipulation (Select tool)
+- **Selection**: click. **Rectangle selection**: drag over an empty area. **Shift+click** adds to or removes from the selection. **Alt+rectangle** selects drawings only, **Ctrl+rectangle** tokens only. Selection works only on the active layer. **Ctrl+A** selects the whole layer.
+- **Movement**: drag from the inside (not from the edge, which resizes). The selected group moves together.
+- **Waypoints**: while dragging a token, **Q** shows a ruler of the distance traveled and each subsequent Q adds a waypoint. On release everyone sees the path.
+- **Last move**: **X** with a token selected shows its last move with waypoints, kept **with no expiry** (useful for play-by-post).
+- **Resizing** (**GM only**): handles at the corners (proportional) and sides (one axis), from the center, with grid snap (Alt ignores it). "Set dimensions" accepts exact values in pixels or cells. **Players cannot resize their own tokens** ([wiki Player](https://wiki.roll20.net/Player)).
+- **Rotation**: protruding handle at the top (the token's "front"). **E+wheel** rotates in 45° or 30° steps, **Alt+E+wheel** by 1°.
+- **Flip** horizontal or vertical (Advanced).
+- **Group / Ungroup** (Advanced): the group moves as a block; clicking a single member drags it alone.
+- **Order (z-order)** (GM only): right-click, "To front" or "To back".
+- **Copy/Paste/Delete**: Ctrl+C, Ctrl+V, Del or Backspace.
+- **Undo**: Ctrl+Z. It is **a single level** and pressing it again toggles between done and undone: a strong complaint ([forum](https://app.roll20.net/forum/post/3210982/please-review-the-undo-slash-redo-code), [forum](https://app.roll20.net/forum/post/5809236/problem-with-undoing)). Players had no undo ([forum](https://app.roll20.net/forum/post/8760735/player-undo-button-ctrl-plus-z)). [Frolls+] Multi-level undo/redo per user, also for players on their own objects.
+- **Token lock** (GM, since March 2022): prevents players **and GM** from moving it until it is unlocked.
 
-**Default di partita per i token**: valori e max delle barre, aure, tinta, nameplate e tutti i permessi vedono/editabile (vedi §23).
+### 7.3 Z-order rules (since 2019)
+- By default the last token dropped is on top.
+- The GM reorders freely.
+- **For the player who controls it**, a token "with vision" always appears above those they don't control, even if the GM put it below. Others see the GM's order.
+- Controlled tokens **without vision** (e.g. spell templates) are not brought to the front.
+- Complaints: inconsistent order between GM and players ([forum](https://app.roll20.net/forum/post/8928459/)); players cannot reorder their own tokens ([forum](https://app.roll20.net/forum/post/7892438/)); request to be able to disable "always on top" ([forum](https://app.roll20.net/forum/post/11577293/)).
+- Without vision (excluded), [Frolls decision]: a single, consistent z-order for everyone; per-game option "player tokens always on top"; players can reorder the tokens they control relative to other tokens they control.
 
-### 7.6 Marker di stato
-- Set di default: puntini colorati, una **X rossa** (copre l'intero token, a differenza degli altri marker che sono piccoli) e oltre 40 icone. Più marker insieme.
-- **Numero sul marker**: con il mouse sopra un marker nel menu si preme **0-9** e appare una cifra rossa; 0 la toglie.
-- **Posizione** dei marker: sopra (default), sotto, sinistra, destra (impostazione GM).
-- **Set personalizzati** (dal 2020): libreria account (consigliati 512×512, png/jpg/gif senza animazione); nomi con solo lettere, numeri e trattino (lo spazio diventa `_`). Si aggiungono alla partita dalla pagina Dettagli e si ordinano. Il set di default si può rimuovere, ma **non** i puntini colorati né la X. Rimuovere un set nasconde i marker sui token; riaggiungerlo li fa ricomparire. I giocatori devono ricaricare per vedere i nuovi set (lamentela).
-- [Frolls+] Marker con durata in round collegata al turn tracker; condizioni 5e SRD precaricate.
+### 7.4 Radial menu (selected token)
+Visible to the selecting user according to permissions:
+1. **Three value bubbles** (green, blue, red) for bars 1, 2 and 3. Click to edit: absolute value (`20`, also text `ABC`) or **relative** (`+5`, `-10`). Colors configurable by the GM.
+2. **Nameplate** (if enabled).
+3. **Edit/Settings** (GM only; also double-click on the token).
+4. **Status markers** (dropdown menu).
+5. **Pause animation** (animated tokens).
 
-### 7.7 Token multi-faccia (da tabella casuale)
-- Da una tabella casuale con icone si crea un token che contiene tutte le immagini **nel momento della creazione**. Le modifiche successive alla tabella **non** si propagano: lamentela.
-- Nasce come "disegno" (niente snap né barre) e va convertito a mano.
-- Menu: **Multi-faccia > Scegli faccia** (slider) oppure **Faccia casuale** (i pesi della tabella **non** vengono usati).
-- Può rappresentare un personaggio ed essere il suo token di default (forme selvatiche, varianti).
-- [Frolls+] Facce collegate dinamicamente alla tabella.
+### 7.5 Token settings (dialog)
+Tabs: Details, GM Notes, (Lighting and vision: excluded). Changes apply in real time.
 
-### 7.8 Token di default e collegamento al personaggio
-- Il personaggio ha un **token di default**: si seleziona un token sul tavolo e si preme "Usa token selezionato". Viene salvata una copia completa (barre, collegamenti, permessi, note).
-- Trascinando il **nome** del personaggio dal Journal sul tavolo nasce una copia del token di default. Lo può fare il GM o chi "può modificare e controllare" il personaggio.
-- **Solo il GM** può cambiare il token di default o l'avatar ([wiki Player](https://wiki.roll20.net/Player)). [Frolls+] Permetterlo anche al giocatore proprietario.
-- **PG e PNG unici**: barre **collegate** agli attributi, così token e scheda restano sincronizzati.
-- **Mostri generici**: barre **non collegate**. Ogni copia ha i suoi PF ma condivide la scheda per tiri e statistiche.
-- **Maiusc+doppio clic** sul token apre la scheda collegata; dal 2023 c'è anche la voce "Apri scheda" nel menu contestuale.
-- [Frolls+] Numerazione automatica delle copie ("Goblin 1, 2, 3", oggi serve lo script TokenNameNumber) e PF casuali dai dadi vita al posizionamento (oggi serve lo script MonsterHitDice).
+**Details**
+- **Name** and **Nameplate** checkbox (shows the name under the token). Name permissions: *See* (players see the nameplate) and *Edit* (the controller can edit it).
+- **Represents character**: menu of all characters in alphabetical order, or "None/Generic".
+- **Controlled by**: multi-select of players or "All players". If the token represents a character, control **inherits** the character's "Controlled by".
+- **Tooltip** (October 2021): text of at most **150 characters** shown **under the token on hover**, with a "Show" checkbox. Spaces and line breaks are stripped (complaint), emoji are supported. It is also meant for screen readers.
+- **Bars 1-3**: each has a **value** and **max** (optional; if present, the visual bar shows the value/max fill). If the token represents a character, the bar can be **linked to an attribute**: an edit from the bubble, the dialog, the sheet or a script updates **both**. Per-bar permissions: *See* and *Edit*, plus number visibility: **nobody / controller only / everyone**.
+- **4th bar**: recently added as a "Maximum number of bubbles/bars" setting. Requests for more bars existed for years ([forum](https://app.roll20.net/forum/post/1285136/), [forum](https://app.roll20.net/forum/post/11729667/)).
+- **Bar options**: **location** (Above [default], Overlapping top, Overlapping bottom, Below) and **style** (Standard or Compact top/bottom/overlapping). The "overlapping bottom" location collides with the nameplate: known bug.
+- **Auras 1-2**: semi-transparent circle or **square** ("Square") starting from the **token center**. It has a **radius** in scale units measured **from the token edge** (radius 0 draws the aura on the edge; to remove it you **empty** the field, not set 0), **color** and *See*/*Edit* permissions.
+- **Tint**: color overlaid on the image.
+- **GM Notes**: GM-private rich text, with journal links.
+
+**Game defaults for tokens**: bar values and max, auras, tint, nameplate and all see/edit permissions (see §23).
+
+### 7.6 Status markers
+- Default set: colored dots, a **red X** (covers the whole token, unlike the other markers which are small) and over 40 icons. Multiple markers at once.
+- **Number on the marker**: hovering a marker in the menu and pressing **0-9** shows a red digit; 0 removes it.
+- Marker **position**: above (default), below, left, right (GM setting).
+- **Custom sets** (since 2020): account library (512×512 recommended, png/jpg/gif without animation); names with letters, numbers and hyphens only (space becomes `_`). They are added to the game from the Details page and ordered. The default set can be removed, but **not** the colored dots or the X. Removing a set hides the markers on tokens; re-adding it makes them reappear. Players must reload to see new sets (complaint).
+- [Frolls+] Markers with a duration in rounds linked to the turn tracker; 5e SRD conditions preloaded.
+
+### 7.7 Multi-sided tokens (from rollable table)
+- From a rollable table with icons you create a token containing all images **at the moment of creation**. Later changes to the table do **not** propagate: complaint.
+- It is created as a "drawing" (no snapping or bars) and must be converted by hand.
+- Menu: **Multi-Sided > Choose side** (slider) or **Random side** (table weights are **not** used).
+- It can represent a character and be its default token (wild shapes, variants).
+- [Frolls+] Sides dynamically linked to the table.
+
+### 7.8 Default token and character link
+- The character has a **default token**: select a token on the tabletop and press "Use selected token". A full copy is saved (bars, links, permissions, notes).
+- Dragging the character's **name** from the Journal onto the tabletop creates a copy of the default token. The GM can do it, or whoever "can edit and control" the character.
+- **Only the GM** can change the default token or the avatar ([wiki Player](https://wiki.roll20.net/Player)). [Frolls+] Allow the owning player too.
+- **Unique PCs and NPCs**: bars **linked** to attributes, so token and sheet stay in sync.
+- **Generic monsters**: **unlinked** bars. Each copy has its own HP but shares the sheet for rolls and stats.
+- **Shift+double-click** on the token opens the linked sheet; since 2023 there is also an "Open sheet" entry in the context menu.
+- [Frolls+] Automatic numbering of copies ("Goblin 1, 2, 3", today the TokenNameNumber script is needed) and random HP from hit dice on placement (today the MonsterHitDice script is needed).
 
 ### 7.9 Token Actions
-Vedi §13.4.
+See §13.4.
 
-### Dati token
+### Token data
 ```
 Token(id, page_id, layer, x, y, width, height, rotation, flip_h, flip_v, z,
       image_asset_id, sides[] , current_side, is_drawing, locked,
@@ -274,279 +274,279 @@ Token(id, page_id, layer, x, y, width, height, rotation, flip_h, flip_v, z,
 
 ---
 
-## 8. Strumenti di disegno
+## 8. Drawing tools
 
-### Strumenti
-- **Forme**: rettangolo; **Alt** per il cerchio/ellisse; **Maiusc** per lo snap alla griglia.
-- **Mano libera**: si trascina come su una lavagna. Maiusc dà le linee dritte agganciate.
-- **Poligono/Linea**: clic per ogni vertice. **Tasto destro o Esc** chiudono la forma; un vertice vicino al primo chiude il poligono; tasto destro dopo il primo segmento lascia una linea aperta. **Ctrl+Z** annulla segmento per segmento durante il disegno; Maiusc aggancia i vertici alla griglia.
-- **Testo**: clic e si scrive. Font, dimensione e colore valgono per **tutto l'oggetto**, non per singoli caratteri ("è un'etichettatrice"). Doppio clic o tasto destro > Modifica per rientrare; Esc toglie il focus.
-- **Barra secondaria**: colore del **tratto**, colore del **riempimento** (anche trasparente), **spessore** della linea.
-- **Cancella disegni**: elimina **tutti i disegni del layer corrente**.
-- **Raggruppa** disegni (Avanzate).
+### Tools
+- **Shapes**: rectangle; **Alt** for circle/ellipse; **Shift** for grid snapping.
+- **Freehand**: drag as on a whiteboard. Shift gives snapped straight lines.
+- **Polygon/Line**: click for each vertex. **Right-click or Esc** closes the shape; a vertex near the first one closes the polygon; right-click after the first segment leaves an open line. **Ctrl+Z** undoes segment by segment while drawing; Shift snaps vertices to the grid.
+- **Text**: click and type. Font, size and color apply to **the whole object**, not individual characters ("it's a label maker"). Double-click or right-click > Edit to re-enter; Esc removes focus.
+- **Secondary bar**: **stroke** color, **fill** color (transparent too), line **width**.
+- **Clear drawings**: deletes **all drawings on the current layer**.
+- **Group** drawings (Advanced).
 
-### Permessi
-- **I giocatori possono sempre disegnare**, su qualunque pagina in cui si trovano, sul layer oggetti. Il GM non può impedirlo senza uno script (DryErase).
-- I giocatori possono spostare ed eliminare i propri disegni; nel 2023 è sparita la loro possibilità di ridimensionarli ([forum](https://app.roll20.net/forum/post/11501167/)).
-- [Frolls+] Permesso di partita "i giocatori possono disegnare" (sì/no/solo su pagine marcate) e "cancella i miei disegni".
+### Permissions
+- **Players can always draw**, on any page they are on, on the objects layer. The GM cannot prevent it without a script (DryErase).
+- Players can move and delete their own drawings; in 2023 their ability to resize them disappeared ([forum](https://app.roll20.net/forum/post/11501167/)).
+- [Frolls+] Game permission "players can draw" (yes/no/only on marked pages) and "clear my drawings".
 
-### Dati
+### Data
 `Drawing(id, page_id, layer, kind: rect|ellipse|freehand|polygon|polyline|text, points[], stroke_color, stroke_width, fill_color, text, font_family, font_size, x, y, rotation, z, owner_id, group_id)`
 
-### Casi limite
-- Ctrl+F apre lo strumento mano libera **invece** della ricerca del browser: è una lamentela ([wiki Journal](https://wiki.roll20.net/Journal)). [Frolls+] Non rubare le scorciatoie del browser.
-- Manca la gomma ([forum](https://app.roll20.net/forum/post/3756/eraser-tool)) e il contagocce ([forum](https://app.roll20.net/forum/post/1509/)). [Frolls+] Aggiungerli.
+### Edge cases
+- Ctrl+F opens the freehand tool **instead of** the browser search: a complaint ([wiki Journal](https://wiki.roll20.net/Journal)). [Frolls+] Don't steal browser shortcuts.
+- There is no eraser ([forum](https://app.roll20.net/forum/post/3756/eraser-tool)) and no eyedropper ([forum](https://app.roll20.net/forum/post/1509/)). [Frolls+] Add them.
 
 ---
 
-## 9. Misura e template ad area (AoE)
+## 9. Measurement and area templates (AoE)
 
-### 9.1 Righello legacy
-- Clic e trascinamento misurano la distanza usando la scala e la regola diagonale della pagina.
-- Modalità: **snap all'angolo** (misura in celle intere), **snap al centro** (celle intere), **libera** (distanza esatta).
-- Visibilità: **"Mostra agli altri"** (tutti la vedono) oppure **"Nascondi agli altri"** (il GM la vede comunque).
-- Durante la misura, **Q** o tasto destro aggiunge un waypoint; **Maiusc** la lascia visibile fino al tasto destro o a una nuova misura; **X** richiama l'ultima misura.
+### 9.1 Legacy ruler
+- Click and drag measures distance using the page scale and diagonal rule.
+- Modes: **snap to corner** (measures in whole cells), **snap to center** (whole cells), **free** (exact distance).
+- Visibility: **"Show to others"** (everyone sees it) or **"Hide from others"** (the GM sees it anyway).
+- While measuring, **Q** or right-click adds a waypoint; **Shift** leaves it visible until right-click or a new measurement; **X** recalls the last measurement.
 
-### 9.2 Strumento Misura (dal 2023, standard in Jumpgate)
-- **Forme**: **Linea**, **Quadrato** (origine: centro, bordo o angolo), **Cerchio** (origine: centro o bordo), **Cono**, **Raggio/Beam** (linea con larghezza).
-- **Angolo del cono**: "Larghezza = altezza" (**53,13°**, la regola 5e), preset rapidi o angolo personalizzato.
-- **Snap**: regolabile.
-- **Linger**: la misura resta sul tavolo.
-- Ogni misura mostra **nome e colore** di chi misura.
-- L'interfaccia indica se la misura sarà trasmessa agli altri o nascosta.
-- Fonti: [Help Center](https://help.roll20.net/hc/en-us/articles/360039674913-Measure-Tool), [blog](https://blog.roll20.net/posts/new-measure-tool-shows-aoe-and-shapes/), [X/Roll20](https://x.com/roll20app/status/1887940210240930057).
+### 9.2 Measure tool (since 2023, standard in Jumpgate)
+- **Shapes**: **Line**, **Square** (origin: center, edge or corner), **Circle** (origin: center or edge), **Cone**, **Beam** (line with width).
+- **Cone angle**: "Width = length" (**53.13°**, the 5e rule), quick presets or custom angle.
+- **Snap**: adjustable.
+- **Linger**: the measurement stays on the tabletop.
+- Each measurement shows the **name and color** of whoever is measuring.
+- The interface shows whether the measurement will be broadcast to others or hidden.
+- Sources: [Help Center](https://help.roll20.net/hc/en-us/articles/360039674913-Measure-Tool), [blog](https://blog.roll20.net/posts/new-measure-tool-shows-aoe-and-shapes/), [X/Roll20](https://x.com/roll20app/status/1887940210240930057).
 
-### 9.3 Template persistenti
-In Roll20 legacy si usavano token con aura o disegni come template. Non esiste un template AoE come oggetto persistente con evidenziazione delle celle colpite.
-- [Frolls+] Oggetto **Template** persistente (cono, sfera, cubo, linea, cilindro) collegabile all'incantesimo, con **celle colpite evidenziate** secondo la regola 5e (cella colpita se coperta almeno a metà, o regola configurabile) ed elenco dei token colpiti. Era una richiesta storica ([forum](https://app.roll20.net/forum/post/8270654/advanced-rulers-cone-square-circles-beam)).
+### 9.3 Persistent templates
+In legacy Roll20, tokens with auras or drawings were used as templates. There is no AoE template as a persistent object with highlighting of affected cells.
+- [Frolls+] Persistent **Template** object (cone, sphere, cube, line, cylinder) linkable to the spell, with **affected cells highlighted** according to the 5e rule (cell affected if at least half covered, or configurable rule) and a list of affected tokens. It was a long-standing request ([forum](https://app.roll20.net/forum/post/8270654/advanced-rulers-cone-square-circles-beam)).
 
-### Dati
-`Measurement(user_id, page_id, shape, origin, points[], angle, width, snap_mode, visibility: all|gm, linger)`. Le misure temporanee sono solo realtime e non persistono; quelle con linger diventano oggetti.
+### Data
+`Measurement(user_id, page_id, shape, origin, points[], angle, width, snap_mode, visibility: all|gm, linger)`. Temporary measurements are realtime only and don't persist; lingering ones become objects.
 
 ---
 
-## 10. Turn tracker (ordine di iniziativa)
+## 10. Turn tracker (initiative order)
 
-### Comportamento
-- **Solo il GM** lo apre e lo chiude. Aperto, **è visibile a tutti**; chiuso, si chiude per tutti.
-- **Non è automatizzato** per scelta: serve a qualunque sistema.
-- **Aggiungere turni**:
-  - Tasto destro sul token > **Aggiungi turno** (anche più turni per lo stesso token), oppure **Ctrl+U** sui selezionati.
-  - Tiro con flag **`&{tracker}`** con un token selezionato (anche dal pulsante Iniziativa della scheda). Se nessun token è selezionato appare l'avviso *"You wanted to send the result of this roll to the turn tracker, but no valid token was selected!"*. Con il token sbagliato selezionato, il valore va comunque su quel token.
-  - **Voce personalizzata** (senza token): nome più eventuale **calcolo di round** (`+1` o `-1`) applicato ogni volta che la voce arriva in cima. Si usa come contatore di round o per buff a scadenza; funziona solo con più di una voce.
-  - **Carte**: "Distribuisci carte alle voci del turn order" (Savage Worlds), oppure trascinare una carta sul campo del valore.
-- **Valori**: clic sul numero e digitazione, poi Invio. Lo possono fare GM e giocatori (i giocatori sui propri). Si può trascinare il risultato di un tiro dalla chat sul campo valore. `&{tracker:+}` e `&{tracker:-}` sommano o sottraggono al valore attuale; se il token non è ancora nel tracker il tiro lo **aggiunge** ignorando il segno. Se il token ha già un turno, `&{tracker}` aggiorna **tutti** i suoi turni.
-- **Avanzare**: freccia, il turno in cima va in fondo. **Indietro**: pulsante "back" aggiunto più tardi.
-- **Riordino**: drag & drop; **ordina** numericamente (crescente o decrescente), alfabeticamente o per seme delle carte.
-- **Rimuovere**: icona cestino al passaggio del mouse; **Svuota lista**.
-- **Più pagine**: il tracker contiene token di qualunque pagina. Il GM vede tutto, **i giocatori vedono solo le voci della loro pagina**.
-- **Token sul layer GM**: nome grigio nel tracker e voce **non mostrata ai giocatori**.
-- **Riferimento in macro**: `@{tracker|Nome voce}` restituisce il valore.
+### Behavior
+- **Only the GM** opens and closes it. When open, **it is visible to everyone**; when closed, it closes for everyone.
+- **Not automated** by design: it serves any system.
+- **Adding turns**:
+  - Right-click on the token > **Add turn** (even multiple turns for the same token), or **Ctrl+U** on the selected ones.
+  - Roll with the **`&{tracker}`** flag with a token selected (also from the sheet's Initiative button). If no token is selected the warning *"You wanted to send the result of this roll to the turn tracker, but no valid token was selected!"* appears. With the wrong token selected, the value still goes to that token.
+  - **Custom entry** (without token): name plus an optional **round calculation** (`+1` or `-1`) applied every time the entry reaches the top. Used as a round counter or for expiring buffs; only works with more than one entry.
+  - **Cards**: "Deal cards to turn order entries" (Savage Worlds), or drag a card onto the value field.
+- **Values**: click the number and type, then Enter. GM and players can do it (players on their own). You can drag a roll result from the chat onto the value field. `&{tracker:+}` and `&{tracker:-}` add to or subtract from the current value; if the token is not yet in the tracker the roll **adds** it ignoring the sign. If the token already has a turn, `&{tracker}` updates **all** its turns.
+- **Advance**: arrow, the top turn goes to the bottom. **Back**: a "back" button added later.
+- **Reorder**: drag & drop; **sort** numerically (ascending or descending), alphabetically or by card suit.
+- **Remove**: trash icon on hover; **Clear list**.
+- **Multiple pages**: the tracker contains tokens from any page. The GM sees everything, **players see only the entries for their page**.
+- **Tokens on the GM layer**: gray name in the tracker and entry **not shown to players**.
+- **Macro reference**: `@{tracker|Entry name}` returns the value.
 
-### Lamentele principali
-- **Nessun contatore di round** nativo: richiesto da oltre 10 anni ([forum](https://app.roll20.net/forum/post/494250/), [forum](https://app.roll20.net/forum/post/1242008/), [forum](https://app.roll20.net/forum/post/294139/)). Roll20 ha detto che "nel codice non esiste il concetto di round".
-- Obbligo di **selezionare il token** prima di tirare l'iniziativa; vecchi tiri da ripulire a mano; controlli sparsi in un pannello separato; nessuna integrazione con PF e CA ([forum](https://app.roll20.net/forum/post/11481189/fixing-initiative-and-the-turn-tracker), +21).
-- Mancano stato e durata per voce ([forum](https://app.roll20.net/forum/post/1170023/), [forum](https://app.roll20.net/forum/post/3478727/)).
-- Manca l'iniziativa di gruppo (oggi serve lo script GroupInitiative).
+### Main complaints
+- **No native round counter**: requested for over 10 years ([forum](https://app.roll20.net/forum/post/494250/), [forum](https://app.roll20.net/forum/post/1242008/), [forum](https://app.roll20.net/forum/post/294139/)). Roll20 said that "the concept of rounds does not exist in the code".
+- Having to **select the token** before rolling initiative; old rolls to clean up by hand; controls scattered in a separate panel; no integration with HP and AC ([forum](https://app.roll20.net/forum/post/11481189/fixing-initiative-and-the-turn-tracker), +21).
+- No per-entry status and duration ([forum](https://app.roll20.net/forum/post/1170023/), [forum](https://app.roll20.net/forum/post/3478727/)).
+- No group initiative (today the GroupInitiative script is needed).
 
 ### [Frolls+]
-- Contatore di **round** e **turno attivo** evidenziato sul token, con centratura opzionale.
-- L'iniziativa da scheda va al **token del personaggio sulla pagina corrente** anche senza selezione.
-- "**Tira iniziativa per i selezionati/per tutti i PNG**" in un clic.
-- Durate delle condizioni che scalano automaticamente.
-- Spareggio 5e (bonus Destrezza).
-- Chiedere se svuotare il tracker alla chiusura.
-- Vista GM con CA, PF e percezione passiva.
+- **Round** counter and **active turn** highlighted on the token, with optional centering.
+- Initiative from the sheet goes to the **character's token on the current page** even without selection.
+- "**Roll initiative for selected/for all NPCs**" in one click.
+- Condition durations that tick down automatically.
+- 5e tie-breaker (Dexterity bonus).
+- Ask whether to clear the tracker on close.
+- GM view with AC, HP and passive perception.
 
-### Dati
+### Data
 `TurnOrder(game_id, open: bool, round: int, entries[{id, token_id?, page_id?, custom_name?, value: string, formula?: "+1", hidden: bool}], current_index)`
 
 ---
 
 ## 11. Chat
 
-### 11.1 Base
-- Si scrive e si invia con **Invio**. **Maiusc+Invio** va a capo: ogni riga è interpretata **separatamente**, ma il blocco resta contiguo (non si mescola con i messaggi degli altri).
-- **"Parla come"**: menu sotto l'input con sé stessi (nome visualizzato) oppure uno dei personaggi che si **controlla**. Il GM vede tutti i personaggi.
-- **Avatar in chat** (impostazione personale): avatar dell'utente, o ritratto del personaggio se si parla come personaggio.
-- **Timestamp**: **sempre salvati**, visualizzazione opzionale per utente (meno di 24 ore: solo l'ora; più vecchi: data e ora).
-- **Freccia su** nell'input richiama l'ultimo comando o tiro della sessione, anche quello di un pulsante della scheda: è il modo per vedere la formula.
-- **Bip in background**: suono per i nuovi messaggi quando non si è sulla scheda chat.
-- **Popout** della chat con doppio clic sull'icona.
-- **Il GM può nascondere messaggi** (da dicembre 2022).
-- **Markdown supportato**: `*corsivo*`, `**grassetto**`, `***entrambi***`, codice con doppio backtick, `[testo](url)`. Un link che finisce in .png, .jpg, .jpeg o .gif viene mostrato come **immagine**. Niente titoli. Vale per messaggi, `/w`, `/desc`, `/em` e campi dei roll template.
-- **Escape con backtick**: un messaggio che inizia con `` ` `` non viene interpretato (né tiri, né attributi, né macro) e va in chat letterale. Serve a condividere le macro.
-- **Pulisci log** (impostazione personale): svuota solo la propria vista fino al ricaricamento.
+### 11.1 Basics
+- Type and send with **Enter**. **Shift+Enter** inserts a line break: each line is interpreted **separately**, but the block stays contiguous (it does not interleave with other people's messages).
+- **"Speaking as"**: menu under the input with yourself (display name) or one of the characters you **control**. The GM sees all characters.
+- **Chat avatars** (personal setting): the user's avatar, or the character's portrait when speaking as a character.
+- **Timestamps**: **always saved**, display optional per user (less than 24 hours: time only; older: date and time).
+- **Up arrow** in the input recalls the last command or roll of the session, including one from a sheet button: it's the way to see the formula.
+- **Background beep**: sound for new messages when not on the chat tab.
+- **Popout** of the chat by double-clicking its icon.
+- **The GM can hide messages** (since December 2022).
+- **Markdown supported**: `*italic*`, `**bold**`, `***both***`, code with double backticks, `[text](url)`. A link ending in .png, .jpg, .jpeg or .gif is shown as an **image**. No headings. Applies to messages, `/w`, `/desc`, `/em` and roll template fields.
+- **Backtick escape**: a message starting with `` ` `` is not interpreted (no rolls, attributes or macros) and goes to chat literally. Used to share macros.
+- **Clear log** (personal setting): empties only your own view until reload.
 
-### 11.2 Comandi
+### 11.2 Commands
 
-| Comando | Chi | Effetto |
+| Command | Who | Effect |
 |---|---|---|
-| `/roll F` · `/r F` | tutti | tiro pubblico della formula F (§12) |
-| `/gmroll F` · `/gr F` | tutti | tiro visibile **solo al GM e a chi tira** |
-| `/w Nome testo` | tutti | sussurro a un giocatore o personaggio; nomi con spazi tra `"virgolette"`; **completamento con Tab**. Sussurrare a un **personaggio** lo manda a tutti quelli in "Controllato da" (trucco usato per le "lingue") |
-| `/w gm testo` | tutti | sussurro a tutti i GM |
-| `/em testo` · `/me testo` | tutti | emote come l'identità "parla come"; stile centrato, grassetto e corsivo, marrone |
-| `/ooc testo` · `/o testo` | tutti | fuori personaggio: appare **sempre** come il giocatore, mai come il personaggio |
-| `/desc testo` | GM | descrizione senza autore; stile centrato, grassetto e corsivo su grigio |
-| `/as "Nome" testo` | GM | parla come un PNG qualsiasi senza personaggio nel journal |
-| `/emas "Nome" testo` | GM | emote come un PNG qualsiasi |
-| `/talktomyself [on/off]` | tutti | i propri messaggi successivi **non** arrivano a nessuno, né al GM né all'archivio. Il toggle va su una riga a parte; con il toggle attivo gli script API non partono |
-| `/fx tipo-colore idSorgente [idBersaglio]` | GM (Pro) | effetto visivo (§20) |
-| `#nomeMacro` | tutti | esegue una macro (§13) |
-| `%{personaggio|abilità}` | tutti | esegue un'abilità |
-| `&{template:nome} {{k=v}}...` | tutti | messaggio con roll template |
-| `!comando` | tutti | comando API (Pro) |
+| `/roll F` · `/r F` | everyone | public roll of formula F (§12) |
+| `/gmroll F` · `/gr F` | everyone | roll visible **only to the GM and the roller** |
+| `/w Name text` | everyone | whisper to a player or character; names with spaces in `"quotes"`; **Tab completion**. Whispering to a **character** sends it to everyone in "Controlled by" (trick used for "languages") |
+| `/w gm text` | everyone | whisper to all GMs |
+| `/em text` · `/me text` | everyone | emote as the "speaking as" identity; centered, bold italic, brown style |
+| `/ooc text` · `/o text` | everyone | out of character: **always** appears as the player, never as the character |
+| `/desc text` | GM | description without author; centered, bold italic on gray style |
+| `/as "Name" text` | GM | speak as any NPC without a character in the journal |
+| `/emas "Name" text` | GM | emote as any NPC |
+| `/talktomyself [on/off]` | everyone | your following messages reach **nobody**, neither the GM nor the archive. The toggle goes on its own line; with the toggle active API scripts don't fire |
+| `/fx type-color sourceId [targetId]` | GM (Pro) | visual effect (§20) |
+| `#macroName` | everyone | runs a macro (§13) |
+| `%{character|ability}` | everyone | runs an ability |
+| `&{template:name} {{k=v}}...` | everyone | message with roll template |
+| `!command` | everyone | API command (Pro) |
 
-### 11.3 Archivio chat
-- La cronologia **persiste tra le sessioni**. In cima alla chat c'è "Vedi tutti i messaggi della partita", che apre l'archivio in un'altra finestra. "Mostra su una pagina" permette di salvare in HTML o PDF dal browser. Nell'archivio c'è un filtro "Nascondi sussurri".
-- **Visibilità**: ognuno vede solo i sussurri e i tiri GM di cui era partecipante. Una vecchia nota del wiki dice che erano conservati solo i sussurri al GM.
-- **Svuota archivio** (Creatore, Dettagli partita): permanente, serve digitare `CONFIRM`. Si usa anche quando la chat "si corrompe" e smette di funzionare: lamentela implicita sull'affidabilità.
+### 11.3 Chat archive
+- History **persists across sessions**. At the top of the chat there is "View all game messages", which opens the archive in another window. "Show on one page" lets you save as HTML or PDF from the browser. The archive has a "Hide whispers" filter.
+- **Visibility**: everyone sees only the whispers and GM rolls they took part in. An old wiki note says only whispers to the GM were kept.
+- **Clear archive** (Creator, Game Details): permanent, requires typing `CONFIRM`. Also used when the chat "gets corrupted" and stops working: an implicit complaint about reliability.
 
-### Lamentele e [Frolls+]
-- **Tiri ciechi**: oggi non esiste un tiro che il giocatore fa senza vederne il risultato. È la richiesta più votata tra quelle sui dadi: **+410** ([forum](https://app.roll20.net/forum/post/4922089/)), più una simile a +39 ([forum](https://app.roll20.net/forum/post/11459035/)). Le soluzioni attuali sono hack CSS o script ([wiki Hidden Rolls](https://wiki.roll20.net/Hidden_Rolls)). [Frolls+] Comando **`/br`** (blind roll), il GM può forzarlo sui tiri della scheda, e il GM può chiedere un tiro cieco a un giocatore.
-- Ricerca testuale nella chat e nell'archivio, esportazione in JSON o Markdown, caricamento paginato (archivi grandi lenti).
-- Sussurro a più destinatari (oggi serve lo script DiscreteWhisper).
-- [Decisione Frolls, già presa] Un messaggio che è **interamente** un'espressione di dadi valida (`d20`, `2d20kh1+5`) si tira senza `/roll`.
+### Complaints and [Frolls+]
+- **Blind rolls**: today there is no roll a player makes without seeing the result. It is the most voted dice request: **+410** ([forum](https://app.roll20.net/forum/post/4922089/)), plus a similar one at +39 ([forum](https://app.roll20.net/forum/post/11459035/)). Current solutions are CSS hacks or scripts ([wiki Hidden Rolls](https://wiki.roll20.net/Hidden_Rolls)). [Frolls+] **`/br`** command (blind roll), the GM can force it on sheet rolls, and the GM can request a blind roll from a player.
+- Text search in chat and archive, export to JSON or Markdown, paginated loading (large archives are slow).
+- Whisper to multiple recipients (today the DiscreteWhisper script is needed).
+- [Frolls decision, already made] A message that is **entirely** a valid dice expression (`d20`, `2d20kh1+5`) is rolled without `/roll`.
 
-### Dati
-`ChatMessage(id, game_id, sender_user_id, speaking_as{type:user|character|freeform, id?, name}, type: text|roll|emote|ooc|desc|whisper|gmroll|blind|template|system, recipients[]?, content_raw, content_rendered, rolls[] (risultati strutturati), template_name?, fields{}, hidden_by_gm, created_at)`
+### Data
+`ChatMessage(id, game_id, sender_user_id, speaking_as{type:user|character|freeform, id?, name}, type: text|roll|emote|ooc|desc|whisper|gmroll|blind|template|system, recipients[]?, content_raw, content_rendered, rolls[] (structured results), template_name?, fields{}, hidden_by_gm, created_at)`
 
 ---
 
-## 12. Motore dadi (specifica completa)
+## 12. Dice engine (full specification)
 
-> Fonte principale: [Dice Reference](https://wiki.roll20.net/Dice_Reference) e [Order of Operations](https://wiki.roll20.net/Order_of_Operations). I tiri in Frolls sono **calcolati dal server** con un RNG crittografico e conservati in forma strutturata, così il log è verificabile.
+> Main sources: [Dice Reference](https://wiki.roll20.net/Dice_Reference) and [Order of Operations](https://wiki.roll20.net/Order_of_Operations). In Frolls rolls are **computed by the server** with a cryptographic RNG and stored in structured form, so the log is verifiable.
 
-### 12.1 Dove si tira
+### 12.1 Where to roll
 - `/roll F`, `/r F`, `/gmroll F`, `/gr F`.
-- **Tiro inline** `[[F]]` dentro qualunque messaggio, emote, sussurro o campo di un template.
-- Pulsanti della scheda, macro, abilità, token actions, GUI dei dadi.
-- [Decisione Frolls] Un messaggio composto solo da una formula valida viene tirato automaticamente.
+- **Inline roll** `[[F]]` inside any message, emote, whisper or template field.
+- Sheet buttons, macros, abilities, token actions, dice GUI.
+- [Frolls decision] A message made only of a valid formula is rolled automatically.
 
-### 12.2 Testo, etichette ed escape
-- Dopo la formula si può scrivere testo libero: `/roll 1d20+5 Per l'iniziativa`.
-- Se il testo contiene numeri o operatori (`+ - * / % ( )`), va separato con `\`: `/roll 1d20+5 \ +5 Per l'iniziativa`.
-- **Etichetta inline** `[testo]` subito dopo un termine: `2d10+5[Fuoco] + 3d6[Ghiaccio]`. Compare come **tooltip** sui dadi e nel dettaglio del tiro. Può contenere attributi: `@{selected|str}[str]`.
+### 12.2 Text, labels and escaping
+- Free text can follow the formula: `/roll 1d20+5 For initiative`.
+- If the text contains numbers or operators (`+ - * / % ( )`), it must be separated with `\`: `/roll 1d20+5 \ +5 For initiative`.
+- **Inline label** `[text]` right after a term: `2d10+5[Fire] + 3d6[Ice]`. It appears as a **tooltip** on the dice and in the roll breakdown. It can contain attributes: `@{selected|str}[str]`.
 
-### 12.3 Tipi di dado
-| Sintassi | Significato | Vincoli |
+### 12.3 Die types
+| Syntax | Meaning | Constraints |
 |---|---|---|
-| `NdX` | N dadi da X facce. `dX` = `1dX` | N ≥ 0, X ≥ 1. Limite client Roll20: **≤ 999 dadi** e **≤ 9.999.999 facce**, oltre arrotonda in silenzio ([forum](https://app.roll20.net/forum/post/9164629/)) |
-| `NdF` | dadi Fate/Fudge: facce −1, −1, 0, 0, +1, +1 | |
-| `(espr)dX`, `Nd(espr)` | numero di dadi o facce calcolato; il numero di dadi è **arrotondato** come `round()` | |
-| `NtX[nome]`, `1t[tabella]` | tiro su una **tabella casuale** (§14) | dentro un tiro inline viene mostrato **un solo** risultato qualunque sia N |
+| `NdX` | N dice with X sides. `dX` = `1dX` | N ≥ 0, X ≥ 1. Roll20 client limit: **≤ 999 dice** and **≤ 9,999,999 sides**, beyond that it silently rounds ([forum](https://app.roll20.net/forum/post/9164629/)) |
+| `NdF` | Fate/Fudge dice: sides −1, −1, 0, 0, +1, +1 | |
+| `(expr)dX`, `Nd(expr)` | computed number of dice or sides; the number of dice is **rounded** like `round()` | |
+| `NtX[name]`, `1t[table]` | roll on a **rollable table** (§14) | inside an inline roll **only one** result is shown whatever N is |
 
-[Decisione Frolls] Errore esplicito, non arrotondamento silenzioso, oltre i limiti (proposta: 1000 dadi, 10^6 facce). `d%` come alias di `d100` (Roll20 non lo documenta).
+[Frolls decision] Explicit error, not silent rounding, beyond the limits (proposal: 1000 dice, 10^6 sides). `d%` as alias for `d100` (Roll20 does not document it).
 
-### 12.4 Matematica
-- Operatori: `+ - * /`, `%` (modulo; con a < 0 il risultato è negativo), `**` (potenza; radici con esponenti frazionari).
-- Funzioni: `floor(x)`, `ceil(x)`, `round(x)` (≥ .5 verso +∞), `abs(x)`.
-- Precedenza: `( )` > funzioni > `**` > `* / %` (da sinistra) > `+ -` (da sinistra).
-- **Non ci sono** `min()` e `max()` ([forum](https://app.roll20.net/forum/post/1146425/)). Si aggira con i gruppi: `{a, b}kh1` = max. [Frolls+] Aggiungere `min`, `max` e operatori di confronto.
-- Tiri solo matematici: `/roll 5+3`, `[[5+3]]`.
+### 12.4 Math
+- Operators: `+ - * /`, `%` (modulo; with a < 0 the result is negative), `**` (power; roots with fractional exponents).
+- Functions: `floor(x)`, `ceil(x)`, `round(x)` (≥ .5 toward +∞), `abs(x)`.
+- Precedence: `( )` > functions > `**` > `* / %` (left to right) > `+ -` (left to right).
+- **There are no** `min()` and `max()` ([forum](https://app.roll20.net/forum/post/1146425/)). Worked around with groups: `{a, b}kh1` = max. [Frolls+] Add `min`, `max` and comparison operators.
+- Math-only rolls: `/roll 5+3`, `[[5+3]]`.
 
 ### 12.5 Compare Point (CP)
-Molti modificatori confrontano ogni dado con un **CP**: un operatore opzionale tra `=`, `>`, `<` seguito da un numero.
-- **Senza operatore vale `=`**.
-- **`>` significa ≥** e **`<` significa ≤**: inclusivi, attenzione.
-- Esempi: `=3`, `>2` (≥2), `<18` (≤18).
+Many modifiers compare each die against a **CP**: an optional operator among `=`, `>`, `<` followed by a number.
+- **Without an operator it means `=`**.
+- **`>` means ≥** and **`<` means ≤**: inclusive, careful.
+- Examples: `=3`, `>2` (≥2), `<18` (≤18).
 
-### 12.6 Modificatori sui dadi (B = dadi base, F = Fate)
-| Modificatore | Sintassi | Semantica | Default CP |
+### 12.6 Dice modifiers (B = basic dice, F = Fate)
+| Modifier | Syntax | Semantics | Default CP |
 |---|---|---|---|
-| **Esplosione** | `!` · `!CP` | se il dado soddisfa il CP se ne tira **un altro** che si aggiunge come dado separato, ripetendo finché soddisfa | faccia massima |
-| **Composta** | `!!` · `!!CP` | come l'esplosione, ma i tiri extra si **sommano nello stesso dado**: un dado può superare il massimo (Shadowrun, 7th Sea, L5R) | faccia massima. `5d6!!5`: compone sul 5, il 6 è un tiro normale |
-| **Penetrante** | `!p` · `!pCP` | come l'esplosione, ma **ogni** tiro aggiuntivo ha **−1** (sempre e solo −1, anche dopo più penetrazioni; HackMaster) | faccia massima |
-| **Ritira** | `r` · `rCP` (ripetibile: `r1r3r5`) | se il dado soddisfa il CP lo si **scarta e ritira**, finché non lo soddisfa più | `=1` (`8d6r` ritira gli 1) |
-| **Ritira una volta** | `ro` · `roCP` | come `r`, ma una sola volta per dado, tenendo il nuovo risultato (es. Stile di combattimento Armi grandi 5e) | `=1` |
-| **Tieni alti** | `khN` · `kN` | tieni gli N più alti; gli altri sono mostrati **in grigio** e non contano | `k` = `kh` |
-| **Tieni bassi** | `klN` | tieni gli N più bassi | |
-| **Scarta bassi** | `dlN` · `dN` | scarta gli N più bassi | `d` = `dl` |
-| **Scarta alti** | `dhN` | scarta gli N più alti | |
-| **Successi** | `CP` dopo i dadi: `3d6>3`, `10d6<4` | il risultato diventa il **numero di dadi** che soddisfano il CP (≥3, ≤4); i pari contano come successo | |
-| **Fallimenti** | `fCP` (solo se c'è già un CP di successo) | ogni dado che soddisfa sottrae 1 dai successi: `3d6>3f1`, `10d6<4f>5` | |
-| **Critico (solo visuale)** | `csCP`, `cfCP` (ripetibili: `cs20cs10`) | cambia **solo l'evidenziazione** del critico o del fallimento, **non** esplosioni o altro | cs = massimo, cf = 1 |
-| **Coppie (match)** | `m[N][CP]` · `mt[N][CP]` | `m` evidenzia con una **barra colorata** (un colore diverso per ogni gruppo) i dadi uguali, senza cambiare il totale. `mt` restituisce il **numero di gruppi** di coppie. N = quanti dadi uguali servono per un gruppo (default 2); CP = valori ammessi (`5d6mt3>4`) | N = 2 |
-| **Ordina** | `s` · `sa` · `sd` | ordina la visualizzazione crescente (default) o decrescente | `s` = `sa` |
+| **Exploding** | `!` · `!CP` | if the die meets the CP **another one** is rolled and added as a separate die, repeating while it meets it | max face |
+| **Compounding** | `!!` · `!!CP` | like exploding, but the extra rolls are **added into the same die**: a die can exceed the maximum (Shadowrun, 7th Sea, L5R) | max face. `5d6!!5`: compounds on 5, 6 is a normal roll |
+| **Penetrating** | `!p` · `!pCP` | like exploding, but **each** extra roll gets **−1** (always and only −1, even after multiple penetrations; HackMaster) | max face |
+| **Reroll** | `r` · `rCP` (repeatable: `r1r3r5`) | if the die meets the CP it is **discarded and rerolled**, until it no longer meets it | `=1` (`8d6r` rerolls 1s) |
+| **Reroll once** | `ro` · `roCP` | like `r`, but only once per die, keeping the new result (e.g. 5e Great Weapon Fighting style) | `=1` |
+| **Keep highest** | `khN` · `kN` | keep the N highest; the others are shown **in gray** and don't count | `k` = `kh` |
+| **Keep lowest** | `klN` | keep the N lowest | |
+| **Drop lowest** | `dlN` · `dN` | drop the N lowest | `d` = `dl` |
+| **Drop highest** | `dhN` | drop the N highest | |
+| **Successes** | `CP` after the dice: `3d6>3`, `10d6<4` | the result becomes the **number of dice** meeting the CP (≥3, ≤4); ties count as success | |
+| **Failures** | `fCP` (only if there is already a success CP) | each die that meets it subtracts 1 from the successes: `3d6>3f1`, `10d6<4f>5` | |
+| **Critical (visual only)** | `csCP`, `cfCP` (repeatable: `cs20cs10`) | changes **only the highlighting** of crit or fumble, **not** explosions or anything else | cs = max, cf = 1 |
+| **Match** | `m[N][CP]` · `mt[N][CP]` | `m` highlights matching dice with a **colored bar** (a different color for each group), without changing the total. `mt` returns the **number of match groups**. N = how many equal dice are needed for a group (default 2); CP = allowed values (`5d6mt3>4`) | N = 2 |
+| **Sort** | `s` · `sa` · `sd` | sorts the display ascending (default) or descending | `s` = `sa` |
 
-**Ordine di applicazione dei modificatori su un gruppo di dadi:**
-1. **Mentre i dadi "rotolano"**: esplosione, composta, penetrante, ritira (anche "una volta").
-2. **A dadi fermi**: tieni/scarta, successi, fallimenti, ordinamento.
+**Order in which modifiers are applied to a set of dice:**
+1. **While the dice are "rolling"**: exploding, compounding, penetrating, reroll (including "once").
+2. **Once the dice have settled**: keep/drop, successes, failures, sorting.
 
-Esempio: per esplodere su ≥18 **e** mostrare il critico su ≥18 si scrive `1d20!>18cs>18`.
+Example: to explode on ≥18 **and** show the crit on ≥18 write `1d20!>18cs>18`.
 
-**Casi limite da coprire nei test:**
-- `{5d6!!}>8`: le parentesi graffe servono a dire "compone sul 6, poi conta i successi ≥8". Senza graffe `5d6!!>8` significherebbe "compone su ≥8".
-- `{3d6+1}<3`: per aggiungere un modificatore **a ogni dado** prima del confronto bisogna usare un gruppo.
-- **Ritiro o esplosione infinita**: `1d1!`, `1d6r<6`, `1d6!>1`. Roll20 non documenta un tetto. [Decisione Frolls] Tetto di 100 esplosioni o ritiri per dado e avviso nell'output; rifiutare un CP che copre tutte le facce in `r`.
-- `kh` con N maggiore dei dadi: tiene tutto. N = 0: tiene nulla (totale 0).
-- I modificatori possono essere combinati, ad esempio `8d6!r1kh4sd`. [Decisione Frolls] Accettare qualunque ordine testuale e applicare l'ordine semantico qui sopra.
+**Edge cases to cover in tests:**
+- `{5d6!!}>8`: the braces are needed to say "compound on 6, then count successes ≥8". Without braces `5d6!!>8` would mean "compound on ≥8".
+- `{3d6+1}<3`: to add a modifier **to each die** before comparison you must use a group.
+- **Infinite reroll or explosion**: `1d1!`, `1d6r<6`, `1d6!>1`. Roll20 does not document a cap. [Frolls decision] Cap of 100 explosions or rerolls per die and a warning in the output; reject a CP covering all faces in `r`.
+- `kh` with N greater than the dice: keeps everything. N = 0: keeps nothing (total 0).
+- Modifiers can be combined, for example `8d6!r1kh4sd`. [Frolls decision] Accept any textual order and apply the semantic order above.
 
-### 12.7 Tiri raggruppati `{ }`
-- `{espr1, espr2, ...}` con modificatori di gruppo dopo la `}`.
-- **Un solo sotto-tiro** (senza virgole): i modificatori di gruppo agiscono sui **singoli dadi** di tutto il gruppo, anche di tipi diversi.
-  - `{4d6+3d8}k4`: dei 7 dadi tiene i 4 più alti.
-  - `{3d20+5}>21`: somma 5 a **ogni** d20, poi conta quelli ≥21.
-  - `{2d6!}>4`: esplode, poi conta i ≥4.
-- **Più sotto-tiri** (separati da virgole): ognuno viene **sommato**, poi i modificatori agiscono sui **totali**.
-  - `{4d6,3d8}kh1`: tiene il totale più alto (Savage Worlds: dado tratto più dado selvaggio).
-  - `{4d6+2d8, 3d20+3, 5d10+1}d1`: scarta il totale più basso.
-  - `{...}>40f<10`: conta i totali ≥40 e sottrae quelli ≤10.
-- **Modificatori di gruppo**: `khN klN dhN dlN`, successi `CP`, fallimenti `fCP`.
-- **Vincolo di tipo**: tutti i sotto-tiri devono essere dello stesso tipo, cioè tutti somme o tutti successi. Un numero da solo è un tipo speciale ("M roll"): `[[{1d6, 5}kh1]]` **fallisce**, mentre funzionano `{1d6, 5+0d0}kh1`, `{1d6, {5}}kh1` e `{[[1d6]], 5}kh1`. [Decisione Frolls] Far funzionare anche `{1d6, 5}kh1`, che è il modo naturale di scrivere `max(1d6, 5)`.
-- I gruppi si possono annidare.
+### 12.7 Grouped rolls `{ }`
+- `{expr1, expr2, ...}` with group modifiers after the `}`.
+- **A single sub-roll** (no commas): group modifiers act on the **individual dice** of the whole group, even of different types.
+  - `{4d6+3d8}k4`: of the 7 dice keeps the 4 highest.
+  - `{3d20+5}>21`: adds 5 to **each** d20, then counts those ≥21.
+  - `{2d6!}>4`: explodes, then counts those ≥4.
+- **Multiple sub-rolls** (comma-separated): each is **summed**, then the modifiers act on the **totals**.
+  - `{4d6,3d8}kh1`: keeps the highest total (Savage Worlds: trait die plus wild die).
+  - `{4d6+2d8, 3d20+3, 5d10+1}d1`: drops the lowest total.
+  - `{...}>40f<10`: counts totals ≥40 and subtracts those ≤10.
+- **Group modifiers**: `khN klN dhN dlN`, successes `CP`, failures `fCP`.
+- **Type constraint**: all sub-rolls must be of the same type, i.e. all sums or all successes. A lone number is a special type ("M roll"): `[[{1d6, 5}kh1]]` **fails**, while `{1d6, 5+0d0}kh1`, `{1d6, {5}}kh1` and `{[[1d6]], 5}kh1` work. [Frolls decision] Make `{1d6, 5}kh1` work too, as it's the natural way to write `max(1d6, 5)`.
+- Groups can be nested.
 
-### 12.8 Tiri inline `[[ ]]`
-- Si usano in qualunque messaggio: `/em mi colpisce per [[2d6+2]] danni`.
-- Sono valutati **prima** del resto della riga, quindi si possono usare come variabili: `/roll [[2d6]]d5`.
-- **Annidabili**: si valuta dal più interno: `[[ 3d6>[[1+3]] ]]`.
-- **Visualizzazione**: solo il **totale** in un riquadro (giallo). **Al passaggio del mouse** si vede la formula con i dadi singoli e le etichette.
-- **Evidenziazione**: bordo **verde** se c'è un critico, **rosso** se c'è un fallimento critico, **blu** se ci sono entrambi. Nel dettaglio i singoli dadi sono evidenziati in verde o rosso.
-- Gli attributi auto-calcolati della scheda vanno racchiusi in `[[ ]]` per mostrare il valore e non la formula: lamentela, la scheda espone formule grezze.
+### 12.8 Inline rolls `[[ ]]`
+- Used in any message: `/em hits me for [[2d6+2]] damage`.
+- They are evaluated **before** the rest of the line, so they can be used as variables: `/roll [[2d6]]d5`.
+- **Nestable**: evaluated from the innermost: `[[ 3d6>[[1+3]] ]]`.
+- **Display**: only the **total** in a (yellow) box. **On hover** you see the formula with individual dice and labels.
+- **Highlighting**: **green** border if there is a crit, **red** if there is a fumble, **blue** if both. In the breakdown individual dice are highlighted in green or red.
+- Auto-calculated sheet attributes must be wrapped in `[[ ]]` to show the value rather than the formula: complaint, the sheet exposes raw formulas.
 
-### 12.9 Riuso dei tiri (comportamento emergente)
-- `$[[n]]` è un riferimento al tiro inline n-esimo **della stessa riga** (indice da 0 in ordine di valutazione, dal più interno). Mostra il risultato senza ritirare.
-- Non si può usare dentro un altro tiro inline senza romperlo; esiste però `$[[n.computed]]`.
-- `%NEWLINE%` mantiene la stessa "riga" logica.
-- È nato come bug sfruttato dalla community ([wiki Reusing Rolls](https://wiki.roll20.net/Reusing_Rolls)). [Frolls+] Variabili esplicite e documentate, ad esempio `[[1d20]]=>atk` e poi `$atk`, oltre alla compatibilità con `$[[n]]`.
+### 12.9 Reusing rolls (emergent behavior)
+- `$[[n]]` is a reference to the n-th inline roll **of the same line** (0-based index in evaluation order, innermost first). It shows the result without rerolling.
+- It cannot be used inside another inline roll without breaking it; there is however `$[[n.computed]]`.
+- `%NEWLINE%` keeps the same logical "line".
+- It started as a bug exploited by the community ([wiki Reusing Rolls](https://wiki.roll20.net/Reusing_Rolls)). [Frolls+] Explicit, documented variables, for example `[[1d20]]=>atk` and then `$atk`, besides compatibility with `$[[n]]`.
 
-### 12.10 Roll query `?{}`
-- `?{Prompt}` mostra un input libero; `?{Prompt|default}` lo precompila.
-- **Menu a tendina**: `?{Prompt|Op1|Op2|Op3}`, oppure con **etichetta e valore**: `?{Prompt|Etichetta 1,valore1|Etichetta 2,valore2}`.
-- **Stessa domanda = una sola richiesta**: query con testo identico nello stesso comando chiedono una volta e riusano il valore. Si può riusare anche senza opzioni: `?{Deadly Aim}` dopo `?{Deadly Aim|Sì,1|No,0}`.
-- Funzionano ovunque (tiri, macro, abilità, emote, sussurri).
-- **Annidamento**: `|`, `,` e `}` dentro una query annidata vanno scritti come entità HTML (`&#124;`, `&#44;`, `&#125;`), con `&amp;` in più a ogni livello. Le chiamate `@{}`, `%{}` e `#` non vanno mai codificate. Le macro della scheda Collezioni **perdono le entità** quando vengono riaperte e salvate, e diventano rotte: lamentela storica, per questo la community salva le macro come abilità.
-- [Frolls+] Parser con annidamento vero (parentesi bilanciate) e senza entità; un **dialogo unico** per tutte le query di un comando invece di un popup per volta; tipi di input (numero, sì/no).
+### 12.10 Roll queries `?{}`
+- `?{Prompt}` shows a free input; `?{Prompt|default}` prefills it.
+- **Dropdown**: `?{Prompt|Op1|Op2|Op3}`, or with **label and value**: `?{Prompt|Label 1,value1|Label 2,value2}`.
+- **Same question = a single prompt**: queries with identical text in the same command ask once and reuse the value. It can be reused even without options: `?{Deadly Aim}` after `?{Deadly Aim|Yes,1|No,0}`.
+- They work everywhere (rolls, macros, abilities, emotes, whispers).
+- **Nesting**: `|`, `,` and `}` inside a nested query must be written as HTML entities (`&#124;`, `&#44;`, `&#125;`), with an extra `&amp;` at each level. `@{}`, `%{}` and `#` calls must never be encoded. Macros in the Collections tab **lose their entities** when reopened and saved, and break: a long-standing complaint, which is why the community saves macros as abilities.
+- [Frolls+] Parser with real nesting (balanced brackets) and no entities; a **single dialog** for all queries of a command instead of one popup at a time; input types (number, yes/no).
 
-### 12.11 Flag di tiro `&{...}`
+### 12.11 Roll flags `&{...}`
 - `&{tracker}`, `&{tracker:+}`, `&{tracker:-}` (§10).
-- `&{noerror}`: sopprime gli errori, ad esempio un attributo inesistente.
-- `&{template:nome}`: roll template (§13.6).
+- `&{noerror}`: suppresses errors, for example a nonexistent attribute.
+- `&{template:name}`: roll template (§13.6).
 
-### 12.12 Ordine delle operazioni (fondamentale per la compatibilità delle macro)
-1. Espansione delle **abilità** `%{car|abil}`.
-2. Espansione delle **macro** `#nome`.
-3. Risoluzione degli **attributi** `@{...}`.
-4. Ripetizione dei passi 1-3 fino a **99 livelli** o finché non c'è più nulla da espandere.
-5. **Roll query**, fino a 99 livelli. Dopo ogni query le entità HTML vengono decodificate **una volta**.
-6. **Tiri inline**, dal più interno.
-7. Tiro dei **dadi** della formula restante.
-8. **Funzioni** matematiche.
-9. Valutazione dell'**espressione** con la precedenza matematica.
-10. Custom Roll Parsing (scheda).
-11. Decodifica delle entità HTML (una volta).
-12. Invio in chat (e agli script API).
+### 12.12 Order of operations (essential for macro compatibility)
+1. Expansion of **abilities** `%{char|abil}`.
+2. Expansion of **macros** `#name`.
+3. Resolution of **attributes** `@{...}`.
+4. Repeat steps 1-3 up to **99 levels** or until there is nothing left to expand.
+5. **Roll queries**, up to 99 levels. After each query HTML entities are decoded **once**.
+6. **Inline rolls**, innermost first.
+7. Rolling the **dice** of the remaining formula.
+8. Math **functions**.
+9. Evaluation of the **expression** with math precedence.
+10. Custom Roll Parsing (sheet).
+11. Decoding of HTML entities (once).
+12. Sending to chat (and to API scripts).
 
-Conseguenza: non si può costruire un nome di attributo con una query (le query vengono dopo gli attributi). È un limite noto. [Decisione Frolls] Mantenere questo ordine per compatibilità, ma documentarlo nell'editor.
+Consequence: you cannot build an attribute name with a query (queries come after attributes). This is a known limitation. [Frolls decision] Keep this order for compatibility, but document it in the editor.
 
-### 12.13 Rendering dell'output
-- `/roll`: i **dadi singoli** sono mostrati come forme del dado colorate con il **colore del giocatore**; scartati in grigio; critico e fallimento evidenziati; totale dopo il `=`.
-- **Dadi avanzati** (impostazione): le icone dei dadi in chat si possono trascinare per riordinarle o sul tavolo.
-- **GUI dei dadi**: tiro rapido fino a 5 dadi d4-d20 con un clic; opzioni GM roll, esplosivi, composti, penetranti; tiratore avanzato con tipo, numero e modificatore; **ultimi 10 tiri** da ripetere, compresi quelli fatti in chat.
-- **Dadi 3D** (§20).
+### 12.13 Output rendering
+- `/roll`: **individual dice** are shown as die shapes colored with the **player's color**; dropped ones in gray; crit and fumble highlighted; total after the `=`.
+- **Advanced dice** (setting): dice icons in chat can be dragged to reorder them or onto the tabletop.
+- **Dice GUI**: quick roll of up to 5 d4-d20 dice with one click; options GM roll, exploding, compounding, penetrating; advanced roller with type, number and modifier; **last 10 rolls** to repeat, including those made in chat.
+- **3D dice** (§20).
 
-### 12.14 Grammatica di riferimento (per l'implementazione)
+### 12.14 Reference grammar (for implementation)
 ```
 expr      := term (('+'|'-') term)*
 term      := factor (('*'|'/'|'%') factor)*
@@ -572,9 +572,9 @@ table     := number 't' '[' name ']'
 label     := '[' text ']'
 func      := 'floor'|'ceil'|'round'|'abs'  (+ Frolls: 'min'|'max')
 ```
-Ambiguità da risolvere: `d` come "scarta" e `d` come "dado" (`2d6d1` = 2d6 scarta 1 basso); `>` come successo e `!>` come esplosione. La regola è l'aggancio al dado precedente.
+Ambiguities to resolve: `d` as "drop" and `d` as "die" (`2d6d1` = 2d6 drop 1 lowest); `>` as success and `!>` as explosion. The rule is binding to the preceding die.
 
-### 12.15 Dati di un tiro
+### 12.15 Roll data
 ```
 RollResult(id, expression_original, expression_expanded, total, type: sum|success|match,
   parts[{kind:dice|number|group|table, label?, sides, dice[{value, dropped, exploded_from?,
@@ -584,460 +584,460 @@ RollResult(id, expression_original, expression_expanded, total, type: sum|succes
 
 ---
 
-## 13. Macro, abilità, riferimenti e template
+## 13. Macros, abilities, references and templates
 
-### 13.1 Macro (Collezioni)
-- Si creano nella scheda **Collezioni**: **nome** e **azione** (testo multilinea, una riga per comando).
-- Opzioni:
-  - **Visibile a**: giocatori con cui la macro è condivisa; il GM può renderla visibile a tutti.
-  - **Mostra nella quick bar**: attivarla accende anche la barra.
-  - **Mostra come token action**.
-- Ogni giocatore può creare macro proprie; quelle del GM condivise appaiono agli altri.
-- **Esecuzione**: `#nome` in chat, clic in Collezioni, clic nella quick bar o tra le token actions.
-- **Variabile di coda**: `#d20` definita come `/roll 1d20+`, scrivendo `#d204` diventa `/roll 1d20+4`.
-- **Annidamento**: `#altra` su una riga propria. In una query si scrive `,#macro ` con lo spazio dopo il nome.
-- **Autocompletamento** nell'editor e in chat: `#` (macro), `@` (attributi dei personaggi controllati), `%` (abilità, solo in chat). Trova le corrispondenze per sottostringa e si naviga con frecce e Invio. Mostra solo ciò che si ha il permesso di vedere.
-- **Maiusc+clic** su un pulsante macro apre l'editor.
+### 13.1 Macros (Collections)
+- Created in the **Collections** tab: **name** and **action** (multiline text, one line per command).
+- Options:
+  - **Visible to**: players the macro is shared with; the GM can make it visible to everyone.
+  - **Show in quick bar**: enabling it also turns on the bar.
+  - **Show as token action**.
+- Each player can create their own macros; shared GM macros appear to the others.
+- **Running**: `#name` in chat, click in Collections, click in the quick bar or among the token actions.
+- **Trailing variable**: `#d20` defined as `/roll 1d20+`, typing `#d204` becomes `/roll 1d20+4`.
+- **Nesting**: `#other` on its own line. In a query you write `,#macro ` with a space after the name.
+- **Autocomplete** in the editor and chat: `#` (macros), `@` (attributes of controlled characters), `%` (abilities, chat only). Matches by substring and is navigated with arrows and Enter. Shows only what you are allowed to see.
+- **Shift+click** on a macro button opens the editor.
 
-### 13.2 Abilità (per personaggio)
-- Si trovano nella scheda "Attributi e abilità" del personaggio: nome, azione e "Mostra come token action".
-- `%{Personaggio|abilità}` oppure `%{selected|abilità}` / `%{target|...}`. **Serve sempre una parola chiave**, anche dentro il personaggio stesso: `%{abilità}` da solo non funziona (lamentela).
-- I pulsanti della scheda si comportano come abilità (`%{Nome|nome_pulsante}`).
-- **Maiusc+clic** apre l'editor dell'abilità.
+### 13.2 Abilities (per character)
+- Found in the character's "Attributes & Abilities" tab: name, action and "Show as token action".
+- `%{Character|ability}` or `%{selected|ability}` / `%{target|...}`. **A keyword is always needed**, even inside the character itself: `%{ability}` alone does not work (complaint).
+- Sheet buttons behave like abilities (`%{Name|button_name}`).
+- **Shift+click** opens the ability editor.
 
-### 13.3 Riferimenti agli attributi
-| Sintassi | Significato |
+### 13.3 Attribute references
+| Syntax | Meaning |
 |---|---|
-| `@{attr}` | attributo del personaggio corrente (in abilità o scheda) |
-| `@{Personaggio|attr}` | attributo di un personaggio per nome (**non** distingue maiuscole) |
-| `@{Personaggio|attr|max}` | valore max |
-| `@{selected|attr}` | dal token **selezionato**: se rappresenta un personaggio legge i suoi attributi |
-| `@{selected|bar1}`, `bar1|max` | barre del token (anche non collegate) |
-| `@{selected|token_name}`, `token_id`, `character_name`, `character_id` | identità |
-| `@{target|attr}` | chiede di **cliccare un token bersaglio**, anche non controllato |
-| `@{target|Nome|attr|max}` | bersagli multipli con nome (stesso nome = un solo prompt, anche su più righe) |
-| `@{Personaggio|repeating_sezione_$0_campo}` | sezione ripetuta per **indice** (da 0) |
-| `@{...|repeating_sezione_<rowid>_campo}` | sezione ripetuta per **ID di riga** (stabile) |
-| `@{tracker|Nome}` | valore nel turn tracker |
+| `@{attr}` | attribute of the current character (in an ability or sheet) |
+| `@{Character|attr}` | attribute of a character by name (**not** case-sensitive) |
+| `@{Character|attr|max}` | max value |
+| `@{selected|attr}` | from the **selected** token: if it represents a character it reads its attributes |
+| `@{selected|bar1}`, `bar1|max` | token bars (unlinked too) |
+| `@{selected|token_name}`, `token_id`, `character_name`, `character_id` | identity |
+| `@{target|attr}` | asks to **click a target token**, even an uncontrolled one |
+| `@{target|Name|attr|max}` | multiple named targets (same name = a single prompt, even across lines) |
+| `@{Character|repeating_section_$0_field}` | repeating section by **index** (0-based) |
+| `@{...|repeating_section_<rowid>_field}` | repeating section by **row ID** (stable) |
+| `@{tracker|Name}` | value in the turn tracker |
 
-Casi limite:
-- Un attributo auto-calcolato restituisce la **formula** e va racchiuso in `[[ ]]`.
-- Un attributo inesistente dà errore (`&{noerror}` lo sopprime).
-- `selected` senza selezione dà errore.
-- [Decisione Frolls] Ambiguità se due personaggi hanno lo stesso nome: si sceglie il primo per ID e si mostra un avviso.
+Edge cases:
+- An auto-calculated attribute returns the **formula** and must be wrapped in `[[ ]]`.
+- A nonexistent attribute gives an error (`&{noerror}` suppresses it).
+- `selected` without a selection gives an error.
+- [Frolls decision] Ambiguity if two characters have the same name: pick the first by ID and show a warning.
 
 ### 13.4 Token Actions
-- Barra in alto quando si seleziona un token. Contiene **tutte le macro** marcate come token action (su qualunque token) e le **abilità** marcate del personaggio rappresentato dal token.
-- Ordinamento **alfabetico** di default (trucchi: prefissi numerici, simboli, spazi a larghezza zero), oppure "legacy" nell'ordine delle abilità (impostazione per utente).
-- Le token actions definite **dentro il codice della scheda** non si possono togliere. [Frolls+] La scheda 5e propone token actions predefinite (attacchi, tiri salvezza, iniziativa) disattivabili per personaggio. Oggi serve lo script TokenActionMaker.
+- Bar at the top when a token is selected. It contains **all macros** marked as token actions (on any token) and the marked **abilities** of the character the token represents.
+- **Alphabetical** ordering by default (tricks: numeric prefixes, symbols, zero-width spaces), or "legacy" in ability order (per-user setting).
+- Token actions defined **inside the sheet code** cannot be removed. [Frolls+] The 5e sheet offers predefined token actions (attacks, saving throws, initiative) that can be disabled per character. Today the TokenActionMaker script is needed.
 
 ### 13.5 Macro quick bar
-- Si attiva dalle impostazioni o attivando "nella barra" su una macro. Sta in basso, sotto gli avatar.
-- **Drag** per riordinare, **trascinare fuori** per rimuovere (diventa rosso).
-- Ci si possono trascinare i **pulsanti della scheda** (non funziona con le schede in popout).
-- **Tasto destro**: **Rinomina** e **Colore** dello sfondo (il testo si adatta per contrasto), solo per l'utente locale.
+- Enabled from settings or by turning on "in bar" on a macro. It sits at the bottom, under the avatars.
+- **Drag** to reorder, **drag out** to remove (turns red).
+- You can drag **sheet buttons** onto it (doesn't work with popout sheets).
+- **Right-click**: **Rename** and background **Color** (text adapts for contrast), for the local user only.
 
-### 13.6 Roll template
-- Forma: `&{template:nome} {{campo=valore}} {{...}}`. I valori possono essere testo o tiri inline (macro e abilità dentro devono produrre tiri inline, non `/roll`). Si usano in messaggi normali e sussurri, **non** con `/roll`.
-- **Sensibili agli spazi**: `{{ name=x}}` non funziona (lamentela).
-- **Template `default`** (in ogni partita): `name` va nell'intestazione viola, ogni altro `{{chiave=valore}}` diventa una riga con chiave in grassetto e righe a colori alternati bianco e grigio, `=` allineato. I campi con chiave numerica (≥0) vengono ordinati **prima** degli altri, in ordine numerico. Le chiavi possono contenere tiri.
-- I template specifici (5e: `simple`, `atk`, `dmg`, `atkdmg`, `npcatk`, `npcaction`, `spell`, `traits`, `desc`...) appartengono alla scheda e hanno logica condizionale (ad esempio `rollGreater()`, mostra/nascondi sezioni).
+### 13.6 Roll templates
+- Form: `&{template:name} {{field=value}} {{...}}`. Values can be text or inline rolls (macros and abilities inside must produce inline rolls, not `/roll`). Used in normal messages and whispers, **not** with `/roll`.
+- **Whitespace-sensitive**: `{{ name=x}}` does not work (complaint).
+- **`default` template** (in every game): `name` goes in the purple header, every other `{{key=value}}` becomes a row with a bold key and rows alternating white and gray, `=` aligned. Fields with a numeric key (≥0) are sorted **before** the others, in numeric order. Keys can contain rolls.
+- Specific templates (5e: `simple`, `atk`, `dmg`, `atkdmg`, `npcatk`, `npcaction`, `spell`, `traits`, `desc`...) belong to the sheet and have conditional logic (for example `rollGreater()`, show/hide sections).
 
-### 13.7 Pulsanti in chat (chat menu)
-- `[Etichetta](~Personaggio|abilità)`, oppure `[Etichetta](~abilità)` dentro il personaggio: **pulsante abilità** cliccabile in chat.
-- `[Etichetta](!comando)`: pulsante API.
-- Servono a creare **menu in chat** in alternativa alle query annidate.
-- Nel journal: link con URL che inizia con `` ` `` seguito dal codice macro (**pulsante comando del journal**). Non funziona se i personaggi sono in popout.
+### 13.7 Chat buttons (chat menu)
+- `[Label](~Character|ability)`, or `[Label](~ability)` inside the character: clickable **ability button** in chat.
+- `[Label](!command)`: API button.
+- Used to build **chat menus** as an alternative to nested queries.
+- In the journal: link with a URL starting with `` ` `` followed by macro code (**journal command button**). Doesn't work if characters are in popout.
 
-### Lamentele e [Frolls+]
-- Le entità HTML e le query annidate sono la prima fonte di frustrazione ([wiki Macros](https://wiki.roll20.net/Macros)).
-- Le macro non si trasferiscono tra partite (il Transmogrifier non le copia; trucco della "scheda macro").
-- [Frolls+] **Libreria macro dell'account** riusabile tra le partite; editor con evidenziazione della sintassi e anteprima; condivisione delle macro con un link.
+### Complaints and [Frolls+]
+- HTML entities and nested queries are the top source of frustration ([wiki Macros](https://wiki.roll20.net/Macros)).
+- Macros don't transfer between games (the Transmogrifier doesn't copy them; "macro sheet" trick).
+- [Frolls+] **Account macro library** reusable across games; editor with syntax highlighting and preview; sharing macros via a link.
 
-### Dati
+### Data
 `Macro(id, game_id, owner_user_id, name, action, visible_to[], in_bar, token_action)`, `UserBarEntry(user_id, game_id, ref_type: macro|ability|sheet_button, ref_id, label_override, color, order)`, `Ability(id, character_id, name, action, token_action, order)`
 
 ---
 
-## 14. Tabelle casuali (Rollable Tables)
+## 14. Rollable Tables
 
-- Si trovano in **Collezioni**, solo il GM le crea. "Aggiungi" crea "new-table" con 0 elementi.
-- **Tabella**: nome (senza spazi in pratica, perché si usa in `1t[nome]`) e "**Mostra ai giocatori**" (necessario perché i giocatori possano usarla nelle macro).
-- **Elemento**: nome o testo (mostrato in chat quando esce), **icona** opzionale (l'immagine compare in chat) e **peso**. Il peso si esprime come numero di occorrenze oppure in percentuale; in percentuale si scrive senza `%` e il totale deve fare 100.
-- **Uso**:
-  - Pulsante **Tira** in Collezioni: il risultato va in chat e tra gli ultimi 10 tiri della GUI.
-  - `/roll 1t[nome]`, `/roll 3t[nome]` (più estrazioni).
-  - Inline `[[1t[nome]]]`, con un solo risultato visibile anche se N > 1 e gli altri al passaggio del mouse.
-- Si usano per dadi personalizzati (elementi numerici) e per tabelle di critici o bottino.
-- **Token** dalla tabella: vedi §7.7.
-- Lamentele: non c'è tabella annidata (un risultato che tira su un'altra tabella, oggi serve RecursiveTable); i tiri inline dentro il testo di un elemento non vengono valutati; non c'è import/export (serve TableExport).
-- [Frolls+] Tabelle annidate, tiri inline nei risultati, import CSV, intervalli in stile d100 ("01-15 = goblin").
+- Found in **Collections**, only the GM creates them. "Add" creates "new-table" with 0 items.
+- **Table**: name (no spaces in practice, since it's used in `1t[name]`) and "**Show to players**" (required for players to use it in macros).
+- **Item**: name or text (shown in chat when rolled), optional **icon** (the image appears in chat) and **weight**. Weight is expressed as a number of occurrences or as a percentage; as a percentage it's written without `%` and the total must be 100.
+- **Use**:
+  - **Roll** button in Collections: the result goes to chat and into the GUI's last 10 rolls.
+  - `/roll 1t[name]`, `/roll 3t[name]` (multiple draws).
+  - Inline `[[1t[name]]]`, with only one result visible even if N > 1 and the others on hover.
+- Used for custom dice (numeric items) and for crit or loot tables.
+- **Token** from the table: see §7.7.
+- Complaints: no nested tables (a result that rolls on another table, today RecursiveTable is needed); inline rolls inside an item's text are not evaluated; no import/export (TableExport is needed).
+- [Frolls+] Nested tables, inline rolls in results, CSV import, d100-style ranges ("01-15 = goblin").
 
-### Dati
+### Data
 `RollTable(id, game_id, name, show_to_players)`, `RollTableItem(id, table_id, name, weight, icon_asset_id, order)`
 
 ---
 
-## 15. Mazzi di carte
+## 15. Card decks
 
-### Cosa fa
-Ogni partita nasce con un **mazzo standard da 54 carte** (52 più 2 jolly). Solo il GM crea mazzi.
+### What it does
+Each game starts with a **standard 54-card deck** (52 plus 2 jokers). Only the GM creates decks.
 
-### Comportamento
-- **Mostra/Nascondi** il mazzo da Collezioni: il mazzo compare sul lato destro del tavolo, con barra di scorrimento se sono tanti.
-- **Pescare**: clic sulla carta che sporge dietro il mazzo. La carta pescata appare scoperta **sopra il mazzo**, visibile a chi vede il mazzo.
-- **Giocare sul tavolo**: trascinare la carta scoperta, oppure quella coperta da dietro il mazzo (senza rivelarla). Diventa un token. **Maiusc** durante il trascinamento la gioca dal lato opposto al default. Tasto destro sulla carta: **Gira**.
-- **Distribuire**: trascinare una carta sul nome di un giocatore nell'area giocatori, oppure **Distribuisci** dal menu (quante carte, a chi, "Tutti i giocatori") o "Distribuisci alle voci del turn order". Sopra l'avatar del giocatore appare l'icona del mazzo con il numero di carte.
-- **Mano**: il giocatore clicca l'icona e vede le carte; le riordina; vista unica o per mazzo; trascinarne una sul tavolo la gioca. **Prendi carta**: tasto destro su una carta del tavolo.
-- **Rubare**: si apre la mano di un altro giocatore (di default si vedono solo i dorsi) e si sceglie una carta; il derubato deve **confermare**.
-- **Scambiare**: trascinare una carta dalla propria mano sul nome di un altro giocatore apre un dialogo di scambio a due; entrambi aggiungono o tolgono carte e confermano.
-- **Richiama**: dialogo con i conteggi in mano, sul tavolo, non giocate e totali; pulsanti per richiamare ogni gruppo; "Mescola al richiamo"; "Richiama tutto".
-- **Mescola**: con conferma; rimette dentro prima la pila degli scarti.
-- **Scarti**: raccoglie le carte giocate e poi eliminate dal tavolo, e quelle pescate ma mai giocate.
+### Behavior
+- **Show/Hide** the deck from Collections: the deck appears on the right side of the tabletop, with a scrollbar if there are many.
+- **Draw**: click the card sticking out behind the deck. The drawn card appears face up **on top of the deck**, visible to whoever sees the deck.
+- **Play on the tabletop**: drag the face-up card, or the face-down one from behind the deck (without revealing it). It becomes a token. **Shift** while dragging plays it on the opposite side from the default. Right-click on the card: **Flip**.
+- **Deal**: drag a card onto a player's name in the player area, or **Deal** from the menu (how many cards, to whom, "All players") or "Deal to turn order entries". The deck icon with the card count appears above the player's avatar.
+- **Hand**: the player clicks the icon and sees the cards; reorders them; single view or per deck; dragging one onto the tabletop plays it. **Take card**: right-click on a card on the tabletop.
+- **Steal**: open another player's hand (by default only the backs are visible) and pick a card; the victim must **confirm**.
+- **Trade**: dragging a card from your hand onto another player's name opens a two-way trade dialog; both add or remove cards and confirm.
+- **Recall**: dialog with counts in hand, on the tabletop, undrawn and totals; buttons to recall each group; "Shuffle on recall"; "Recall all".
+- **Shuffle**: with confirmation; puts the discard pile back in first.
+- **Discards**: collects cards played and then deleted from the tabletop, and those drawn but never played.
 
-### Impostazioni del mazzo
-- Nome.
-- **Mostra il mazzo ai giocatori?**
-- **I giocatori possono pescare?**
-- **Carte infinite?** (non finiscono mai). Se il mazzo finisce durante la distribuzione appare l'errore *"Ran out of cards..."* e serve mescolare.
-- **Nelle mani altrui** (per GM e per giocatori): vedi **numero di carte** e/o **fronte delle carte**. Default: solo il numero.
-- **Pila degli scarti**: come si pesca da lì (solo la carta in cima o in fondo, oppure scegliendo tra tutte coperte o scoperte).
-- **Carte giocate**: scoperte o coperte di default.
-- **Dimensione delle carte sul tavolo** (vuoto = automatica).
-- **Tooltip** per carta, attivabile per mazzo.
-- **Dorso** comune a tutte le carte.
-- **Carte**: nome, immagine, elimina; "**Aggiungi multiple**" per il caricamento in blocco (dal 2020). Fronti e dorso dovrebbero avere le stesse dimensioni.
-- La dimensione dei mazzi a schermo si regola con uno slider del GM.
+### Deck settings
+- Name.
+- **Show the deck to players?**
+- **Can players draw?**
+- **Infinite cards?** (never run out). If the deck runs out while dealing the error *"Ran out of cards..."* appears and a shuffle is needed.
+- **In other people's hands** (for GM and for players): see **card count** and/or **card faces**. Default: count only.
+- **Discard pile**: how to draw from it (only the top or bottom card, or choosing among all face down or face up).
+- **Played cards**: face up or face down by default.
+- **Card size on the tabletop** (empty = automatic).
+- Per-card **tooltip**, enableable per deck.
+- **Back** shared by all cards.
+- **Cards**: name, image, delete; "**Add multiple**" for bulk upload (since 2020). Fronts and back should have the same dimensions.
+- The on-screen size of decks is adjusted with a GM slider.
 
-### Lamentele
-- Mancano pile o mazzi sul tavolo ([forum](https://app.roll20.net/forum/permalink/2793233/)).
-- Il "guarda le carte coperte che ho giocato" richiede uno script.
-- Le carte selezionate non vanno in primo piano ([forum](https://app.roll20.net/forum/post/2344077/)).
+### Complaints
+- No piles or decks on the tabletop ([forum](https://app.roll20.net/forum/permalink/2793233/)).
+- "Look at the face-down cards I played" requires a script.
+- Selected cards don't come to the front ([forum](https://app.roll20.net/forum/post/2344077/)).
 
-### Dati
+### Data
 `Deck(id, game_id, name, back_asset_id, show_to_players, players_can_draw, infinite, hand_visibility{gm:{count,face}, players:{count,face}}, discard_draw_mode, play_face_down, card_size, tooltips_enabled)`, `Card(id, deck_id, name, asset_id, tooltip)`, `CardInstance(card_id, location: deck|discard|hand|table, owner_user_id?, token_id?, order)`
 
 ---
 
 ## 16. Journal
 
-### 16.1 Generale
-- È l'archivio centrale di **Personaggi** e **Handout**, organizzati in **cartelle**.
-- **Solo il GM** crea personaggi e handout (pulsante + Aggiungi, oppure tasto destro su una cartella). Un personaggio nasce con un nome casuale, un handout con il nome "Mysterious Note".
-- **Ricerca** e **tag** in cima.
-- **Archivio** in fondo, che compare quando c'è almeno un elemento archiviato. Gli elementi archiviati **si caricano comunque** e non migliorano le prestazioni.
-- **Riordino**: maniglia ≡ a sinistra del nome, trascinare sotto la cartella e poi a destra per entrare.
-- **Finestre**: doppio clic sulla barra del titolo riduce la finestra a una barra trascinabile; si possono avere più finestre aperte, in popout o con zoom del contenuto.
-- **Link tra voci**: `[Nome voce]` tra parentesi quadre nel testo diventa un **link** al salvataggio (viola verso handout o personaggi, blu verso compendium e URL). Rispetta i permessi: chi non ha accesso non può aprirla.
-- **Link al compendium**: l'URL completo della pagina del compendium (senza `?` e `#`) si apre nel compendium interno.
-- **Mostra ai giocatori** (GM): apre la voce sullo schermo dei giocatori. Se non hanno il permesso chiede se darlo a tutti, e "Mostra a tutti" aggiunge "Tutti i giocatori" ai permessi. Dal 2023 c'è una notifica quando qualcosa viene mostrato.
-- **Trascinare un handout sull'avatar di un giocatore**: gli dà il permesso di vederlo e glielo apre subito.
-- **Journal esterno** (Plus/Pro): pagina web fuori dal VTT con personaggi (solo Bio) e handout, aggiornata in tempo reale. Il trucco per cercare con Ctrl+F è usare lì il browser, perché nel VTT Ctrl+F è rubato.
+### 16.1 General
+- It is the central archive of **Characters** and **Handouts**, organized in **folders**.
+- **Only the GM** creates characters and handouts (+ Add button, or right-click on a folder). A character is created with a random name, a handout with the name "Mysterious Note".
+- **Search** and **tags** at the top.
+- **Archive** at the bottom, which appears when there is at least one archived item. Archived items **still load** and don't improve performance.
+- **Reordering**: ≡ handle left of the name, drag under the folder and then to the right to enter it.
+- **Windows**: double-clicking the title bar collapses the window to a draggable bar; you can have multiple windows open, in popout or with content zoom.
+- **Links between entries**: `[Entry name]` in square brackets in the text becomes a **link** on save (purple to handouts or characters, blue to compendium and URLs). It respects permissions: those without access cannot open it.
+- **Compendium link**: the full URL of the compendium page (without `?` and `#`) opens in the internal compendium.
+- **Show to players** (GM): opens the entry on players' screens. If they lack permission it asks whether to give it to everyone, and "Show to all" adds "All players" to the permissions. Since 2023 there's a notification when something is shown.
+- **Dragging a handout onto a player's avatar**: gives them permission to view it and opens it for them immediately.
+- **External journal** (Plus/Pro): web page outside the VTT with characters (Bio only) and handouts, updated in real time. The trick to search with Ctrl+F is to use the browser there, since in the VTT Ctrl+F is stolen.
 
-### 16.2 Permessi (identici per personaggi e handout)
-| Campo | Effetto |
+### 16.2 Permissions (identical for characters and handouts)
+| Field | Effect |
 |---|---|
-| **Nei journal dei giocatori** | chi è elencato (o "Tutti") **vede** la voce. Per un personaggio vede solo nome, avatar e Bio: **non** la scheda né gli attributi |
-| **Può essere modificato e controllato da** (personaggi) / **Può essere modificato da** (handout) | per un personaggio: lo può scegliere in "parla come", modifica nome e Bio, **vede e modifica la scheda e gli attributi**, controlla i token che lo rappresentano. Per un handout: lo vede e lo modifica |
-| **Note GM** | sempre e solo GM |
+| **In player's journals** | whoever is listed (or "All") **sees** the entry. For a character they see only name, avatar and Bio: **not** the sheet or attributes |
+| **Can be edited and controlled by** (characters) / **Can be edited by** (handouts) | for a character: they can pick it in "speaking as", edit name and Bio, **see and edit the sheet and attributes**, control the tokens representing it. For a handout: they see and edit it |
+| **GM Notes** | always GM only |
 
-Per far giocare un PG il GM deve aggiungere il giocatore **in entrambi** i campi: è una lamentela, due passaggi per un caso comune.
+To let a player play a PC the GM must add the player **in both** fields: a complaint, two steps for a common case.
 
-### 16.3 Cartelle
-- Sottocartelle limitate a pochi livelli (circa 4), "per lo spazio nella sidebar": lamentela.
-- **Visibilità**: un giocatore vede una cartella solo se contiene almeno un elemento a lui visibile. Vede però il **nome della cartella** che contiene un handout condiviso, per esempio "Oggetti maledetti", e questo può fare spoiler.
-- Menu: aggiungi sottocartella, personaggio o handout; ordina A-Z; rinomina; elimina (gli elementi tornano alla radice, con conferma).
+### 16.3 Folders
+- Subfolders limited to a few levels (about 4), "because of sidebar space": complaint.
+- **Visibility**: a player sees a folder only if it contains at least one item visible to them. They do however see the **folder name** containing a shared handout, for example "Cursed items", and this can spoil things.
+- Menu: add subfolder, character or handout; sort A-Z; rename; delete (items return to the root, with confirmation).
 
-### 16.4 Personaggio
-- Finestra con schede **Bio e info**, **Scheda personaggio** (se c'è un template) e **Attributi e abilità**.
-- **Modifica** (solo GM):
-  - Nome.
-  - **Avatar** (drag da computer o Art Library).
-  - **Token di default**.
-  - Nei journal dei giocatori / Modificabile e controllabile da.
-  - Tag.
-  - Bio e Note GM in testo ricco, con tabelle e incolla da PDF o Word.
-  - Duplica ("Copy of ..."), Archivia, Elimina (con conferma, irreversibile).
-- **Attributi**: nome, valore attuale, max opzionale. Chi controlla il personaggio li aggiunge e modifica. Con una scheda attiva gli attributi la rispecchiano, tranne le sezioni ripetute, e modificarli a mano può rompere la scheda.
-- **Abilità**: vedi §13.2. Si riordinano trascinandole.
+### 16.4 Character
+- Window with tabs **Bio & Info**, **Character Sheet** (if there is a template) and **Attributes & Abilities**.
+- **Edit** (GM only):
+  - Name.
+  - **Avatar** (drag from computer or Art Library).
+  - **Default token**.
+  - In player's journals / Can be edited and controlled by.
+  - Tags.
+  - Bio and GM Notes in rich text, with tables and paste from PDF or Word.
+  - Duplicate ("Copy of ..."), Archive, Delete (with confirmation, irreversible).
+- **Attributes**: name, current value, optional max. Whoever controls the character adds and edits them. With an active sheet the attributes mirror it, except repeating sections, and editing them by hand can break the sheet.
+- **Abilities**: see §13.2. Reordered by dragging.
 
 ### 16.5 Handout
-- Contenuto: nome, **immagine** (con lente d'ingrandimento e schermo intero se è grande), **Descrizione e note** (testo ricco visibile a chi vede, modificabile da chi modifica), **Note GM**, tag, duplica, archivia, elimina.
-- Incollare contenuto formattato conserva lo stile.
+- Content: name, **image** (with magnifier and fullscreen if large), **Description & notes** (rich text visible to viewers, editable by editors), **GM Notes**, tags, duplicate, archive, delete.
+- Pasting formatted content preserves the style.
 
-### Lamentele e [Frolls+]
-- Le prestazioni crollano con centinaia di personaggi complessi ([wiki Optimizing](https://wiki.roll20.net/Optimizing_Roll20_Performance), [forum](https://app.roll20.net/forum/post/7085783/character-sheets-very-slow-to-open), [forum](https://app.roll20.net/forum/post/12443273/high-level-character-sheets-cause-intense-lag-and-crash)). [Frolls+] Caricamento lazy delle schede e degli attributi solo all'apertura; indice leggero per il journal.
-- [Frolls+] Un solo pulsante "**Assegna a giocatore**", che imposta vede più controlla.
-- [Frolls+] Ricerca full-text nel contenuto degli handout (oggi serve lo script Search).
-- [Frolls+] Cartelle senza limiti di profondità e nomi delle cartelle non visibili ai giocatori, se scelto.
-- [Frolls+] I giocatori possono creare i propri personaggi (impostazione GM). Oggi non possono senza un'opzione o uno script ([wiki Player](https://wiki.roll20.net/Player)).
+### Complaints and [Frolls+]
+- Performance collapses with hundreds of complex characters ([wiki Optimizing](https://wiki.roll20.net/Optimizing_Roll20_Performance), [forum](https://app.roll20.net/forum/post/7085783/character-sheets-very-slow-to-open), [forum](https://app.roll20.net/forum/post/12443273/high-level-character-sheets-cause-intense-lag-and-crash)). [Frolls+] Lazy loading of sheets and attributes only on open; lightweight journal index.
+- [Frolls+] A single "**Assign to player**" button, which sets see plus control.
+- [Frolls+] Full-text search in handout content (today the Search script is needed).
+- [Frolls+] Folders with unlimited depth and folder names not visible to players, if chosen.
+- [Frolls+] Players can create their own characters (GM setting). Today they can't without an option or a script ([wiki Player](https://wiki.roll20.net/Player)).
 
-### Dati
-`Folder(id, game_id, parent_id, name, order)`, `Character(id, game_id, folder_id, name, avatar_asset_id, bio_html, gm_notes_html, tags[], in_journals[], controlled_by[], default_token_json, sheet_type: pc|npc, archived, is_party_member)`, `Attribute(id, character_id, name, current, max)` (indice su `character_id+name` minuscolo), `Handout(id, game_id, folder_id, name, image_asset_id, notes_html, gm_notes_html, tags[], in_journals[], editable_by[], archived)`
+### Data
+`Folder(id, game_id, parent_id, name, order)`, `Character(id, game_id, folder_id, name, avatar_asset_id, bio_html, gm_notes_html, tags[], in_journals[], controlled_by[], default_token_json, sheet_type: pc|npc, archived, is_party_member)`, `Attribute(id, character_id, name, current, max)` (index on lowercase `character_id+name`), `Handout(id, game_id, folder_id, name, image_asset_id, notes_html, gm_notes_html, tags[], in_journals[], editable_by[], archived)`
 
 ---
 
-## 17. Scheda personaggio 5e (riferimento: "D&D 5E by Roll20", ex 5th Edition OGL)
+## 17. 5e character sheet (reference: "D&D 5E by Roll20", formerly 5th Edition OGL)
 
-> Frolls implementa una scheda **compatibile 5e** con contenuti **solo SRD 5.1/5.2** (CC-BY-4.0) e nomi propri, senza marchi WotC. Qui sotto c'è il comportamento della scheda Roll20, da replicare nelle funzioni e non nell'aspetto.
+> Frolls implements a **5e compatible** sheet with **SRD 5.1/5.2 only** content (CC-BY-4.0) and its own names, without WotC trademarks. Below is the behavior of the Roll20 sheet, to be replicated in function, not in appearance.
 
-### 17.1 Principi
-- Si salva automaticamente a ogni modifica.
-- I campi **calcolati** non sono modificabili.
-- Le **etichette tirabili** diventano rosse al passaggio del mouse; il clic tira con un roll template.
-- I pulsanti sono **trascinabili** nella macro bar.
-- **Sezioni ripetute** (attacchi, inventario, incantesimi, tratti, competenze, risorse): pulsante + aggiungi; il **lucchetto** alterna "aggiungi" e "riordina/elimina" (≡ trascina, cestino elimina **senza conferma**: lamentela).
-- Pagine della scheda PG: **Principale**, **Bio**, **Incantesimi**, **Impostazioni** (ingranaggio). Interruttore **PNG** per la scheda mostro.
+### 17.1 Principles
+- Saves automatically on every change.
+- **Computed** fields are not editable.
+- **Rollable labels** turn red on hover; clicking rolls with a roll template.
+- Buttons are **draggable** to the macro bar.
+- **Repeating sections** (attacks, inventory, spells, traits, proficiencies, resources): + add button; the **lock** toggles between "add" and "reorder/delete" (≡ drag, trash deletes **without confirmation**: complaint).
+- PC sheet pages: **Core**, **Bio**, **Spells**, **Settings** (gear). **NPC** toggle for the monster sheet.
 
-### 17.2 Pagina principale
-- **Intestazione**: classe (12 classi più una personalizzata) e livello, fino a 4 classi in multiclasse; background, razza o specie, allineamento, PE. Il nome è sincronizzato con il nome del journal.
-- **Caratteristiche** (FOR, DES, COS, INT, SAG, CAR): punteggio e **modificatore = floor((punteggio−10)/2)** (attributi `strength`, `strength_mod`...). I bonus razziali vanno nelle impostazioni.
-- **Ispirazione** (toggle).
-- **Bonus di competenza**: calcolato dal livello totale. In alternativa "dado di competenza" o personalizzato.
-- **Tiri salvezza**: checkbox di competenza, preimpostate dalla classe principale; modificatore globale opzionale (es. `1d4[Bless]`).
-- **Abilità (skill)**: 18, con caratteristica tra parentesi, competenza, **Maestria**, **Factotum** (metà competenza), bonus fissi; modificatore globale delle abilità (es. `1d4[Guidance]`).
-- **CA**: automatica (10 + DES + armatura equipaggiata), personalizzata (fino a 2 attributi) o manuale; modificatori di CA globali in una sezione ripetuta attivabile. Più armature equipaggiate fanno comparire un **avviso rosso**.
-- **Iniziativa**: calcolata da DES più un bonus; stile normale, vantaggio o svantaggio; **spareggio DES** opzionale come decimale (es. 2.14). Il clic con il token selezionato va al tracker.
-- **Velocità**.
-- **PF**: attuali, max e **temporanei**. Il danno scala prima i temporanei.
-- **Dadi vita**: tipo dalla classe, numero dal livello, disponibili; il clic chiede quanti tirarne per tipo.
-- **Tiri salvezza contro la morte**: tiro più checkbox successi e fallimenti, con modificatore.
-- **Indebolimento** (opzionale): mostra gli effetti ma **non li applica**.
-- **Attacchi e incantesimi** (ripetuta): nome, caratteristica (FOR, DES, incantatore o nessuna), competente, bonus, bonus magico, gittata, **danno 1** e **danno 2** (formula, caratteristica, tipo), **tiro salvezza** (caratteristica, CD, effetto "metà danni"), descrizione, **range di critico**. Modificatori globali di attacco e danno.
-- **Tratti, ideali, legami e difetti**: campi bloccabili (gli a capo vengono rimossi: lamentela).
-- **Risorse di classe e altre** (ripetibili): valore, max e nome; collegabili a un oggetto ("usa come risorsa": la quantità è sincronizzata). Le munizioni prese dal compendium si collegano da sole.
-- **Strumenti e abilità personalizzate**: competenza, maestria o factotum; caratteristica fissa o **chiesta con una query**.
-- **Altre competenze e lingue**: testo semplice o elenco tipizzato (Lingua, Arma, Armatura, Altro).
-- **Equipaggiamento**: "Semplice" (testo) o "Compatibile compendium" (elenco). Ogni oggetto ha quantità, nome, peso, equipaggiato, usa come risorsa, proprietà e **MODS**. MODS è una stringa `Stat: n` separata da virgole (es. `Strength: 21`, `AC +1`, `Animal Handling +3`) e modifica le statistiche **solo se l'oggetto è equipaggiato**; la statistica modificata diventa **blu con asterisco** e il valore base si vede al passaggio del mouse. Monete: MR, MA, ME, MO, MP. **Ingombro**: peso totale e stati ENCUMBERED, HEAVILY ENCUMBERED, IMMOBILE (variante opzionale).
-- **Privilegi e tratti** (ripetuta): nome, fonte, descrizione.
+### 17.2 Core page
+- **Header**: class (12 classes plus a custom one) and level, up to 4 classes when multiclassing; background, race or species, alignment, XP. The name is synced with the journal name.
+- **Ability scores** (STR, DEX, CON, INT, WIS, CHA): score and **modifier = floor((score−10)/2)** (attributes `strength`, `strength_mod`...). Racial bonuses go in the settings.
+- **Inspiration** (toggle).
+- **Proficiency bonus**: computed from total level. Alternatively "proficiency die" or custom.
+- **Saving throws**: proficiency checkboxes, preset from the main class; optional global modifier (e.g. `1d4[Bless]`).
+- **Skills**: 18, with ability in parentheses, proficiency, **Expertise**, **Jack of all trades** (half proficiency), flat bonuses; global skill modifier (e.g. `1d4[Guidance]`).
+- **AC**: automatic (10 + DEX + equipped armor), custom (up to 2 attributes) or manual; global AC modifiers in an optional repeating section. Multiple equipped armors make a **red warning** appear.
+- **Initiative**: computed from DEX plus a bonus; normal, advantage or disadvantage style; optional **DEX tie-breaker** as a decimal (e.g. 2.14). Clicking with the token selected sends it to the tracker.
+- **Speed**.
+- **HP**: current, max and **temporary**. Damage reduces temporary first.
+- **Hit dice**: type from class, number from level, available; clicking asks how many to roll per type.
+- **Death saving throws**: roll plus success and failure checkboxes, with modifier.
+- **Exhaustion** (optional): shows the effects but **does not apply them**.
+- **Attacks & spellcasting** (repeating): name, ability (STR, DEX, spellcasting or none), proficient, bonus, magic bonus, range, **damage 1** and **damage 2** (formula, ability, type), **saving throw** (ability, DC, "half damage" effect), description, **crit range**. Global attack and damage modifiers.
+- **Traits, ideals, bonds and flaws**: lockable fields (line breaks are stripped: complaint).
+- **Class and other resources** (repeatable): value, max and name; linkable to an item ("use as resource": the quantity is synced). Ammunition taken from the compendium links automatically.
+- **Tools and custom skills**: proficiency, expertise or jack of all trades; fixed ability or **asked with a query**.
+- **Other proficiencies and languages**: plain text or typed list (Language, Weapon, Armor, Other).
+- **Equipment**: "Simple" (text) or "Compendium compatible" (list). Each item has quantity, name, weight, equipped, use as resource, properties and **MODS**. MODS is a comma-separated `Stat: n` string (e.g. `Strength: 21`, `AC +1`, `Animal Handling +3`) and modifies stats **only if the item is equipped**; the modified stat becomes **blue with an asterisk** and the base value shows on hover. Coins: CP, SP, EP, GP, PP. **Encumbrance**: total weight and ENCUMBERED, HEAVILY ENCUMBERED, IMMOBILE states (optional variant).
+- **Features & traits** (repeating): name, source, description.
 
-### 17.3 Pagina incantesimi
-- Caratteristica da incantatore (automatica dalla classe), **CD = 8 + competenza + mod** e **bonus di attacco = competenza + mod**, entrambi calcolati.
-- Livelli da 0 (trucchetti) a 9: **slot totali** (dal livello da incantatore, con multiclasse e modificatori manuali) e slot rimasti.
-- Incantesimo (ripetuto): nome, scuola, rituale, tempo di lancio, gittata, bersaglio, componenti V/S/M e materiali, concentrazione, durata, output "Scheda" o "Attacco" (in quel caso aggiunge una voce agli Attacchi), tipo di attacco, danno, tiro salvezza, **ai livelli superiori** (dado per livello di slot), descrizione e classe.
-- Icone R, C, V, S, M attivabili.
+### 17.3 Spells page
+- Spellcasting ability (automatic from class), **DC = 8 + proficiency + mod** and **attack bonus = proficiency + mod**, both computed.
+- Levels 0 (cantrips) to 9: **total slots** (from caster level, with multiclassing and manual modifiers) and slots remaining.
+- Spell (repeating): name, school, ritual, casting time, range, target, V/S/M components and materials, concentration, duration, "Spellcard" or "Attack" output (in that case it adds an entry to Attacks), attack type, damage, saving throw, **at higher levels** (die per slot level), description and class.
+- Toggleable R, C, V, S, M icons.
 
-### 17.4 Impostazioni della scheda
-Dadi vita, modificatore di trasporto, livello da incantatore manuale, modificatore della CD, Fortuna halfling (ritira gli 1, cioè `ro1`), multiclasse, classe personalizzata, slot extra, modificatori alle caratteristiche, iniziativa, CA, salvezze e TS contro la morte, percezione passiva. Opzioni generali:
-- **Vantaggio**: "Tira sempre 2d20" (default Roll20: si usa quello di sinistra se non c'è vantaggio), "Interruttore" (pulsanti Vantaggio/Normale/Svantaggio in cima alla scheda), "Chiedi" (query), "Mai".
-- **Sussurra i tiri al GM**: mai, interruttore, chiedi, sempre.
-- **Danni automatici**: se no, il danno è nascosto e si mostra cliccando il nome dell'attacco in chat.
-- **Dado base** (default 1d20).
-- **Nome del personaggio nei template**.
-- **Calcoli automatici al livello**.
-- **Tracciamento munizioni** (con lo script companion).
-- Mostra indebolimento.
-- I default della scheda si impostano nella partita; "Applica impostazioni di default" li estende alle schede già esistenti.
+### 17.4 Sheet settings
+Hit dice, carrying capacity modifier, manual caster level, DC modifier, halfling Luck (rerolls 1s, i.e. `ro1`), multiclassing, custom class, extra slots, ability score modifiers, initiative, AC, saves and death saves, passive perception. General options:
+- **Advantage**: "Always roll 2d20" (Roll20 default: the left one is used if there is no advantage), "Toggle" (Advantage/Normal/Disadvantage buttons at the top of the sheet), "Query", "Never".
+- **Whisper rolls to GM**: never, toggle, query, always.
+- **Auto damage**: if off, damage is hidden and shown by clicking the attack name in chat.
+- **Base die** (default 1d20).
+- **Character name in templates**.
+- **Automatic calculations on level up**.
+- **Ammunition tracking** (with the companion script).
+- Show exhaustion.
+- Sheet defaults are set in the game; "Apply default settings" extends them to existing sheets.
 
-### 17.5 Scheda PNG (mostro)
-- **Opzioni PNG** (nascondibili): nome, taglia, tipo, allineamento, CA e descrizione della CA, PF e formula, velocità, caratteristiche, salvezze e abilità (**appaiono nel blocco solo se valorizzate**; 0 per mostrarle comunque), vulnerabilità, resistenze, immunità, immunità alle condizioni, sensi, lingue, **GS** (i **PE si calcolano** dal GS), "incantatore PNG" (aggiunge la lista incantesimi), "ha reazioni", "azioni leggendarie" (numero).
-- **Blocco statistiche** con tutto cliccabile: Tratti, Azioni, Azioni bonus, Reazioni, Azioni leggendarie, Incantesimi. L'azione può essere un attacco (tiro, danno 1 e 2, critico) oppure testo.
-- Opzioni proprie: sussurra al GM (consigliato per i PNG), danni automatici, nome del PNG nei tiri (default disattivo, così non si rivela il mostro), spareggio dell'iniziativa.
+### 17.5 NPC sheet (monster)
+- **NPC options** (collapsible): name, size, type, alignment, AC and AC description, HP and formula, speed, ability scores, saves and skills (**they appear in the block only if filled in**; 0 to show them anyway), vulnerabilities, resistances, immunities, condition immunities, senses, languages, **CR** (**XP is computed** from CR), "NPC spellcaster" (adds the spell list), "has reactions", "legendary actions" (count).
+- **Stat block** with everything clickable: Traits, Actions, Bonus actions, Reactions, Legendary actions, Spells. An action can be an attack (roll, damage 1 and 2, crit) or text.
+- Own options: whisper to GM (recommended for NPCs), auto damage, NPC name in rolls (off by default, so the monster isn't revealed), initiative tie-breaker.
 
-### 17.6 Roll template della scheda
-- **simple**: un tiro o un tiro doppio per vantaggio/svantaggio, con nome della caratteristica.
-- **atk/dmg/atkdmg**: attacco in alto, info al centro, danno in basso, critico con danno extra.
-- **spell**: scheda dell'incantesimo in chat.
-- **npcatk/npcaction**: azioni dei PNG.
-- **traits** e **desc**.
-- Con "tira sempre il vantaggio" i due d20 sono affiancati e si evidenzia quello scelto (con l'interruttore attivo).
+### 17.6 Sheet roll templates
+- **simple**: one roll or a double roll for advantage/disadvantage, with the ability name.
+- **atk/dmg/atkdmg**: attack on top, info in the middle, damage at the bottom, crit with extra damage.
+- **spell**: spell card in chat.
+- **npcatk/npcaction**: NPC actions.
+- **traits** and **desc**.
+- With "always roll advantage" the two d20s are side by side and the chosen one is highlighted (with the toggle active).
 
 ### 17.7 Charactermancer
-Procedura guidata di creazione e salita di livello basata sul compendium. Non funziona in popout.
+Guided creation and level-up wizard based on the compendium. Doesn't work in popout.
 
-### Lamentele e [Frolls+]
-- Prestazioni: centinaia di attributi per scheda e lag con le schede di alto livello ([forum](https://app.roll20.net/forum/post/12443273/)). [Frolls+] Attributi in JSONB per personaggio, calcoli derivati lato client e validati lato server.
-- Niente formattazione nei campi di testo; gli a capo vengono rimossi.
-- Eliminare una voce di una sezione ripetuta avviene **senza conferma** e **senza annulla**. [Frolls+] Annulla e cestino.
-- L'indebolimento non applica le penalità. [Frolls+] Condizioni 5e che applicano davvero vantaggio e svantaggio dove possibile.
-- [Frolls+] Pulsante "**applica danno/cura**" dal template in chat ai token selezionati, con resistenze. Oggi serve uno script (ApplyDamage, ChatSetAttr).
-- [Frolls+] Riposo breve e lungo in un clic (ripristino di PF, dadi vita, slot e risorse).
+### Complaints and [Frolls+]
+- Performance: hundreds of attributes per sheet and lag with high-level sheets ([forum](https://app.roll20.net/forum/post/12443273/)). [Frolls+] Attributes in JSONB per character, derived calculations client-side and validated server-side.
+- No formatting in text fields; line breaks are stripped.
+- Deleting an entry from a repeating section happens **without confirmation** and **without undo**. [Frolls+] Undo and trash.
+- Exhaustion doesn't apply penalties. [Frolls+] 5e conditions that actually apply advantage and disadvantage where possible.
+- [Frolls+] "**Apply damage/healing**" button from the chat template to the selected tokens, with resistances. Today a script is needed (ApplyDamage, ChatSetAttr).
+- [Frolls+] Short and long rest in one click (restoring HP, hit dice, slots and resources).
 
 ---
 
 ## 18. Compendium
 
-- Raccolta di **regole indicizzate** come un mini-wiki: regole, classi, razze, mostri, incantesimi, oggetti. Si consulta **fuori** e **dentro** il VTT (scheda della sidebar, visibile a GM e giocatori). Le voci si aprono in finestre separate.
-- **Elenchi** (incantesimi, mostri) con un blocco di dati espandibile per voce, filtri, ricerca e icona della fonte (libro).
-- **Trascinamento**:
-  - **Voce non-mostro sul tavolo**: crea un **handout** con testo e immagini (è anche il modo di condividere contenuto acquistato).
-  - **Mostro sul tavolo**: crea un **personaggio PNG completo** con la scheda compilata e un **token collegato** (se disponibile) posizionato sul punto.
-  - **Mostro su una scheda aperta**: la converte in PNG e **aggiunge** (non sostituisce) i dati.
-  - **Oggetto o incantesimo sulla scheda**: appare "ACCEPTING DROP FROM COMPENDIUM" e il rilascio compila la sezione giusta; le armi creano anche un attacco, gli oggetti con MODS si applicano, le munizioni diventano risorse.
-- **Impostazioni**: compendium dato dal template di scheda o scelto a mano; **condivisione** dei compendi acquistati con i giocatori della partita; selezione delle espansioni attive.
-- **Lamentela più votata in assoluto tra quelle viste: "Compendium personalizzato" a +1732** ([forum](https://app.roll20.net/forum/post/2940484/)). Oggi non si può creare né modificare il compendium.
-- [Frolls+] **Compendium SRD 5.1/5.2 integrato** più **compendium personalizzato** di partita o di account (homebrew di mostri, oggetti e incantesimi con la stessa struttura dati), importabile ed esportabile in JSON.
+- Collection of **indexed rules** like a mini-wiki: rules, classes, races, monsters, spells, items. Consulted **outside** and **inside** the VTT (sidebar tab, visible to GM and players). Entries open in separate windows.
+- **Lists** (spells, monsters) with an expandable data block per entry, filters, search and source (book) icon.
+- **Dragging**:
+  - **Non-monster entry onto the tabletop**: creates a **handout** with text and images (it's also the way to share purchased content).
+  - **Monster onto the tabletop**: creates a **complete NPC character** with the sheet filled in and a **linked token** (if available) placed at that spot.
+  - **Monster onto an open sheet**: converts it to an NPC and **adds** (doesn't replace) the data.
+  - **Item or spell onto the sheet**: "ACCEPTING DROP FROM COMPENDIUM" appears and dropping fills in the right section; weapons also create an attack, items with MODS are applied, ammunition becomes resources.
+- **Settings**: compendium given by the sheet template or chosen by hand; **sharing** of purchased compendiums with the game's players; selection of active expansions.
+- **The most voted complaint of all those seen: "Custom Compendium" at +1732** ([forum](https://app.roll20.net/forum/post/2940484/)). Today you can neither create nor edit the compendium.
+- [Frolls+] **Built-in SRD 5.1/5.2 compendium** plus a game or account **custom compendium** (homebrew monsters, items and spells with the same data structure), importable and exportable as JSON.
 
-### Dati
+### Data
 `CompendiumEntry(id, source: srd|homebrew, owner_id?, kind: monster|spell|item|rule|class|race|condition, name, data_json, text_md, image_asset_id?)`
 
 ---
 
-## 19. Art Library e asset
+## 19. Art Library and assets
 
-- **Solo GM** (i giocatori non hanno Art Library; lamentela: non possono caricare il proprio token o avatar).
-- **Ricerca**: Mia libreria, Acquisti, set Pro, asset gratuiti, premium e "dal web" (vecchio indice). Più parole sono in **AND**, `OR` esplicito, `-parola` esclude. Filtri per tipo: token, mappe, tile, texture, ritratti. Miniature piccole o grandi.
-- **Upload**: trascinare un file sul tavolo (carica e posiziona) oppure dal dialogo **fino a 10 file per volta**. **Limite per file o lotto: 5 MB** gratis, **10 MB** per gli abbonati (vicino al limite fallisce). Tipi: **jpg, png, gif, gif animate, mp4, webm, PDF** (si sceglie la pagina da convertire). Il `.jpeg` in passato non era accettato: bug. Gli upload animati sono lenti o vanno in timeout ([wiki](https://wiki.roll20.net/Art_Library)).
-- **Quota di spazio**: 100 MB gratis, 3 GB Plus, 8 GB Pro, 50 GB Elite. Superarla blocca gli upload ma non cancella nulla. I contenuti del marketplace non contano.
-- **Recent Uploads**: tutte le immagini in ordine cronologico. Le cartelle sono **riferimenti**. Eliminare da Recent Uploads cancella **definitivamente**, anche dalle partite che la usano.
-- **Cartelle** (fino a 3 livelli) con menu: sottocartella, ordina A-Z, rinomina, elimina (le immagini tornano in Recent).
-- **Vista cartella**: selezione multipla, sposta, elimina, **tag** (il nome del file diventa un tag; spazio o Invio confermano il tag).
-- **Copia in libreria**: crea riferimenti agli asset premium senza consumare quota.
-- [Frolls+] Upload più grandi; conversione automatica in WebP o AVIF; deduplicazione per hash; miniature generate; avviso "questa immagine è usata in N pagine" prima di eliminarla; **i giocatori possono caricare avatar e token dei propri personaggi** entro una quota.
+- **GM only** (players have no Art Library; complaint: they can't upload their own token or avatar).
+- **Search**: My Library, Purchases, Pro sets, free assets, premium and "from the web" (old index). Multiple words are **AND**, explicit `OR`, `-word` excludes. Type filters: tokens, maps, tiles, textures, portraits. Small or large thumbnails.
+- **Upload**: drag a file onto the tabletop (uploads and places) or from the dialog **up to 10 files at a time**. **Limit per file or batch: 5 MB** free, **10 MB** for subscribers (fails near the limit). Types: **jpg, png, gif, animated gif, mp4, webm, PDF** (you pick the page to convert). `.jpeg` used to be rejected: bug. Animated uploads are slow or time out ([wiki](https://wiki.roll20.net/Art_Library)).
+- **Storage quota**: 100 MB free, 3 GB Plus, 8 GB Pro, 50 GB Elite. Exceeding it blocks uploads but deletes nothing. Marketplace content doesn't count.
+- **Recent Uploads**: all images in chronological order. Folders are **references**. Deleting from Recent Uploads deletes **permanently**, also from games using it.
+- **Folders** (up to 3 levels) with menu: subfolder, sort A-Z, rename, delete (images go back to Recent).
+- **Folder view**: multi-select, move, delete, **tags** (the file name becomes a tag; space or Enter confirm the tag).
+- **Copy to library**: creates references to premium assets without using quota.
+- [Frolls+] Larger uploads; automatic conversion to WebP or AVIF; hash deduplication; generated thumbnails; "this image is used on N pages" warning before deleting it; **players can upload avatars and tokens for their own characters** within a quota.
 
-### Dati
+### Data
 `Asset(id, owner_user_id, storage_key, mime, bytes, width, height, sha256, animated, created_at)`, `AssetFolder(id, owner_user_id, parent_id, name)`, `AssetTag(asset_id, tag)`
 
 ---
 
-## 20. Effetti visivi e dadi 3D (priorità bassa)
+## 20. Visual effects and 3D dice (low priority)
 
-- **FX** (GM, Pro): `/fx tipo-colore idSorgente [idBersaglio]`. Tipi: beam, bomb, breath, bubbling, burn, burst, explode, glow, missile, nova, splatter. Colori: acid, blood, charm, death, fire, frost, holy, magic, slime, smoke, water. Beam e breath sono **direzionali** (sorgente e bersaglio); gli altri sono ad area (solo sorgente). Esistono effetti personalizzati e uno strumento FX per piazzarli col mouse.
-- **Dadi 3D**: simulazione fisica sopra il tavolo (WebGL). Con "Dice Agency" si trascina per lanciare; altrimenti il lancio è automatico. Colore del giocatore. Il d100 usa due d10 (00-90 e 0-9). Si vedono i dadi degli altri se anche loro hanno l'opzione attiva. **In caso di discrepanza fa fede la chat**: i template possono tirare dadi poi nascosti. Si disattiva per utente.
-- [Decisione Frolls] I dadi 3D devono essere **solo animazione** di un risultato già calcolato dal server, così non ci sono discrepanze.
+- **FX** (GM, Pro): `/fx type-color sourceId [targetId]`. Types: beam, bomb, breath, bubbling, burn, burst, explode, glow, missile, nova, splatter. Colors: acid, blood, charm, death, fire, frost, holy, magic, slime, smoke, water. Beam and breath are **directional** (source and target); the others are area effects (source only). There are custom effects and an FX tool to place them with the mouse.
+- **3D dice**: physics simulation above the tabletop (WebGL). With "Dice Agency" you drag to throw; otherwise the throw is automatic. Player color. The d100 uses two d10s (00-90 and 0-9). You see others' dice if they also have the option enabled. **In case of discrepancy the chat is authoritative**: templates can roll dice that are then hidden. Disabled per user.
+- [Frolls decision] 3D dice must be **only an animation** of a result already computed by the server, so there are no discrepancies.
 
 ---
 
 ## 21. Map Pins (2025)
 
-- Il GM trascina un **handout** (o un'intestazione o ancora dentro un handout) sulla mappa e crea un **pin** che riprende immagine, titolo, testo e note GM.
-- Strumento "Posiziona pin" e tasto destro sulla mappa creano anche pin non collegati.
-- Opzione "**blockquote come testo per i giocatori**": la prima citazione va nel tooltip dei giocatori, il resto nelle note GM.
-- I pin si **ridimensionano**.
-- Fonti: [Help Center](https://help.roll20.net/hc/en-us/articles/36271267343639-Map-Pins-Early-Access), [blog](https://blog.roll20.net/posts/map-pins-open-beta/).
+- The GM drags a **handout** (or a heading or anchor inside a handout) onto the map and creates a **pin** that takes its image, title, text and GM notes.
+- The "Place pin" tool and right-click on the map also create unlinked pins.
+- "**Blockquote as player text**" option: the first quote goes into the players' tooltip, the rest into the GM notes.
+- Pins can be **resized**.
+- Sources: [Help Center](https://help.roll20.net/hc/en-us/articles/36271267343639-Map-Pins-Early-Access), [blog](https://blog.roll20.net/posts/map-pins-open-beta/).
 
-### Dati
+### Data
 `Pin(id, page_id, x, y, scale, handout_id?, anchor?, title, player_text, gm_text, icon, visible_to_players)`
 
 ---
 
-## 22. API / Mod scripts (Pro), solo sintesi
+## 22. API / Mod scripts (Pro), summary only
 
-- Script **JavaScript** eseguiti in una sandbox lato server della partita. Si installano da un repository della community ([roll20-api-scripts](https://github.com/Roll20/roll20-api-scripts)) o si scrivono a mano. Riservati al Creatore Pro.
-- **Reattivi** (eventi `chat:message`, `change:graphic`, `add:...`) e **proattivi** (timer). Possono leggere e modificare tutti gli oggetti, creare handout, mandare messaggi in chat e gestire comandi `!comando`.
-- Gli script più usati mostrano cosa manca nel prodotto base, quindi sono la **lista dei desideri per Frolls**:
-  - **TokenMod**: modifica i token da chat.
-  - **ChatSetAttr**: modifica gli attributi da chat.
-  - **GroupInitiative**: iniziativa di gruppo.
-  - **TurnMarker**: indicatore del turno.
-  - **CombatMaster / RoundMaster**: condizioni con durata.
+- **JavaScript** scripts run in a server-side sandbox of the game. Installed from a community repository ([roll20-api-scripts](https://github.com/Roll20/roll20-api-scripts)) or written by hand. Reserved for the Pro Creator.
+- **Reactive** (`chat:message`, `change:graphic`, `add:...` events) and **proactive** (timers). They can read and modify all objects, create handouts, send chat messages and handle `!command` commands.
+- The most used scripts show what's missing from the base product, so they are the **Frolls wish list**:
+  - **TokenMod**: edit tokens from chat.
+  - **ChatSetAttr**: edit attributes from chat.
+  - **GroupInitiative**: group initiative.
+  - **TurnMarker**: turn indicator.
+  - **CombatMaster / RoundMaster**: conditions with duration.
   - **ApplyDamage**.
   - **TokenNameNumber**.
   - **MonsterHitDice**.
-  - **Search**: ricerca negli handout.
+  - **Search**: search in handouts.
   - **DiscreteWhisper**.
   - **Blind roll**.
   - **TableExport / RecursiveTable**.
   - **Teleport**.
   - **MarchingOrder**.
-  - **5e Companion**: munizioni, slot, dadi vita automatici.
-- [Decisione Frolls] Nessun sistema di script nella prima fase: le funzioni sopra diventano **funzioni native**. In futuro, un sistema di plugin con permessi.
+  - **5e Companion**: automatic ammunition, slots, hit dice.
+- [Frolls decision] No scripting system in the first phase: the features above become **native features**. In the future, a plugin system with permissions.
 
 ---
 
-## 23. Impostazioni
+## 23. Settings
 
-### 23.1 Impostazioni partita (pagina web, Creatore)
-- Accesso pubblico (journal e archivio visibili a chi visita).
-- Sfondo della pagina della partita.
-- **Consenti ai giocatori di importare personaggi** (dal Character Vault).
-- **Default delle pagine**: tutte le impostazioni di pagina tranne play-on-load, archivia ed elimina.
-- **Default dei token**: valori delle barre, aure, tinta, nameplate e permessi vedi/modifica per nome, barre e aure.
-- Compendium: sistema, condivisione, espansioni.
-- **Template di scheda** e **default della scheda** (§17.4).
-- "**Applica impostazioni di default**" (in partita, GM) applica i default di pagine, token e schede a **tutto il contenuto esistente**, con barra di avanzamento, interrompibile con Esc e **irreversibile**.
-- Le modifiche alla pagina delle impostazioni richiedono di **ricaricare** la partita già aperta: lamentela. [Frolls+] Impostazioni live, dentro il VTT.
+### 23.1 Game settings (web page, Creator)
+- Public access (journal and archive visible to visitors).
+- Game page background.
+- **Allow players to import characters** (from the Character Vault).
+- **Page defaults**: all page settings except play-on-load, archive and delete.
+- **Token defaults**: bar values, auras, tint, nameplate and see/edit permissions for name, bars and auras.
+- Compendium: system, sharing, expansions.
+- **Sheet template** and **sheet defaults** (§17.4).
+- "**Apply default settings**" (in game, GM) applies page, token and sheet defaults to **all existing content**, with a progress bar, interruptible with Esc and **irreversible**.
+- Changes on the settings page require **reloading** an already open game: complaint. [Frolls+] Live settings, inside the VTT.
 
-### 23.2 Impostazioni personali (sidebar, per utente e per partita)
-Nome visualizzato; scorciatoie avanzate; popout automatici per personaggi e handout; bip della chat; dadi avanzati; dadi 3D e lancio automatico; avatar in chat; timestamp; token actions in ordine alfabetico; rotella zoom o pan; pulisci log; esci; rientra come giocatore.
+### 23.2 My Settings (sidebar, per user and per game)
+Display name; advanced shortcuts; automatic popouts for characters and handouts; chat beep; advanced dice; 3D dice and auto-roll; chat avatars; timestamps; token actions in alphabetical order; wheel zoom or pan; clear log; exit; rejoin as player.
 
-**Solo GM**: colori delle barre, posizione dei marker, dimensione dei mazzi, applica default.
+**GM only**: bar colors, marker position, deck size, apply defaults.
 
-### 23.3 Colore del giocatore
-Si sceglie con il riquadro accanto al proprio nome nell'area giocatori. Si usa per ping, dadi, misure e cornice dell'avatar.
-
----
-
-## 24. Altre funzioni
-
-- **Character Vault**: archivio personale dell'account. **Importa** un personaggio da una partita (servono i permessi di modifica) come **snapshot** che non si aggiorna; per aggiornarlo si elimina e si reimporta. **Esporta** in un'altra partita: richiede che il GM lo consenta e Vault completo (abbonamento o modulo); dal luglio 2023 i free possono esportare fino a 3 personaggi per partita. Funziona anche tra partite di creatori diversi. Salva avatar, token, scheda e statistiche.
-- **Transmogrifier** (Pro): copia pagine (con token), personaggi, handout, mazzi e tabelle tra **partite proprie** con drag & drop tra due elenchi. Copia, non sposta. Avvisa in caso di sovrascrittura (stesso ID originale). **Non copia giocatori né macro**, quindi i "Controllato da" vanno rifatti. Si usa per la "campagna libreria" che alleggerisce le partite.
-- **Scorciatoie da tastiera di default**:
-  - Layer: Ctrl+M/O/K, Ctrl+Maiusc+M/O/K.
-  - Modifica: Ctrl+C/V/Z/A, Canc.
-  - Strumenti: Ctrl+S seleziona, Ctrl+F mano libera, Ctrl+G testo, Ctrl+U aggiungi turno.
-  - Misura e movimento: Q, Maiusc, X; Alt per ignorare lo snap; frecce; E+rotella; tasto destro+trascina per il pan; Z e Maiusc+Z.
-  - Selezione: Alt+rettangolo (disegni).
-  - Personaggi e macro: Maiusc+doppio clic sul token, Maiusc+clic su macro.
-  - GM: Ctrl+T rientra come giocatore.
-- **Scorciatoie avanzate** (opzionali): sequenze di tasti singoli (es. `F R` per le forme, `C C` per il focus sulla chat), mostra/nascondi sidebar, focus sulla ricerca del journal.
-- **Journal esterno, archivio chat e forum della partita**: vedi sopra.
-- **Moduli e addon del marketplace**: avventure pronte installate in una partita, con patch che aggiornano solo gli elementi cambiati. Fuori scope per ora; tenere a mente il formato di import ed export della partita.
-- **Import UVTT** (2026): mappa con muri, porte e luci da file Universal VTT. Utile per l'import di mappe anche senza luci: si importa solo l'immagine e la griglia.
-- **App mobile**: Roll20 ha app iPad e Android limitate. [Frolls+] Interfaccia responsive.
+### 23.3 Player color
+Chosen with the swatch next to your name in the player area. Used for pings, dice, measurements and the avatar frame.
 
 ---
 
-## 25. Lamentele trasversali (sintesi per le priorità)
+## 24. Other features
 
-| Problema | Fonte | Risposta di Frolls |
+- **Character Vault**: personal account archive. **Import** a character from a game (edit permissions required) as a **snapshot** that doesn't update; to update it you delete and reimport. **Export** to another game: requires the GM to allow it and a full Vault (subscription or module); since July 2023 free users can export up to 3 characters per game. Works across games by different creators too. Saves avatar, token, sheet and stats.
+- **Transmogrifier** (Pro): copies pages (with tokens), characters, handouts, decks and tables between **your own games** with drag & drop between two lists. Copies, doesn't move. Warns on overwrite (same original ID). **Doesn't copy players or macros**, so "Controlled by" must be redone. Used for the "library campaign" that lightens games.
+- **Default keyboard shortcuts**:
+  - Layers: Ctrl+M/O/K, Ctrl+Shift+M/O/K.
+  - Edit: Ctrl+C/V/Z/A, Del.
+  - Tools: Ctrl+S select, Ctrl+F freehand, Ctrl+G text, Ctrl+U add turn.
+  - Measurement and movement: Q, Shift, X; Alt to ignore snap; arrows; E+wheel; right-click+drag to pan; Z and Shift+Z.
+  - Selection: Alt+rectangle (drawings).
+  - Characters and macros: Shift+double-click on the token, Shift+click on macro.
+  - GM: Ctrl+T rejoin as player.
+- **Advanced shortcuts** (optional): single-key sequences (e.g. `F R` for shapes, `C C` to focus chat), show/hide sidebar, focus journal search.
+- **External journal, chat archive and game forum**: see above.
+- **Marketplace modules and addons**: ready-made adventures installed into a game, with patches that update only changed items. Out of scope for now; keep the game import and export format in mind.
+- **UVTT import** (2026): map with walls, doors and lights from a Universal VTT file. Useful for importing maps even without lights: only the image and the grid are imported.
+- **Mobile app**: Roll20 has limited iPad and Android apps. [Frolls+] Responsive interface.
+
+---
+
+## 25. Cross-cutting complaints (summary for priorities)
+
+| Problem | Source | Frolls answer |
 |---|---|---|
-| Interfaccia datata e curva di apprendimento ripida | [gmcrafttavern](https://gmcrafttavern.com/foundry-vs-roll20-owlbear-2026/), [StoryRoll](https://storyroll.app/blog/best-online-dnd-platforms) | UI moderna, separata tra GM e giocatore, scorciatoie coerenti |
-| Prestazioni: FPS bassi con molti token o asset grandi, schede lente, partite gonfie | [gmcrafttavern](https://gmcrafttavern.com/foundry-vs-roll20-owlbear-2026/), [wiki Optimizing](https://wiki.roll20.net/Optimizing_Roll20_Performance), [forum](https://app.roll20.net/forum/post/4192520/big-campaign-and-slow-performance) | PixiJS, sync a delta, caricamento lazy di pagine e schede |
-| Funzioni base dietro abbonamento (luci, API, rollback, quota) | [Subscription](https://wiki.roll20.net/Subscription), [Elite](https://app.roll20.net/forum/post/12542863/) | Nessun paywall sulle funzioni di gioco |
-| Annulla a un solo livello | [forum](https://app.roll20.net/forum/post/3210982/) | Annulla/ripeti a più livelli per utente |
-| Nessun tiro cieco | [forum +410](https://app.roll20.net/forum/post/4922089/) | `/br` nativo |
-| Nessun compendium personalizzato | [forum +1732](https://app.roll20.net/forum/post/2940484/) | Compendium homebrew |
-| Turn tracker senza round né automazioni | [forum](https://app.roll20.net/forum/post/11481189/) | Round, condizioni, iniziativa di gruppo |
-| Macro fragili (entità HTML, query annidate) | [wiki Macros](https://wiki.roll20.net/Macros) | Parser robusto, editor con anteprima |
-| Token piccoli non centrati | [forum +235](https://app.roll20.net/forum/post/2309394/) | Snap al centro |
-| Giocatori senza upload, senza ridimensionamento, senza z-order | [wiki Player](https://wiki.roll20.net/Player) | Permessi granulari decisi dal GM |
-| Ctrl+F rubato al browser | [wiki Journal](https://wiki.roll20.net/Journal) | Ricerca interna, nessun furto di scorciatoie |
-| Supporto clienti e moderazione criticati, violazione del 2018 | [octobergeek](https://octobergeek.wordpress.com/2018/09/30/why-im-staying-with-roll20-for-now/), [HIBP](https://haveibeenpwned.com/Breach/Roll20) | Sicurezza by design, export completo dei dati |
-| Owlbear: setup in 30 secondi, nessun account per i giocatori, adatto al mobile | [gmcrafttavern](https://gmcrafttavern.com/foundry-vs-roll20-owlbear-2026/) | Link di invito che porta subito al tavolo; ingresso ospite valutabile |
-| Foundry: automazione e moduli | [scriptoriumgm](https://www.scriptoriumgm.com/blog/best-virtual-tabletop-vtt-systems) | Automazioni 5e native, plugin in futuro |
+| Dated interface and steep learning curve | [gmcrafttavern](https://gmcrafttavern.com/foundry-vs-roll20-owlbear-2026/), [StoryRoll](https://storyroll.app/blog/best-online-dnd-platforms) | Modern UI, separate for GM and player, consistent shortcuts |
+| Performance: low FPS with many tokens or large assets, slow sheets, bloated games | [gmcrafttavern](https://gmcrafttavern.com/foundry-vs-roll20-owlbear-2026/), [wiki Optimizing](https://wiki.roll20.net/Optimizing_Roll20_Performance), [forum](https://app.roll20.net/forum/post/4192520/big-campaign-and-slow-performance) | PixiJS, delta sync, lazy loading of pages and sheets |
+| Basic features behind a subscription (lighting, API, rollback, quota) | [Subscription](https://wiki.roll20.net/Subscription), [Elite](https://app.roll20.net/forum/post/12542863/) | No paywall on gameplay features |
+| Single-level undo | [forum](https://app.roll20.net/forum/post/3210982/) | Multi-level undo/redo per user |
+| No blind rolls | [forum +410](https://app.roll20.net/forum/post/4922089/) | Native `/br` |
+| No custom compendium | [forum +1732](https://app.roll20.net/forum/post/2940484/) | Homebrew compendium |
+| Turn tracker without rounds or automation | [forum](https://app.roll20.net/forum/post/11481189/) | Rounds, conditions, group initiative |
+| Fragile macros (HTML entities, nested queries) | [wiki Macros](https://wiki.roll20.net/Macros) | Robust parser, editor with preview |
+| Small tokens not centered | [forum +235](https://app.roll20.net/forum/post/2309394/) | Snap to center |
+| Players without upload, resizing or z-order | [wiki Player](https://wiki.roll20.net/Player) | Granular permissions decided by the GM |
+| Ctrl+F stolen from the browser | [wiki Journal](https://wiki.roll20.net/Journal) | Internal search, no shortcut stealing |
+| Criticized customer support and moderation, 2018 breach | [octobergeek](https://octobergeek.wordpress.com/2018/09/30/why-im-staying-with-roll20-for-now/), [HIBP](https://haveibeenpwned.com/Breach/Roll20) | Security by design, full data export |
+| Owlbear: 30-second setup, no account for players, mobile-friendly | [gmcrafttavern](https://gmcrafttavern.com/foundry-vs-roll20-owlbear-2026/) | Invite link that leads straight to the table; guest entry to be evaluated |
+| Foundry: automation and modules | [scriptoriumgm](https://www.scriptoriumgm.com/blog/best-virtual-tabletop-vtt-systems) | Native 5e automation, plugins in the future |
 
 ---
 
-## 26. Ordine di implementazione consigliato (vertical slice)
+## 26. Recommended implementation order (vertical slices)
 
-Ogni slice è **end-to-end**: modello Postgres, API o messaggi WebSocket, UI Svelte o Pixi e test. L'ordine tiene conto delle decisioni utente: auth per ultima, una sola partita persistente fino ad allora, dadi in chat senza comando.
+Each slice is **end-to-end**: Postgres model, API or WebSocket messages, Svelte or Pixi UI and tests. The order takes user decisions into account: auth last, a single persistent game until then, dice in chat without a command.
 
-1. **Persistenza e stato condiviso**: Postgres (pagine, token, eventi), caricamento di uno snapshot al join, delta sync, annulla/ripeti per utente (base del §7.2). *Uscita*: token persistenti dopo il riavvio.
-2. **Canvas base**: una pagina con dimensioni, colore di sfondo, **griglia quadrata ed esagonale**, scala e unità; zoom, pan, frecce; **ping e pull ping**; upload di una **immagine mappa** (storage S3 o MinIO, o locale in dev) sul layer mappa.
-3. **Token v1**: creazione da upload, spostamento con snap e Alt, ridimensionamento (GM), rotazione, rifletti, selezione multipla e a rettangolo, gruppo, z-order, copia/incolla/elimina, blocco, **layer mappa, oggetti e GM** con le regole di visibilità, waypoint e ultimo movimento.
-4. **Motore dadi completo (server)** più **chat**: grammatica §12.14, tutti i modificatori, gruppi, inline, etichette, `/r /gr /w /em /ooc /desc /as /emas /talktomyself`, tiro automatico delle espressioni, `/br`, rendering dei dadi e del dettaglio, archivio persistente con paginazione. Test di proprietà sul parser.
-5. **Token v2**: dialogo impostazioni, **barre 1-4** (valore, max, permessi, posizione e stile), bolle con valori relativi, **aure**, **marker** con numeri (set SRD delle condizioni), nameplate, tooltip, tinta, note GM, controllato da.
-6. **Journal v1**: cartelle, **personaggi** (bio, note GM, avatar, attributi, abilità), **handout**, permessi vede/modifica più "assegna a giocatore", mostra ai giocatori, link `[Nome]`, archivio, ricerca. **Token di default**, drag dal journal, **barre collegate agli attributi**, "parla come".
-7. **Macro e riferimenti**: `@{}` (selected, target, max, repeating, tracker), `%{}`, `#`, roll query con dialogo unico, ordine delle operazioni §12.12, `&{noerror}`, **roll template default**, pulsanti in chat, macro di Collezioni, **quick bar**, **token actions**.
-8. **Turn tracker**: aggiungi turno, `&{tracker[:+|:-]}`, voci personalizzate con formula, avanti e indietro, ordinamento, visibilità per pagina e layer GM, **round**, turno evidenziato, iniziativa di gruppo.
-9. **Pagine multiple**: page toolbar, cartelle, duplica, archivia, elimina con vincoli, **Player Ribbon**, **split party**, Define/Place Party, impostazioni pagina complete con le regole diagonali, copia di token tra pagine.
-10. **Misura e AoE**: righello con snap e visibilità, waypoint, linea, quadrato, cerchio, cono (53,13°), raggio; template persistenti con celle e token colpiti.
-11. **Disegno**: forme, mano libera, poligono, testo, colori e spessori, gomma, cancella layer, permesso "i giocatori disegnano".
-12. **Scheda 5e PG** (SRD): calcoli automatici, tiri con template simple, atk e spell, vantaggio, sussurro, sezioni ripetute con annulla, inventario con MODS, incantesimi e slot, risorse, riposi; poi la **scheda PNG** con blocco statistiche cliccabile.
-13. **Compendium SRD** con drag & drop (mostro sul tavolo diventa PNG più token; oggetto o incantesimo sulla scheda; voce diventa handout), poi il **compendium homebrew**.
-14. **Tabelle casuali** (`1t[...]`, inline, pesi, annidate) e **token multi-faccia**.
-15. **Mazzi di carte**: mazzo standard, pesca, gioca, mano, distribuisci, ruba, scambia, scarti, carte nel tracker.
-16. **Art Library completa**: cartelle, tag, quota, ricerca, upload in blocco, PDF in immagine, animazioni, upload dei giocatori.
-17. **Rifiniture di gioco**: map pins, zoom view (Z, Maiusc+Z), FX, dadi 3D solo come animazione, impostazioni personali e di partita live, scorciatoie avanzate, applica default.
-18. **Account e partite (ultimo, come deciso)**: registrazione, OAuth (Google e Discord), più partite, ruoli Creatore, GM e Giocatore, **link di invito** rigenerato all'espulsione, promozione e retrocessione, dettagli della partita, copia della partita, export ed import completo della partita (JSON più asset), Character Vault.
-19. **Futuro**: sistema di plugin (al posto delle API), marketplace, LFG, forum della partita, import UVTT. Poi le funzioni rimandate qui sotto.
-
----
-
-## 27. Rimandati (fuori scope per ora)
-
-- **Voce e video**: eliminati, non vanno sviluppati.
-- **Audio / Jukebox** (playlist, play-on-load delle pagine, volume).
-- **Fog of war** (base e avanzata).
-- **Luci dinamiche** (muri, porte, finestre, luci, oscurità, layer luci).
-- **Visione e linea di vista** (sight, scurovisione, Ctrl+L, limitazione del movimento).
+1. **Persistence and shared state**: Postgres (pages, tokens, events), loading a snapshot on join, delta sync, per-user undo/redo (basis of §7.2). *Exit*: tokens persist after restart.
+2. **Base canvas**: a page with size, background color, **square and hex grid**, scale and units; zoom, pan, arrows; **ping and pull ping**; upload of a **map image** (S3 or MinIO storage, or local in dev) on the map layer.
+3. **Tokens v1**: creation from upload, movement with snap and Alt, resizing (GM), rotation, flip, multiple and rectangle selection, group, z-order, copy/paste/delete, lock, **map, objects and GM layers** with visibility rules, waypoints and last move.
+4. **Full dice engine (server)** plus **chat**: grammar §12.14, all modifiers, groups, inline, labels, `/r /gr /w /em /ooc /desc /as /emas /talktomyself`, automatic rolling of expressions, `/br`, rendering of dice and breakdown, persistent archive with pagination. Property tests on the parser.
+5. **Tokens v2**: settings dialog, **bars 1-4** (value, max, permissions, location and style), bubbles with relative values, **auras**, **markers** with numbers (SRD condition set), nameplate, tooltip, tint, GM notes, controlled by.
+6. **Journal v1**: folders, **characters** (bio, GM notes, avatar, attributes, abilities), **handouts**, see/edit permissions plus "assign to player", show to players, `[Name]` links, archive, search. **Default token**, drag from the journal, **bars linked to attributes**, "speaking as".
+7. **Macros and references**: `@{}` (selected, target, max, repeating, tracker), `%{}`, `#`, roll queries with a single dialog, order of operations §12.12, `&{noerror}`, **default roll template**, chat buttons, Collections macros, **quick bar**, **token actions**.
+8. **Turn tracker**: add turn, `&{tracker[:+|:-]}`, custom entries with formula, forward and back, sorting, visibility per page and GM layer, **rounds**, highlighted turn, group initiative.
+9. **Multiple pages**: page toolbar, folders, duplicate, archive, delete with constraints, **Player Ribbon**, **split party**, Define/Place Party, full page settings with diagonal rules, copying tokens between pages.
+10. **Measurement and AoE**: ruler with snap and visibility, waypoints, line, square, circle, cone (53.13°), beam; persistent templates with affected cells and tokens.
+11. **Drawing**: shapes, freehand, polygon, text, colors and widths, eraser, clear layer, "players can draw" permission.
+12. **5e PC sheet** (SRD): automatic calculations, rolls with simple, atk and spell templates, advantage, whisper, repeating sections with undo, inventory with MODS, spells and slots, resources, rests; then the **NPC sheet** with clickable stat block.
+13. **SRD compendium** with drag & drop (monster on the tabletop becomes NPC plus token; item or spell onto the sheet; entry becomes handout), then the **homebrew compendium**.
+14. **Rollable tables** (`1t[...]`, inline, weights, nested) and **multi-sided tokens**.
+15. **Card decks**: standard deck, draw, play, hand, deal, steal, trade, discards, cards in the tracker.
+16. **Full Art Library**: folders, tags, quota, search, bulk upload, PDF to image, animations, player uploads.
+17. **Gameplay polish**: map pins, zoom view (Z, Shift+Z), FX, 3D dice as animation only, live personal and game settings, advanced shortcuts, apply defaults.
+18. **Accounts and games (last, as decided)**: registration, OAuth (Google and Discord), multiple games, Creator, GM and Player roles, **invite link** regenerated on kick, promotion and demotion, game details, game copy, full game export and import (JSON plus assets), Character Vault.
+19. **Future**: plugin system (instead of the API), marketplace, LFG, game forum, UVTT import. Then the deferred features below.
 
 ---
 
-## 28. Fonti
+## 27. Deferred (out of scope for now)
 
-**Wiki Roll20 (community; lette tramite Wayback Machine)**
+- **Voice and video**: dropped, not to be developed.
+- **Audio / Jukebox** (playlists, page play-on-load, volume).
+- **Fog of war** (basic and advanced).
+- **Dynamic lighting** (walls, doors, windows, lights, darkness, lighting layer).
+- **Vision and line of sight** (sight, darkvision, Ctrl+L, movement restriction).
+
+---
+
+## 28. Sources
+
+**Roll20 wiki (community; read via the Wayback Machine)**
 - [Dice Reference](https://wiki.roll20.net/Dice_Reference) · [Order of Operations](https://wiki.roll20.net/Order_of_Operations) · [Inline Rolls](https://wiki.roll20.net/Inline_Rolls) · [Roll Query](https://wiki.roll20.net/Roll_Query) · [Reusing Rolls](https://wiki.roll20.net/Reusing_Rolls) · [Hidden Rolls](https://wiki.roll20.net/Hidden_Rolls) · [Roll Templates](https://wiki.roll20.net/Roll_Templates) · [Default Roll Template](https://wiki.roll20.net/Default_Roll_Template) · [Dice Rolling GUI](https://wiki.roll20.net/Dice_Rolling_GUI) · [3D Dice](https://wiki.roll20.net/3D_Dice)
 - [Text Chat](https://wiki.roll20.net/Text_Chat) · [Chat Archive](https://wiki.roll20.net/Chat_Archive) · [Chat Menus](https://wiki.roll20.net/Chat_Menus)
 - [Macros](https://wiki.roll20.net/Macros) · [Token Actions](https://wiki.roll20.net/Token_Actions) · [Collections](https://wiki.roll20.net/Collections)
@@ -1047,18 +1047,18 @@ Ogni slice è **end-to-end**: modello Postgres, API o messaggi WebSocket, UI Sve
 - [Journal](https://wiki.roll20.net/Journal) · [Handouts](https://wiki.roll20.net/Handouts) · [Character Sheet](https://wiki.roll20.net/Character_Sheet) · [D&D 5E by Roll20](https://wiki.roll20.net/D%26D_5E_by_Roll20) · [Compendium](https://wiki.roll20.net/Compendium) · [Art Library](https://wiki.roll20.net/Art_Library) · [Archiving](https://wiki.roll20.net/Archiving)
 - [Game Details / Game Management](https://wiki.roll20.net/Game_Management) · [Game Settings](https://wiki.roll20.net/Game_Settings) · [My Settings](https://wiki.roll20.net/My_Settings) · [Player](https://wiki.roll20.net/Player) · [Gamemaster](https://wiki.roll20.net/Gamemaster) · [Character Vault](https://wiki.roll20.net/Character_Vault) · [Transmogrifier](https://wiki.roll20.net/Transmogrifier) · [Fx Tool](https://wiki.roll20.net/Fx_Tool) · [API Introduction](https://wiki.roll20.net/API:Introduction) · [Optimizing Roll20 Performance](https://wiki.roll20.net/Optimizing_Roll20_Performance) · [Subscription](https://wiki.roll20.net/Subscription)
 
-**Help Center e blog Roll20**
+**Roll20 Help Center and blog**
 - [Measure Tool](https://help.roll20.net/hc/en-us/articles/360039674913-Measure-Tool) · [Turn Tracker](https://help.roll20.net/hc/en-us/articles/360039178634-Turn-Tracker) · [Token Features](https://help.roll20.net/hc/en-us/articles/360039674573-Token-Features) · [Map Pins](https://help.roll20.net/hc/en-us/articles/36271267343639-Map-Pins-Early-Access) · [2025 Change Log](https://help.roll20.net/hc/en-us/articles/38597501957015-2025-Change-Log)
 - [New Measure Tool Shows AoE and Shapes](https://blog.roll20.net/posts/new-measure-tool-shows-aoe-and-shapes/) · [Jumpgate Officially Launches](https://blog.roll20.net/posts/the-future-of-tabletop-gaming-jumpgate-officially-launches/) · [Map Pins open beta](https://blog.roll20.net/posts/map-pins-open-beta/) · [Define and Place Party](https://blog.roll20.net/posts/define-and-place-party/)
 
-**Forum Roll20**
-- Suggerimenti: [Custom Compendium +1732](https://app.roll20.net/forum/post/2940484/) · [GM rolls nascosti al giocatore +410](https://app.roll20.net/forum/post/4922089/) · [Secret rolls](https://app.roll20.net/forum/post/11459035/) · [Token piccoli centrati +235](https://app.roll20.net/forum/post/2309394/) · [Transmogrifier cartelle +583](https://app.roll20.net/forum/post/3234668/) · [Fixing Initiative and the Turn Tracker](https://app.roll20.net/forum/post/11481189/fixing-initiative-and-the-turn-tracker) · [Contatore di round](https://app.roll20.net/forum/post/494250/) · [Turn Tracker Enhancements](https://app.roll20.net/forum/post/1170023/) · [Più barre](https://app.roll20.net/forum/post/1285136/) · [4ª barra](https://app.roll20.net/forum/post/11729667/) · [Undo per giocatori](https://app.roll20.net/forum/post/8760735/player-undo-button-ctrl-plus-z) · [Undo/Redo](https://app.roll20.net/forum/post/3210982/please-review-the-undo-slash-redo-code) · [Gomma](https://app.roll20.net/forum/post/3756/eraser-tool) · [Mazzi avanzati](https://app.roll20.net/forum/permalink/2793233/) · [Righelli avanzati](https://app.roll20.net/forum/post/8270654/advanced-rulers-cone-square-circles-beam)
-- Bug e tecnica: [Z-order non sincronizzato](https://app.roll20.net/forum/post/8928459/) · [Token sempre sopra](https://app.roll20.net/forum/post/11577293/) · [Token bar redesign](https://app.roll20.net/forum/post/7396014/token-bar-redesign-bug-thread) · [Schede lente](https://app.roll20.net/forum/post/7085783/character-sheets-very-slow-to-open) · [Schede di alto livello e crash](https://app.roll20.net/forum/post/12443273/high-level-character-sheets-cause-intense-lag-and-crash) · [Grande campagna lenta](https://app.roll20.net/forum/post/4192520/big-campaign-and-slow-performance) · [Limiti dei dadi](https://app.roll20.net/forum/post/9164629/) · [Niente min/max](https://app.roll20.net/forum/post/1146425/) · [Ridimensionamento disegni giocatori](https://app.roll20.net/forum/post/11501167/) · [Release Notes 23 maggio 2025](https://app.roll20.net/forum/post/12372218/release-notes-may-23rd-2025) · [Party Tools](https://app.roll20.net/forum/post/12465889/gm-time-save-alert-party-tools-are-here) · [Elite](https://app.roll20.net/forum/post/12542863/introducing-roll20-elite-5x-storage-4x-sharing-and-more)
+**Roll20 forum**
+- Suggestions: [Custom Compendium +1732](https://app.roll20.net/forum/post/2940484/) · [GM rolls hidden from the player +410](https://app.roll20.net/forum/post/4922089/) · [Secret rolls](https://app.roll20.net/forum/post/11459035/) · [Centered small tokens +235](https://app.roll20.net/forum/post/2309394/) · [Transmogrifier folders +583](https://app.roll20.net/forum/post/3234668/) · [Fixing Initiative and the Turn Tracker](https://app.roll20.net/forum/post/11481189/fixing-initiative-and-the-turn-tracker) · [Round counter](https://app.roll20.net/forum/post/494250/) · [Turn Tracker Enhancements](https://app.roll20.net/forum/post/1170023/) · [More bars](https://app.roll20.net/forum/post/1285136/) · [4th bar](https://app.roll20.net/forum/post/11729667/) · [Undo for players](https://app.roll20.net/forum/post/8760735/player-undo-button-ctrl-plus-z) · [Undo/Redo](https://app.roll20.net/forum/post/3210982/please-review-the-undo-slash-redo-code) · [Eraser](https://app.roll20.net/forum/post/3756/eraser-tool) · [Advanced decks](https://app.roll20.net/forum/permalink/2793233/) · [Advanced rulers](https://app.roll20.net/forum/post/8270654/advanced-rulers-cone-square-circles-beam)
+- Bugs and technical: [Z-order not synced](https://app.roll20.net/forum/post/8928459/) · [Tokens always on top](https://app.roll20.net/forum/post/11577293/) · [Token bar redesign](https://app.roll20.net/forum/post/7396014/token-bar-redesign-bug-thread) · [Slow sheets](https://app.roll20.net/forum/post/7085783/character-sheets-very-slow-to-open) · [High-level sheets and crashes](https://app.roll20.net/forum/post/12443273/high-level-character-sheets-cause-intense-lag-and-crash) · [Big slow campaign](https://app.roll20.net/forum/post/4192520/big-campaign-and-slow-performance) · [Dice limits](https://app.roll20.net/forum/post/9164629/) · [No min/max](https://app.roll20.net/forum/post/1146425/) · [Player drawing resizing](https://app.roll20.net/forum/post/11501167/) · [Release Notes May 23rd 2025](https://app.roll20.net/forum/post/12372218/release-notes-may-23rd-2025) · [Party Tools](https://app.roll20.net/forum/post/12465889/gm-time-save-alert-party-tools-are-here) · [Elite](https://app.roll20.net/forum/post/12542863/introducing-roll20-elite-5x-storage-4x-sharing-and-more)
 
-**Repository pubblici**
-- [Roll20/roll20-character-sheets](https://github.com/Roll20/roll20-character-sheets) · [Roll20/roll20-api-scripts](https://github.com/Roll20/roll20-api-scripts) (citati solo come riferimento all'ecosistema; non è stato letto codice)
+**Public repositories**
+- [Roll20/roll20-character-sheets](https://github.com/Roll20/roll20-character-sheets) · [Roll20/roll20-api-scripts](https://github.com/Roll20/roll20-api-scripts) (cited only as a reference to the ecosystem; no code was read)
 
-**Recensioni, confronti e notizie**
+**Reviews, comparisons and news**
 - [GM Craft Tavern: Foundry vs Roll20 vs Owlbear 2026](https://gmcrafttavern.com/foundry-vs-roll20-owlbear-2026/) · [StoryRoll: Best Online D&D Platforms 2026](https://storyroll.app/blog/best-online-dnd-platforms) · [Scriptorium GM: VTT compared](https://www.scriptoriumgm.com/blog/best-virtual-tabletop-vtt-systems) · [Black Lantern Forge](https://blacklanternforge.com/blogs/news/roll20-vs-foundry-vtt-vs-owlbear-rodeo-which-virtual-tabletop-is-right-for-your-campaign) · [Dice Outpost](https://www.diceoutpost.com/guides/best-vtt-for-beginners/) · [Bell of Lost Souls: Party Tools](https://www.belloflostsouls.net/2025/08/roll20-unleashes-powerful-new-party-tools-after-recent-jumpgate-upgrades.html) · [GamingTrend: Map Pins](https://gamingtrend.com/news/roll20-unveils-new-map-pins-feature/) · [Have I Been Pwned: Roll20](https://haveibeenpwned.com/Breach/Roll20) · [October Geek](https://octobergeek.wordpress.com/2018/09/30/why-im-staying-with-roll20-for-now/) · [Wikipedia: Roll20](https://en.wikipedia.org/wiki/Roll20)
 
-**Limiti della ricerca**: Reddit (r/Roll20, r/DnD) blocca l'accesso automatico, quindi le lamentele vengono dal forum ufficiale, dal wiki e dalle recensioni. L'Help Center e il wiki rispondono 403 alle richieste dirette, quindi le pagine del wiki sono state lette da copie d'archivio, che possono essere indietro di qualche mese sulle novità Jumpgate.
+**Research limitations**: Reddit (r/Roll20, r/DnD) blocks automated access, so complaints come from the official forum, the wiki and reviews. The Help Center and wiki return 403 to direct requests, so wiki pages were read from archived copies, which may lag a few months behind on Jumpgate updates.

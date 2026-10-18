@@ -30,9 +30,10 @@ export function measure(page: Page, a: Point, b: Point): number {
   return cells * page.scale_number
 }
 
+const distanceFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
+
 export function formatDistance(page: Page, value: number): string {
-  const rounded = Math.round(value * 10) / 10
-  return `${rounded} ${page.scale_unit}`
+  return `${distanceFormat.format(value)} ${page.scale_unit}`
 }
 
 /** Convert a distance in page units to pixels. */

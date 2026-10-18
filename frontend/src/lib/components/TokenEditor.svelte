@@ -100,22 +100,22 @@
     class="dialog panel"
     role="dialog"
     aria-modal="true"
-    aria-label="Impostazioni token"
+    aria-label="Token settings"
     tabindex="-1"
     onclick={(e) => e.stopPropagation()}
     onkeydown={(e) => e.key === 'Escape' && onClose()}
   >
     <header>
-      <strong>{isToken ? 'Token' : 'Immagine'}: {name || 'senza nome'}</strong>
-      <button class="icon-btn" aria-label="Chiudi" onclick={onClose}>✕</button>
+      <strong>{isToken ? 'Token' : 'Image'}: {name || 'unnamed'}</strong>
+      <button class="icon-btn" aria-label="Close" onclick={onClose}>✕</button>
     </header>
 
     {#if isToken}
       <nav class="tabs">
-        <button class:active={tab === 'base'} onclick={() => (tab = 'base')}>Dettagli</button>
-        <button class:active={tab === 'bars'} onclick={() => (tab = 'bars')}>Barre</button>
-        <button class:active={tab === 'auras'} onclick={() => (tab = 'auras')}>Aure</button>
-        <button class:active={tab === 'status'} onclick={() => (tab = 'status')}>Stati</button>
+        <button class:active={tab === 'base'} onclick={() => (tab = 'base')}>Details</button>
+        <button class:active={tab === 'bars'} onclick={() => (tab = 'bars')}>Bars</button>
+        <button class:active={tab === 'auras'} onclick={() => (tab = 'auras')}>Auras</button>
+        <button class:active={tab === 'status'} onclick={() => (tab = 'status')}>Statuses</button>
       </nav>
     {/if}
 
@@ -125,41 +125,41 @@
           <div class="preview" style:background={image ? `center / contain no-repeat url(${image})` : color}></div>
           <div class="col">
             <button class="btn small" onclick={chooseImage} disabled={uploading}>
-              {uploading ? 'Caricamento…' : 'Carica immagine'}
+              {uploading ? 'Uploading…' : 'Upload image'}
             </button>
-            {#if image}<button class="btn small" onclick={() => (image = '')}>Rimuovi immagine</button>{/if}
-            {#if !image}<label class="row"><input type="color" bind:value={color} /> colore</label>{/if}
+            {#if image}<button class="btn small" onclick={() => (image = '')}>Remove image</button>{/if}
+            {#if !image}<label class="row"><input type="color" bind:value={color} /> color</label>{/if}
           </div>
         </div>
 
-        <label class="field"><span>Nome</span><input bind:value={name} maxlength="120" /></label>
-        <label class="check"><input type="checkbox" bind:checked={showName} /> Mostra il nome sulla mappa</label>
+        <label class="field"><span>Name</span><input bind:value={name} maxlength="120" /></label>
+        <label class="check"><input type="checkbox" bind:checked={showName} /> Show name on the map</label>
 
         <div class="grid2">
-          <label class="field"><span>Larghezza (celle)</span><input type="number" step="0.5" min="0.25" bind:value={cellsW} /></label>
-          <label class="field"><span>Altezza (celle)</span><input type="number" step="0.5" min="0.25" bind:value={cellsH} /></label>
+          <label class="field"><span>Width (cells)</span><input type="number" step="0.5" min="0.25" bind:value={cellsW} /></label>
+          <label class="field"><span>Height (cells)</span><input type="number" step="0.5" min="0.25" bind:value={cellsH} /></label>
         </div>
         <div class="row">
-          <label class="check"><input type="checkbox" bind:checked={flipH} /> Specchia orizzontale</label>
-          <label class="check"><input type="checkbox" bind:checked={flipV} /> Specchia verticale</label>
+          <label class="check"><input type="checkbox" bind:checked={flipH} /> Flip horizontal</label>
+          <label class="check"><input type="checkbox" bind:checked={flipV} /> Flip vertical</label>
         </div>
 
         {#if store.isGm}
           <label class="field">
-            <span>Livello</span>
+            <span>Layer</span>
             <select bind:value={layer}>
-              <option value="map">Mappa</option>
-              <option value="objects">Oggetti e token</option>
-              <option value="gm">GM (nascosto ai giocatori)</option>
+              <option value="map">Map</option>
+              <option value="objects">Objects & Tokens</option>
+              <option value="gm">GM (hidden from players)</option>
             </select>
           </label>
 
           {#if isToken}
             <div class="field">
-              <span>Controllato da</span>
+              <span>Controlled by</span>
               <div class="chips">
                 <button class="chip" class:on={controlledBy.includes('all')} onclick={() => (controlledBy = toggle(controlledBy, 'all'))}>
-                  Tutti i giocatori
+                  All players
                 </button>
                 {#each players as pl (pl.id)}
                   <button
@@ -178,7 +178,7 @@
           {/if}
 
           <label class="field">
-            <span>Note del GM (invisibili ai giocatori)</span>
+            <span>GM Notes (hidden from players)</span>
             <textarea rows="3" bind:value={gmNotes}></textarea>
           </label>
         {/if}
@@ -186,24 +186,24 @@
         {#each bars as bar, i (i)}
           <div class="bar-row">
             <span class="swatch" style:background={BAR_COLORS[i]}></span>
-            <strong>Barra {i + 1}</strong>
-            <input type="number" placeholder="valore" bind:value={bar.value} aria-label={`Barra ${i + 1} valore`} />
+            <strong>Bar {i + 1}</strong>
+            <input type="number" placeholder="value" bind:value={bar.value} aria-label={`Bar ${i + 1} value`} />
             <span>/</span>
-            <input type="number" placeholder="max" bind:value={bar.max} aria-label={`Barra ${i + 1} massimo`} />
+            <input type="number" placeholder="max" bind:value={bar.max} aria-label={`Bar ${i + 1} max`} />
           </div>
         {/each}
-        <p class="muted hint">Di solito: barra 1 = punti ferita, barra 2 = CA, barra 3 = altro. Lascia vuoto per nascondere.</p>
+        <p class="muted hint">Usually: bar 1 = hit points, bar 2 = AC, bar 3 = other. Leave empty to hide.</p>
       {:else if tab === 'auras'}
         {#each auras as aura, i (i)}
           <div class="bar-row">
             <strong>Aura {i + 1}</strong>
-            <input type="number" min="0" step="5" bind:value={aura.radius} aria-label={`Aura ${i + 1} raggio`} />
+            <input type="number" min="0" step="5" bind:value={aura.radius} aria-label={`Aura ${i + 1} radius`} />
             <span>{store.page?.scale_unit ?? 'ft'}</span>
-            <input type="color" bind:value={aura.color} aria-label={`Aura ${i + 1} colore`} />
-            <label class="check"><input type="checkbox" bind:checked={aura.square} /> quadrata</label>
+            <input type="color" bind:value={aura.color} aria-label={`Aura ${i + 1} color`} />
+            <label class="check"><input type="checkbox" bind:checked={aura.square} /> square</label>
           </div>
         {/each}
-        <p class="muted hint">Il raggio parte dal bordo del token. 0 = nessuna aura.</p>
+        <p class="muted hint">Radius starts at the token edge. 0 = no aura.</p>
       {:else}
         <div class="statuses">
           {#each STATUSES as s (s.id)}
@@ -216,8 +216,8 @@
     </div>
 
     <footer>
-      <button class="btn" onclick={onClose}>Annulla</button>
-      <button class="btn primary" onclick={save}>Salva</button>
+      <button class="btn" onclick={onClose}>Cancel</button>
+      <button class="btn primary" onclick={save}>Save</button>
     </footer>
   </div>
 </div>

@@ -1,14 +1,69 @@
 // End-to-end check of the game mechanics with two real browser tabs (GM + player).
-// Needs the app running (`npm run dev`) and a local Chrome or Edge.
+// Starts its own backend (port 8001, database frolls_e2e wiped on every run) and frontend
+// (port 5174), so it never touches the dev game. Needs a local Chrome or Edge.
 // Usage: npm run e2e            (headless)
 //        HEADED=1 npm run e2e   (watch it)
+import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
 
-const BASE = process.env.FROLLS_URL ?? 'http://localhost:5173/'
+const API_PORT = 8001
+const WEB_PORT = 5174
+const BASE = `http://localhost:${WEB_PORT}/`
 const OUT = fileURLToPath(new URL('./out', import.meta.url))
+const BACKEND = fileURLToPath(new URL('../backend', import.meta.url))
+const FRONTEND = fileURLToPath(new URL('../frontend', import.meta.url))
+const PYTHON = `${BACKEND}/.venv/Scripts/python.exe`
 mkdirSync(OUT, { recursive: true })
+
+// Something else on our ports (e.g. a dev Vite that fell back to 5174) would silently
+// serve the wrong app.
+for (const port of [API_PORT, WEB_PORT]) {
+  const busy = await fetch(`http://localhost:${port}/`).then(
+    () => true,
+    () => false,
+  )
+  if (busy) throw new Error(`port ${port} already in use: stop the process using it`)
+}
+
+const apiEnv = {
+  ...process.env,
+  FROLLS_DATABASE_URL: 'postgresql+asyncpg://frolls:frolls@localhost:5432/frolls_e2e',
+}
+// Empty database: drop everything, then recreate the schema from the migrations.
+for (const target of ['base', 'head']) {
+  execFileSync(PYTHON, ['-m', 'alembic', target === 'base' ? 'downgrade' : 'upgrade', target], {
+    cwd: BACKEND,
+    env: apiEnv,
+    stdio: 'ignore',
+  })
+}
+const servers = [
+  spawn(PYTHON, ['-m', 'uvicorn', 'app.main:app', '--port', String(API_PORT)], { cwd: BACKEND, env: apiEnv }),
+  spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--port', String(WEB_PORT), '--strictPort'], {
+    cwd: FRONTEND,
+    env: {
+      ...process.env,
+      FROLLS_API_URL: `http://localhost:${API_PORT}`,
+      FROLLS_VITE_CACHE_DIR: 'node_modules/.vite-e2e',
+    },
+  }),
+]
+const stopServers = () => servers.forEach((s) => s.kill())
+process.on('exit', stopServers)
+
+async function waitFor(url) {
+  for (let i = 0; i < 100; i++) {
+    try {
+      if ((await fetch(url)).ok) return
+    } catch {}
+    await new Promise((r) => setTimeout(r, 200))
+  }
+  throw new Error(`${url} is not responding`)
+}
+await waitFor(`http://localhost:${API_PORT}/health`)
+await waitFor(BASE)
 
 const candidates = [
   process.env.CHROME_PATH,
@@ -18,7 +73,7 @@ const candidates = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 ].filter(Boolean)
 const executablePath = candidates.find((p) => existsSync(p))
-if (!executablePath) throw new Error('Chrome/Edge non trovato: imposta CHROME_PATH')
+if (!executablePath) throw new Error('Chrome/Edge not found: set CHROME_PATH')
 const browser = await chromium.launch({ executablePath, headless: !process.env.HEADED })
 const errors = []
 const results = []
@@ -30,9 +85,9 @@ async function tab(name, gm) {
   page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`))
   page.on('console', (m) => m.type() === 'error' && errors.push(`${name} console: ${m.text()}`))
   await page.goto(BASE)
-  await page.getByPlaceholder('Es. Aria la Ranger').fill(name)
+  await page.getByPlaceholder('e.g. Aria the Ranger').fill(name)
   if (gm) await page.getByRole('button', { name: 'Game Master' }).click()
-  await page.getByRole('button', { name: 'Entra' }).click()
+  await page.getByRole('button', { name: 'Join' }).click()
   await page.waitForSelector('canvas')
   await page.waitForFunction(() => window.__engine && window.__store?.page)
   await page.waitForTimeout(500)
@@ -64,25 +119,16 @@ let gm, pl
 try {
 gm = await tab('Master', true)
 
-// Clean slate
-await gm.evaluate(() => {
-  const s = window.__store
-  const ids = [...s.objects.keys()]
-  if (ids.length) s.deleteObjects(ids)
-  s.send({ type: 'turn.set', order: [], round: 0 })
-})
-await gm.waitForTimeout(400)
-if (await gm.locator('div.tracker').isVisible()) await gm.locator('div.tracker').getByLabel('Chiudi').click()
 pl = await tab('Aria', false)
 
 // 1. GM creates token
-await gm.getByTitle('Nuovo token').click()
+await gm.getByTitle('New token').click()
 await gm.waitForTimeout(400)
 let g = await state(gm)
 const tok = g.objects.find((o) => o.kind === 'token')
-check('GM crea token', !!tok)
+check('GM creates token', !!tok)
 let p = await state(pl)
-check('giocatore vede token', p.objects.some((o) => o.id === tok.id))
+check('player sees token', p.objects.some((o) => o.id === tok.id))
 
 // 2. GM drags token ~3 cells right, snapped
 const from = await toClient(gm, tok.x, tok.y)
@@ -93,38 +139,38 @@ g = await state(gm)
 p = await state(pl)
 const moved = g.objects.find((o) => o.id === tok.id)
 const pMoved = p.objects.find((o) => o.id === tok.id)
-check('drag sposta token con snap', moved.x === tok.x + 210, `x ${tok.x} -> ${moved.x}`)
-check('giocatore riceve la posizione', pMoved.x === moved.x && pMoved.y === moved.y)
+check('drag moves token with snap', moved.x === tok.x + 210, `x ${tok.x} -> ${moved.x}`)
+check('player receives the position', pMoved.x === moved.x && pMoved.y === moved.y)
 
 // 3. Player cannot drag uncontrolled token
 const pc = await toClient(pl, moved.x, moved.y)
 await drag(pl, pc, { x: pc.x + 100, y: pc.y })
 await pl.waitForTimeout(400)
 p = await state(pl)
-check('giocatore NON muove token altrui', p.objects.find((o) => o.id === tok.id).x === moved.x)
+check('player can NOT move tokens of others', p.objects.find((o) => o.id === tok.id).x === moved.x)
 
 // 4. GM gives control to Aria via editor (double click)
 const ariaId = await pl.evaluate(() => window.__store.me.id)
 const gc = await toClient(gm, moved.x, moved.y)
 await gm.mouse.dblclick(gc.x, gc.y)
-const dialog = gm.getByRole('dialog', { name: 'Impostazioni token' })
+const dialog = gm.getByRole('dialog', { name: 'Token settings' })
 await dialog.waitFor()
-await dialog.locator('label.field input').first().fill('Aria la Ranger')
+await dialog.locator('label.field input').first().fill('Aria the Ranger')
 await dialog.locator(`[data-player-id="${ariaId}"]`).click()
-await dialog.getByRole('button', { name: 'Barre' }).click()
-await dialog.getByLabel('Barra 1 valore').fill('22')
-await dialog.getByLabel('Barra 1 massimo').fill('30')
-await dialog.getByRole('button', { name: 'Aure' }).click()
-await dialog.getByLabel('Aura 1 raggio').fill('10')
-await dialog.getByRole('button', { name: 'Stati' }).click()
-await dialog.getByTitle('Avvelenato').click()
-await dialog.getByRole('button', { name: 'Salva' }).click()
+await dialog.getByRole('button', { name: 'Bars' }).click()
+await dialog.getByLabel('Bar 1 value').fill('22')
+await dialog.getByLabel('Bar 1 max').fill('30')
+await dialog.getByRole('button', { name: 'Auras' }).click()
+await dialog.getByLabel('Aura 1 radius').fill('10')
+await dialog.getByRole('button', { name: 'Statuses' }).click()
+await dialog.getByTitle('Poisoned').click()
+await dialog.getByRole('button', { name: 'Save' }).click()
 await gm.waitForTimeout(500)
 p = await state(pl)
 const t2 = p.objects.find((o) => o.id === tok.id)
 check(
-  'editor: nome, controllo, barre, aura, stati',
-  t2.props.name === 'Aria la Ranger' &&
+  'editor: name, control, bars, aura, statuses',
+  t2.props.name === 'Aria the Ranger' &&
     t2.props.controlled_by?.includes(ariaId) &&
     t2.props.bar1?.value === 22 &&
     t2.props.aura1?.radius === 10 &&
@@ -138,7 +184,7 @@ const pz = await pl.evaluate(() => window.__engine.zoom)
 await drag(pl, pc2, { x: pc2.x, y: pc2.y + 70 * 2 * pz + 4 })
 await pl.waitForTimeout(500)
 g = await state(gm)
-check('giocatore muove il proprio token', g.objects.find((o) => o.id === tok.id).y === t2.y + 140)
+check('player moves own token', g.objects.find((o) => o.id === tok.id).y === t2.y + 140)
 
 // 6. Player HUD relative bar change -5
 await pl.evaluate((id) => window.__store.setSelection([id]), tok.id)
@@ -148,24 +194,24 @@ await hpInput.fill('-5')
 await hpInput.press('Enter')
 await pl.waitForTimeout(400)
 g = await state(gm)
-check('HUD: barra relativa -5', g.objects.find((o) => o.id === tok.id).props.bar1.value === 17)
+check('HUD: relative bar -5', g.objects.find((o) => o.id === tok.id).props.bar1.value === 17)
 
 // 7. GM layer secret token
-await gm.getByTitle(/Livello GM/).click()
-await gm.getByTitle('Nuovo token').click()
+await gm.getByTitle(/GM layer/).click()
+await gm.getByTitle('New token').click()
 await gm.waitForTimeout(400)
 g = await state(gm)
 p = await state(pl)
 const secret = g.objects.find((o) => o.layer === 'gm')
-check('token su livello GM invisibile ai giocatori', !!secret && !p.objects.some((o) => o.id === secret.id))
-await gm.getByTitle(/Livello oggetti/).click()
+check('GM layer token hidden from players', !!secret && !p.objects.some((o) => o.id === secret.id))
+await gm.getByTitle(/Objects & Tokens layer/).click()
 
 // 8. Player draws rectangle
 await pl.evaluate(() => (window.__store.tool = 'draw-rect'))
 await drag(pl, await toClient(pl, 100, 100), await toClient(pl, 300, 250))
 await pl.waitForTimeout(400)
 g = await state(gm)
-check('giocatore disegna un rettangolo', g.objects.some((o) => o.kind === 'path' && o.props.shape === 'rect'))
+check('player draws a rectangle', g.objects.some((o) => o.kind === 'path' && o.props.shape === 'rect'))
 
 // 9. Freehand
 await pl.evaluate(() => (window.__store.tool = 'draw-free'))
@@ -177,9 +223,9 @@ await pl.mouse.up()
 await pl.waitForTimeout(400)
 g = await state(gm)
 const free = g.objects.find((o) => o.kind === 'path' && o.props.shape === 'free')
-check('disegno a mano libera', !!free && free.props.points.length > 10)
+check('freehand drawing', !!free && free.props.points.length > 10)
 
-// 10. Template cone 15ft
+// 10. Template cone, 3 cells
 await pl.evaluate(() => (window.__store.tool = 'template-cone'))
 const c1 = await toClient(pl, 700, 700)
 const c2 = await toClient(pl, 910, 700)
@@ -191,7 +237,7 @@ await pl.mouse.up()
 await pl.waitForTimeout(400)
 g = await state(gm)
 const cone = g.objects.find((o) => o.kind === 'template')
-check('area cono creata (~15ft)', !!cone && Math.abs(cone.props.size - 210) < 2, cone && `size ${cone.props.size}`)
+check('cone template created (3 cells)', !!cone && Math.abs(cone.props.size - 210) < 2, cone && `size ${cone.props.size}`)
 
 // 11. Ruler (screenshot)
 await pl.evaluate(() => (window.__store.tool = 'ruler'))
@@ -208,21 +254,21 @@ await pl.evaluate(() => (window.__store.tool = 'select'))
 await gm.evaluate(() => (window.__store.tool = 'text'))
 const tp = await toClient(gm, 900, 200)
 await gm.mouse.click(tp.x, tp.y)
-await gm.locator('.text-input').fill('Taverna del Drago')
+await gm.locator('.text-input').fill('Dragon Tavern')
 await gm.locator('.text-input').press('Enter')
 await gm.waitForTimeout(400)
 p = await state(pl)
-check('testo sulla mappa', p.objects.some((o) => o.kind === 'text' && o.props.text === 'Taverna del Drago'))
+check('text on the map', p.objects.some((o) => o.kind === 'text' && o.props.text === 'Dragon Tavern'))
 await gm.evaluate(() => (window.__store.tool = 'select'))
 
 // 13. Turn order
 await gm.evaluate((id) => window.__store.setSelection([id]), tok.id)
 if (!(await gm.locator('div.tracker').isVisible())) await gm.locator('button.tracker').click()
-await gm.getByRole('button', { name: 'Aggiungi selezionati' }).click({ timeout: 4000 })
+await gm.getByRole('button', { name: 'Add selected' }).click({ timeout: 4000 })
 await gm.waitForTimeout(500)
 p = await state(pl)
-check('iniziativa: voce aggiunta', p.game.turn_order.length === 1)
-check('tracker si apre da solo al giocatore', await pl.locator('div.tracker').isVisible())
+check('turn order: entry added', p.game.turn_order.length === 1)
+check('tracker opens by itself for the player', await pl.locator('div.tracker').isVisible())
 
 // 14. Context menu: right click on token -> to GM layer hides from player
 const rc = await toClient(gm, g.objects.find((o) => o.id === tok.id).x, g.objects.find((o) => o.id === tok.id).y)
@@ -230,27 +276,27 @@ await gm.mouse.click(rc.x, rc.y, { button: 'right' })
 await gm.getByRole('menu').getByRole('button', { name: /GM$/ }).click()
 await gm.waitForTimeout(400)
 p = await state(pl)
-check('menu contestuale: sposta su livello GM', !p.objects.some((o) => o.id === tok.id))
-check('voce iniziativa nascosta ai giocatori se token su GM', p.game.turn_order.length === 0)
+check('context menu: move to GM layer', !p.objects.some((o) => o.id === tok.id))
+check('turn order entry hidden from players when token on GM layer', p.game.turn_order.length === 0)
 await gm.evaluate((id) => window.__store.updateObjects([{ id, layer: 'objects' }]), tok.id)
 await gm.waitForTimeout(300)
 
 // 15. Whisper
-await pl.getByLabel('Messaggio chat').fill('/w gm ho un piano segreto')
+await pl.getByLabel('Chat message').fill('/w gm I have a secret plan')
 await pl.keyboard.press('Enter')
 await gm.waitForTimeout(400)
-check('sussurro al GM', (await gm.locator('.log').innerText()).includes('ho un piano segreto'))
+check('whisper to GM', (await gm.locator('.log').innerText()).includes('I have a secret plan'))
 
 // 16. New page + move players
-await gm.getByTitle('Nuova pagina').click()
+await gm.getByTitle('New page').click()
 await gm.waitForTimeout(400)
 const pages = await gm.evaluate(() => window.__store.pages.map((x) => ({ id: x.id, name: x.name })))
 const newPage = pages[pages.length - 1]
 await gm.locator('.tab', { hasText: newPage.name }).locator('.tab-menu').click()
-await gm.getByRole('button', { name: 'Sposta qui tutti i giocatori' }).click()
+await gm.getByRole('button', { name: 'Move all players here' }).click()
 await pl.waitForTimeout(500)
 p = await state(pl)
-check('giocatore spostato sulla nuova pagina', p.page.id === newPage.id)
+check('player moved to the new page', p.page.id === newPage.id)
 await gm.evaluate((id) => window.__store.send({ type: 'game.player_page', page_id: id }), pages[0].id)
 await pl.waitForTimeout(500)
 await gm.evaluate((id) => window.__store.send({ type: 'page.delete', id }), newPage.id)
@@ -262,7 +308,7 @@ await pl.waitForFunction(() => window.__engine && window.__store?.page)
 await pl.waitForTimeout(600)
 p = await state(pl)
 check(
-  'dopo reload: stessa identità e stato salvato',
+  'after reload: same identity and saved state',
   p.objects.some((o) => o.id === tok.id) && p.players.filter((x) => x.id === ariaId).length === 1,
 )
 
@@ -271,18 +317,53 @@ const before = await gm.evaluate(() => window.__engine.zoom)
 await gm.mouse.move(600, 400)
 await gm.mouse.wheel(0, -300)
 await gm.waitForTimeout(200)
-check('zoom con rotellina', (await gm.evaluate(() => window.__engine.zoom)) > before)
+check('mouse wheel zoom', (await gm.evaluate(() => window.__engine.zoom)) > before)
 await gm.evaluate(() => window.__engine.fitPage())
 
+// 19. Settings tab: the wheel can pan instead of zooming, and the choice persists
+await gm.getByRole('button', { name: 'My Settings', exact: true }).click()
+await gm.getByRole('button', { name: 'Pan the map' }).click()
+const z0 = await gm.evaluate(() => window.__engine.zoom)
+const o0 = await toClient(gm, 0, 0)
+await gm.mouse.move(600, 400)
+await gm.mouse.wheel(0, 200)
+await gm.waitForTimeout(200)
+const o1 = await toClient(gm, 0, 0)
+check(
+  'settings: wheel pans the map',
+  (await gm.evaluate(() => window.__engine.zoom)) === z0 && Math.abs(o1.y - o0.y - -200) < 1,
+  `zoom ${z0} dy ${o1.y - o0.y}`,
+)
+await gm.reload()
+await gm.waitForFunction(() => window.__engine && window.__store?.page)
+check('personal settings saved', (await gm.evaluate(() => window.__store.settings.wheel)) === 'pan')
+
+// 20. Measurement system: metric by default, GM switch converts the page for everyone
+p = await state(pl)
+const metric = p.page.scale_number === 1.5 && p.page.scale_unit === 'm' && p.game.settings.measurement === 'metric'
+await gm.getByRole('button', { name: 'My Settings', exact: true }).click()
+await gm.getByRole('button', { name: 'Imperial' }).click()
+await pl.waitForFunction(() => window.__store.page?.scale_unit === 'ft', null, { timeout: 3000 }).catch(() => {})
+p = await state(pl)
+check(
+  'units: metric by default, GM switches to imperial',
+  metric && p.page.scale_number === 5 && p.page.scale_unit === 'ft',
+  `${p.page.scale_number} ${p.page.scale_unit}`,
+)
+await gm.getByRole('button', { name: 'Metric' }).click()
+await gm.waitForTimeout(300)
+await gm.screenshot({ path: `${OUT}/settings.png` })
+
 } catch (e) {
-  results.push(`FAIL interrotto: ${e.message.split('\n')[0]}`)
+  results.push(`FAIL aborted: ${e.message.split('\n')[0]}`)
 } finally {
   await gm?.screenshot({ path: `${OUT}/gm-final.png` })
   await pl?.screenshot({ path: `${OUT}/pl-final.png` })
   console.log(results.join('\n'))
-  if (errors.length) console.log('Errori JavaScript:', errors)
+  if (errors.length) console.log('JavaScript errors:', errors)
   await browser.close()
+  stopServers()
   const failed = results.filter((r) => r.startsWith('FAIL')).length
-  console.log(`\n${results.length - failed}/${results.length} controlli superati. Screenshot in ${OUT}`)
+  console.log(`\n${results.length - failed}/${results.length} checks passed. Screenshots in ${OUT}`)
   process.exitCode = failed || errors.length ? 1 : 0
 }

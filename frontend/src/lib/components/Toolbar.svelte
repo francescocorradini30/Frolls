@@ -17,28 +17,28 @@
   } = $props()
 
   const TOOLS: { id: Tool; icon: string; label: string; key?: string }[] = [
-    { id: 'select', icon: '➤', label: 'Seleziona e sposta', key: 'V' },
-    { id: 'pan', icon: '✋', label: 'Muovi la mappa (o tieni premuto Spazio)', key: 'H' },
-    { id: 'ruler', icon: '📏', label: 'Righello', key: 'R' },
+    { id: 'select', icon: '➤', label: 'Select and move', key: 'V' },
+    { id: 'pan', icon: '✋', label: 'Pan the map (or hold Space)', key: 'H' },
+    { id: 'ruler', icon: '📏', label: 'Ruler', key: 'R' },
   ]
   const DRAW: { id: Tool; icon: string; label: string }[] = [
-    { id: 'draw-free', icon: '✎', label: 'Matita libera (D)' },
-    { id: 'draw-line', icon: '╱', label: 'Linea' },
-    { id: 'draw-rect', icon: '▭', label: 'Rettangolo' },
-    { id: 'draw-ellipse', icon: '◯', label: 'Ellisse' },
-    { id: 'draw-polygon', icon: '⬠', label: 'Poligono (clic per i vertici, doppio clic per chiudere)' },
-    { id: 'text', icon: 'T', label: 'Testo (T)' },
+    { id: 'draw-free', icon: '✎', label: 'Freehand (D)' },
+    { id: 'draw-line', icon: '╱', label: 'Line' },
+    { id: 'draw-rect', icon: '▭', label: 'Rectangle' },
+    { id: 'draw-ellipse', icon: '◯', label: 'Ellipse' },
+    { id: 'draw-polygon', icon: '⬠', label: 'Polygon (click to add points, double-click to close)' },
+    { id: 'text', icon: 'T', label: 'Text (T)' },
   ]
   const TEMPLATES: { id: Tool; icon: string; label: string }[] = [
-    { id: 'template-circle', icon: '◎', label: 'Area: sfera/cerchio' },
-    { id: 'template-cone', icon: '◢', label: 'Area: cono' },
-    { id: 'template-line', icon: '━', label: 'Area: linea' },
-    { id: 'template-square', icon: '▣', label: 'Area: cubo' },
+    { id: 'template-circle', icon: '◎', label: 'Area: sphere/circle' },
+    { id: 'template-cone', icon: '◢', label: 'Area: cone' },
+    { id: 'template-line', icon: '━', label: 'Area: line' },
+    { id: 'template-square', icon: '▣', label: 'Area: cube' },
   ]
   const LAYERS: { id: Layer; icon: string; label: string }[] = [
-    { id: 'map', icon: '🗺', label: 'Livello mappa (sfondi e scenografia)' },
-    { id: 'objects', icon: '♟', label: 'Livello oggetti e token' },
-    { id: 'gm', icon: '👁', label: 'Livello GM (invisibile ai giocatori)' },
+    { id: 'map', icon: '🗺', label: 'Map layer (backgrounds and scenery)' },
+    { id: 'objects', icon: '♟', label: 'Objects & Tokens layer' },
+    { id: 'gm', icon: '👁', label: 'GM layer (hidden from players)' },
   ]
 
   let open = $state<'draw' | 'template' | null>(null)
@@ -49,7 +49,7 @@
 
 <svelte:window onclick={() => (open = null)} />
 
-<aside class="toolbar" aria-label="Strumenti">
+<aside class="toolbar" aria-label="Tools">
   {#each TOOLS as t (t.id)}
     <button
       class="tool"
@@ -63,7 +63,7 @@
     <button
       class="tool"
       class:active={!!drawActive}
-      title="Disegno"
+      title="Drawing"
       onclick={(e) => {
         e.stopPropagation()
         open = open === 'draw' ? null : 'draw'
@@ -77,19 +77,19 @@
           >
         {/each}
         <div class="style" role="presentation" onclick={(e) => e.stopPropagation()}>
-          <label title="Colore tratto"><input type="color" bind:value={store.drawStyle.stroke} /></label>
-          <label title="Spessore">
+          <label title="Stroke color"><input type="color" bind:value={store.drawStyle.stroke} /></label>
+          <label title="Stroke width">
             <input type="range" min="1" max="24" bind:value={store.drawStyle.strokeWidth} />
           </label>
-          <label class="fill" title="Riempimento">
+          <label class="fill" title="Fill">
             <input
               type="checkbox"
               checked={store.drawStyle.fill !== null}
               onchange={(e) => (store.drawStyle.fill = e.currentTarget.checked ? store.drawStyle.stroke : null)}
             />
-            riempi
+            fill
           </label>
-          <label title="Dimensione testo">
+          <label title="Text size">
             <input type="number" min="8" max="200" bind:value={store.drawStyle.fontSize} />
           </label>
         </div>
@@ -101,7 +101,7 @@
     <button
       class="tool"
       class:active={!!templateActive}
-      title="Aree degli incantesimi"
+      title="Spell areas"
       onclick={(e) => {
         e.stopPropagation()
         open = open === 'template' ? null : 'template'
@@ -126,14 +126,14 @@
       >
     {/each}
     <hr />
-    <button class="tool" title="Nuovo token" onclick={onAddToken}>⊕</button>
-    <button class="tool" title="Carica immagine (token o mappa, in base al livello)" onclick={onUploadImage}>🖼</button>
+    <button class="tool" title="New token" onclick={onAddToken}>⊕</button>
+    <button class="tool" title="Upload image (token or map, depending on the layer)" onclick={onUploadImage}>🖼</button>
   {/if}
 
   <div class="spacer"></div>
-  <button class="tool" title="Zoom avanti" onclick={() => onZoom(1.25)}>＋</button>
-  <button class="zoom" title="Adatta la pagina allo schermo" onclick={onFit}>{Math.round(zoom * 100)}%</button>
-  <button class="tool" title="Zoom indietro" onclick={() => onZoom(0.8)}>－</button>
+  <button class="tool" title="Zoom in" onclick={() => onZoom(1.25)}>＋</button>
+  <button class="zoom" title="Fit page to screen" onclick={onFit}>{Math.round(zoom * 100)}%</button>
+  <button class="tool" title="Zoom out" onclick={() => onZoom(0.8)}>－</button>
 </aside>
 
 <style>

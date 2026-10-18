@@ -4,16 +4,18 @@ import type {
   GameState,
   Layer,
   MapObject,
+  Measurement,
   ObjectPatch,
   Page,
   Player,
+  PlayerSettings,
   PreviewItem,
   ServerMessage,
   TurnEntry,
 } from '../net/protocol'
 import { GameSocket, type ConnectionStatus } from '../net/socket'
 import { DEFAULT_DRAW_COLOR } from '../theme'
-import type { Identity } from './identity'
+import { saveIdentity, type Identity } from './identity'
 
 export type Tool =
   | 'select'
@@ -100,11 +102,34 @@ export class GameStore {
     return this.me?.is_gm ?? false
   }
 
+  /** My personal settings, with defaults. */
+  get settings(): Required<PlayerSettings> {
+    return { wheel: 'zoom', chat_timestamps: true, ...this.me?.settings }
+  }
+
+  get measurement(): Measurement {
+    return this.game?.settings.measurement ?? 'metric'
+  }
+
+  updateSettings(patch: PlayerSettings): void {
+    if (!this.me) return
+    this.me = { ...this.me, settings: { ...this.me.settings, ...patch } }
+    this.send({ type: 'player.update', settings: patch })
+  }
+
+  updateProfile(patch: { name?: string; color?: string }): void {
+    if (!this.identity) return
+    // Keep the tab identity in sync, or a reconnect would send the old name back.
+    this.identity = { ...this.identity, ...patch }
+    saveIdentity(this.identity)
+    this.send({ type: 'player.update', ...patch })
+  }
+
   connect(identity: Identity): void {
     this.identity = identity
     this.socket?.close()
     this.socket = new GameSocket({
-      onOpen: () => this.send({ type: 'hello', player: identity }),
+      onOpen: () => this.identity && this.send({ type: 'hello', player: this.identity }),
       onStatus: (s) => (this.status = s),
       onMessage: (m) => this.receive(m),
     })
@@ -140,6 +165,11 @@ export class GameStore {
   private receive(msg: ServerMessage): void {
     switch (msg.type) {
       case 'welcome':
+        // The server may hand back an existing player with the same name.
+        if (this.identity && this.identity.id !== msg.you.id) {
+          this.identity = { ...this.identity, id: msg.you.id }
+          saveIdentity(this.identity)
+        }
         this.me = msg.you
         this.game = msg.game
         this.players = msg.players
@@ -171,7 +201,11 @@ export class GameStore {
         break
       case 'players':
         this.players = msg.players
-        if (this.me) this.me = msg.players.find((p) => p.id === this.me!.id) ?? this.me
+        if (this.me) {
+          const me = msg.players.find((p) => p.id === this.me!.id)
+          // The public list has no settings: keep mine.
+          if (me) this.me = { ...me, settings: this.me.settings }
+        }
         break
       case 'obj.upsert': {
         const mine = msg.objects.filter((o) => o.page_id === this.page?.id)

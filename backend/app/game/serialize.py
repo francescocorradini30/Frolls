@@ -43,14 +43,17 @@ def object_dict(obj: MapObject) -> dict[str, Any]:
     return {f: getattr(obj, f) for f in OBJECT_FIELDS}
 
 
-def player_dict(player: Player, online: bool) -> dict[str, Any]:
-    return {
+def player_dict(player: Player, online: bool, private: bool = False) -> dict[str, Any]:
+    data = {
         "id": player.id,
         "name": player.name,
         "color": player.color,
         "is_gm": player.is_gm,
         "online": online,
     }
+    if private:
+        data["settings"] = player.settings or {}
+    return data
 
 
 def game_dict(game: Game) -> dict[str, Any]:

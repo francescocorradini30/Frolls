@@ -27,10 +27,10 @@ router = APIRouter(prefix="/api", tags=["assets"])
 async def upload_asset(file: UploadFile) -> dict[str, str | int]:
     ext = ALLOWED.get(file.content_type or "")
     if ext is None:
-        raise HTTPException(415, "Formato non supportato: usa PNG, JPG, WEBP, GIF o SVG")
+        raise HTTPException(415, "Unsupported format: use PNG, JPG, WEBP, GIF or SVG")
     data = await file.read(MAX_BYTES + 1)
     if len(data) > MAX_BYTES:
-        raise HTTPException(413, "File troppo grande (max 15 MB)")
+        raise HTTPException(413, "File too large (max 15 MB)")
     name = f"{uuid.uuid4().hex}{ext}"
     (UPLOAD_DIR / name).write_bytes(data)
     return {"url": f"/uploads/{name}", "size": len(data)}

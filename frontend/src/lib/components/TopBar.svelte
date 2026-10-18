@@ -3,7 +3,7 @@
 
   let { onLeave, onPageSettings }: { onLeave: () => void; onPageSettings: () => void } = $props()
 
-  const statusLabel = { connecting: 'Connessione…', online: 'Online', offline: 'Offline' }
+  const statusLabel = { connecting: 'Connecting…', online: 'Online', offline: 'Offline' }
 
   let menuFor = $state<string | null>(null)
 
@@ -17,13 +17,13 @@
 
   function rename(id: string, current: string) {
     menuFor = null
-    const name = prompt('Nome della pagina', current)?.trim()
+    const name = prompt('Page name', current)?.trim()
     if (name) store.send({ type: 'page.update', id, patch: { name } })
   }
 
   function remove(id: string, name: string) {
     menuFor = null
-    if (confirm(`Eliminare la pagina "${name}" e tutto il suo contenuto?`)) {
+    if (confirm(`Delete page "${name}" and all its contents?`)) {
       store.send({ type: 'page.delete', id })
     }
   }
@@ -35,12 +35,12 @@
   <span class="brand text-gradient">Frolls</span>
 
   {#if store.isGm}
-    <nav class="pages" aria-label="Pagine">
+    <nav class="pages" aria-label="Pages">
       {#each store.pages as pg (pg.id)}
         {@const here = playersOn(pg.id)}
         <div class="tab" class:active={store.page?.id === pg.id}>
           <button class="tab-main" onclick={() => store.viewPage(pg.id)} title={pg.name}>
-            {#if store.game?.player_page_id === pg.id}<span class="flag" title="Pagina dei giocatori">⚑</span>{/if}
+            {#if store.game?.player_page_id === pg.id}<span class="flag" title="Players page">⚑</span>{/if}
             <span class="tab-name">{pg.name}</span>
             {#if here.length}
               <span class="dots" title={here.map((p) => p.name).join(', ')}>
@@ -51,7 +51,7 @@
           </button>
           <button
             class="tab-menu"
-            aria-label="Azioni pagina"
+            aria-label="Page actions"
             onclick={(e) => {
               e.stopPropagation()
               menuFor = menuFor === pg.id ? null : pg.id
@@ -60,28 +60,28 @@
           {#if menuFor === pg.id}
             <div class="menu panel" role="menu">
               <button onclick={() => store.send({ type: 'game.player_page', page_id: pg.id })}>
-                Sposta qui tutti i giocatori
+                Move all players here
               </button>
               {#each store.players.filter((p) => !p.is_gm) as p (p.id)}
                 <button onclick={() => store.send({ type: 'game.player_page', page_id: pg.id, player_id: p.id })}>
-                  Sposta qui solo {p.name}
+                  Move only {p.name} here
                 </button>
               {/each}
               <hr />
-              <button onclick={() => rename(pg.id, pg.name)}>Rinomina</button>
+              <button onclick={() => rename(pg.id, pg.name)}>Rename</button>
               <button
                 onclick={() => {
                   store.viewPage(pg.id)
                   onPageSettings()
-                }}>Impostazioni pagina</button
+                }}>Page settings</button
               >
-              <button onclick={() => store.send({ type: 'page.duplicate', id: pg.id })}>Duplica</button>
-              <button class="danger" onclick={() => remove(pg.id, pg.name)}>Elimina</button>
+              <button onclick={() => store.send({ type: 'page.duplicate', id: pg.id })}>Duplicate</button>
+              <button class="danger" onclick={() => remove(pg.id, pg.name)}>Delete</button>
             </div>
           {/if}
         </div>
       {/each}
-      <button class="icon-btn add" title="Nuova pagina" onclick={() => store.send({ type: 'page.create' })}>＋</button>
+      <button class="icon-btn add" title="New page" onclick={() => store.send({ type: 'page.create' })}>＋</button>
     </nav>
   {:else}
     <span class="page-name">{store.page?.name ?? ''}</span>
@@ -96,7 +96,7 @@
         {#if store.me.is_gm}<em class="badge">GM</em>{/if}
       </span>
     {/if}
-    <button class="btn small" onclick={onLeave}>Esci</button>
+    <button class="btn small" onclick={onLeave}>Leave</button>
   </div>
 </header>
 

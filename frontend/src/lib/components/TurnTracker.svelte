@@ -18,7 +18,7 @@
   }
 
   function addCustom() {
-    const name = prompt('Nome della voce (es. "Fine round", "Trappola")')?.trim()
+    const name = prompt('Entry name (e.g. "End of round", "Trap")')?.trim()
     if (name) store.send({ type: 'turn.add', entry: { id: crypto.randomUUID(), object_id: null, name, value: '0' } })
   }
 
@@ -57,10 +57,10 @@
 </script>
 
 <div class="tracker panel" style:left="{pos.x}px" style:top="{pos.y}px">
-  <header role="group" aria-label="Trascina per spostare il tracker" onpointerdown={startMove}>
-    <strong>Iniziativa</strong>
+  <header role="group" aria-label="Drag to move the tracker" onpointerdown={startMove}>
+    <strong>Turn Order</strong>
     <span class="round">Round {round}</span>
-    <button class="icon-btn" aria-label="Chiudi" onpointerdown={(e) => e.stopPropagation()} onclick={onClose}>✕</button>
+    <button class="icon-btn" aria-label="Close" onpointerdown={(e) => e.stopPropagation()} onclick={onClose}>✕</button>
   </header>
 
   <ol>
@@ -73,39 +73,39 @@
         ondragover={(e) => e.preventDefault()}
         ondrop={() => drop(i)}
       >
-        <button class="name" onclick={() => focusToken(entry.object_id)} title="Mostra sulla mappa">
-          {entry.name || 'Senza nome'}
+        <button class="name" onclick={() => focusToken(entry.object_id)} title="Show on map">
+          {entry.name || 'Unnamed'}
         </button>
         <input
           value={entry.value}
           disabled={!editable}
-          aria-label="Valore iniziativa"
+          aria-label="Initiative value"
           onchange={(e) => setValue(entry.id, e.currentTarget.value)}
         />
         {#if editable}
-          <button class="icon-btn" aria-label="Rimuovi" onclick={() => store.send({ type: 'turn.remove', id: entry.id })}>✕</button>
+          <button class="icon-btn" aria-label="Remove" onclick={() => store.send({ type: 'turn.remove', id: entry.id })}>✕</button>
         {/if}
       </li>
     {:else}
-      <li class="empty muted">Seleziona dei token e premi "Aggiungi selezionati".</li>
+      <li class="empty muted">Select some tokens and press "Add selected".</li>
     {/each}
   </ol>
 
   <footer>
     <button class="btn small" onclick={() => store.addToTurnOrder(store.selection)} disabled={!store.selection.length}>
-      Aggiungi selezionati
+      Add selected
     </button>
     {#if store.isGm}
-      <button class="btn small" onclick={() => store.send({ type: 'turn.sort' })} title="Ordina dal più alto">⇅ Ordina</button>
-      <button class="btn small" onclick={addCustom}>＋ Voce</button>
+      <button class="btn small" onclick={() => store.send({ type: 'turn.sort' })} title="Sort highest first">⇅ Sort</button>
+      <button class="btn small" onclick={addCustom}>＋ Entry</button>
       <button
         class="btn small danger"
-        onclick={() => confirm('Svuotare il tracker?') && store.send({ type: 'turn.set', order: [], round: 0 })}
-        >Svuota</button
+        onclick={() => confirm('Clear the turn order?') && store.send({ type: 'turn.set', order: [], round: 0 })}
+        >Clear</button
       >
     {/if}
     <button class="btn primary small next" onclick={() => store.send({ type: 'turn.next' })} disabled={!order.length}>
-      Turno successivo ▶
+      Next turn ▶
     </button>
   </footer>
 </div>

@@ -17,9 +17,9 @@
   {#each sorted as p (p.id)}
     <li class:offline={!p.online}>
       <i style:background={p.color}></i>
-      <span class="name">{p.name}{p.id === store.me?.id ? ' (tu)' : ''}</span>
+      <span class="name">{p.name}{p.id === store.me?.id ? ' (you)' : ''}</span>
       {#if p.is_gm}<em class="badge">GM</em>{/if}
-      {#if store.isGm && !p.is_gm}<span class="page muted" title="Pagina attuale">{pageName(p.id)}</span>{/if}
+      {#if store.isGm && !p.is_gm}<span class="page muted" title="Current page">{pageName(p.id)}</span>{/if}
       <span class="state muted">{p.online ? 'online' : 'offline'}</span>
     </li>
   {/each}

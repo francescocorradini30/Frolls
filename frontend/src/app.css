@@ -212,3 +212,36 @@ textarea:focus {
   border-radius: 5px;
   border: 2px solid var(--surface);
 }
+
+/* Sidebar settings forms (page, personal, game). */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.settings h4 {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.settings .hint {
+  margin: -6px 0 0;
+  font-size: 0.8rem;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.85rem;
+}

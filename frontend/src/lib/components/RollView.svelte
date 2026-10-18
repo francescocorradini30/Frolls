@@ -32,7 +32,7 @@
   </div>
   <div class="total">
     {fmt(roll.total)}
-    {#if successMode}<small>{roll.total === 1 ? 'successo' : 'successi'}</small>{/if}
+    {#if successMode}<small>{roll.total === 1 ? 'success' : 'successes'}</small>{/if}
   </div>
 </div>
 

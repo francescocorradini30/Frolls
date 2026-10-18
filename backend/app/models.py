@@ -51,6 +51,8 @@ class Player(Base):
     name: Mapped[str] = mapped_column(String(60))
     color: Mapped[str] = mapped_column(String(9))
     is_gm: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Personal preferences (wheel, chat timestamps...), sent only to the player itself.
+    settings: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -71,8 +73,9 @@ class Page(Base):
     grid_color: Mapped[str] = mapped_column(String(9), default="#c0c0c0")
     grid_opacity: Mapped[float] = mapped_column(Float, default=0.5)
     snap: Mapped[bool] = mapped_column(Boolean, default=True)
-    scale_number: Mapped[float] = mapped_column(Float, default=5)
-    scale_unit: Mapped[str] = mapped_column(String(12), default="ft")
+    # Overridden by the game measurement system when a page is created (see units.py).
+    scale_number: Mapped[float] = mapped_column(Float, default=1.5)
+    scale_unit: Mapped[str] = mapped_column(String(12), default="m")
     # "5e" (every diagonal = 1 cell), "pf" (alternating 1/2), "euclid", "manhattan"
     diagonal_rule: Mapped[str] = mapped_column(String(12), default="5e")
     background_color: Mapped[str] = mapped_column(String(9), default="#ffffff")

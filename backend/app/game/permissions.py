@@ -43,7 +43,7 @@ def check_patch(player: Player, patch: dict[str, Any]) -> str | None:
     if player.is_gm:
         return None
     if GM_ONLY_FIELDS & patch.keys():
-        return "solo il GM può cambiare livello, pagina o proprietario"
+        return "only the GM can change layer, page or owner"
     if GM_ONLY_PROPS & (patch.get("props") or {}).keys():
-        return "solo il GM può cambiare permessi e note GM"
+        return "only the GM can change permissions and GM notes"
     return None

@@ -3,9 +3,14 @@
   import Chat from './Chat.svelte'
   import PageSettings from './PageSettings.svelte'
   import PlayersPanel from './PlayersPanel.svelte'
+  import Settings from './Settings.svelte'
 
-  type Tab = 'chat' | 'players' | 'page'
-  let { tab = $bindable('chat'), onToggleTracker }: { tab?: Tab; onToggleTracker: () => void } = $props()
+  type Tab = 'chat' | 'players' | 'page' | 'settings'
+  let {
+    tab = $bindable('chat'),
+    onToggleTracker,
+    onLeave,
+  }: { tab?: Tab; onToggleTracker: () => void; onLeave: () => void } = $props()
 
   const online = $derived(store.players.filter((p) => p.online).length)
 </script>
@@ -15,9 +20,10 @@
     <button class:active={tab === 'chat'} onclick={() => (tab = 'chat')}>💬 Chat</button>
     <button class:active={tab === 'players'} onclick={() => (tab = 'players')}>👥 {online}</button>
     {#if store.isGm}
-      <button class:active={tab === 'page'} onclick={() => (tab = 'page')} title="Impostazioni pagina">⚙ Pagina</button>
+      <button class:active={tab === 'page'} onclick={() => (tab = 'page')} title="Page settings">🗺 Page</button>
     {/if}
-    <button class="tracker" onclick={onToggleTracker} title="Tracker iniziativa">⚔</button>
+    <button class:active={tab === 'settings'} onclick={() => (tab = 'settings')} title="My Settings" aria-label="My Settings">⚙</button>
+    <button class="tracker" onclick={onToggleTracker} title="Turn Order">⚔</button>
   </nav>
   <div class="content">
     {#if tab === 'chat'}
@@ -26,6 +32,8 @@
       <PlayersPanel />
     {:else if tab === 'page' && store.isGm}
       <PageSettings />
+    {:else if tab === 'settings'}
+      <Settings {onLeave} />
     {/if}
   </div>
 </aside>

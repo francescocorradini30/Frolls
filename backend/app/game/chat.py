@@ -67,7 +67,7 @@ def _roll(expr: str) -> dict[str, Any]:
     try:
         return roll_to_dict(roll(expr))
     except DiceError as e:
-        raise ChatError(f"Tiro non valido: {e}") from e
+        raise ChatError(f"Invalid roll: {e}") from e
 
 
 def _split_roll_label(rest: str) -> tuple[str, str]:
@@ -103,7 +103,7 @@ def _parse_whisper_target(rest: str) -> tuple[str, str]:
     if rest.startswith('"'):
         end = rest.find('"', 1)
         if end == -1:
-            raise ChatError("Virgolette non chiuse nel destinatario")
+            raise ChatError("Unclosed quotes in recipient")
         return rest[1:end], rest[end + 1 :].strip()
     target, _, msg = rest.partition(" ")
     return target, msg.strip()
@@ -112,9 +112,9 @@ def _parse_whisper_target(rest: str) -> tuple[str, str]:
 def parse(text: str, is_gm: bool) -> ChatDraft:
     text = text.strip()
     if not text:
-        raise ChatError("Messaggio vuoto")
+        raise ChatError("Empty message")
     if len(text) > MAX_MESSAGE_LENGTH:
-        raise ChatError("Messaggio troppo lungo")
+        raise ChatError("Message too long")
 
     if not text.startswith("/"):
         if is_dice_expression(text):
@@ -128,7 +128,7 @@ def parse(text: str, is_gm: bool) -> ChatDraft:
 
     if command in ("r", "roll", "gr", "gmroll"):
         if not rest:
-            raise ChatError("Manca l'espressione del tiro")
+            raise ChatError("Missing roll expression")
         expr, label = _split_roll_label(rest)
         return ChatDraft(
             kind="roll", roll=_roll(expr), content=label, gm_only=command in ("gr", "gmroll")
@@ -137,7 +137,7 @@ def parse(text: str, is_gm: bool) -> ChatDraft:
     if command in ("w", "whisper"):
         target, msg = _parse_whisper_target(rest)
         if not target or not msg:
-            raise ChatError("Uso: /w NOME messaggio")
+            raise ChatError("Usage: /w NAME message")
         if is_dice_expression(msg):
             return ChatDraft(kind="whisper", roll=_roll(msg), whisper_to=target)
         content, inline = _inline_rolls(msg)
@@ -145,22 +145,22 @@ def parse(text: str, is_gm: bool) -> ChatDraft:
 
     if command in ("em", "me", "emote"):
         if not rest:
-            raise ChatError("Uso: /em azione")
+            raise ChatError("Usage: /em action")
         content, inline = _inline_rolls(rest)
         return ChatDraft(kind="emote", content=content, inline=inline)
 
     if command == "ooc":
         if not rest:
-            raise ChatError("Uso: /ooc messaggio")
+            raise ChatError("Usage: /ooc message")
         content, inline = _inline_rolls(rest)
         return ChatDraft(kind="ooc", content=content, inline=inline)
 
     if command == "desc":
         if not is_gm:
-            raise ChatError("Solo il GM può usare /desc")
+            raise ChatError("Only the GM can use /desc")
         if not rest:
-            raise ChatError("Uso: /desc testo")
+            raise ChatError("Usage: /desc text")
         content, inline = _inline_rolls(rest)
         return ChatDraft(kind="desc", content=content, inline=inline)
 
-    raise ChatError(f"Comando sconosciuto: /{command}")
+    raise ChatError(f"Unknown command: /{command}")

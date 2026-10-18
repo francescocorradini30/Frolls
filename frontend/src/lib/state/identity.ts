@@ -1,7 +1,7 @@
 import type { Player } from '../net/protocol'
 import { uid } from '../util/ids'
 
-export type Identity = Omit<Player, 'online'>
+export type Identity = Omit<Player, 'online' | 'settings'>
 
 // sessionStorage is per browser tab: each tab is a different player.
 const KEY = 'frolls.identity'
