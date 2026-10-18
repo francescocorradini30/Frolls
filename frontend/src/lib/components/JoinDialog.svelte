@@ -1,12 +1,12 @@
 <script lang="ts">
   import { newIdentity, type Identity } from '../state/identity'
+  import { PLAYER_COLORS } from '../theme'
 
   let { onJoin }: { onJoin: (identity: Identity) => void } = $props()
 
-  const COLORS = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#9b59b6', '#e84393']
 
   let name = $state('')
-  let color = $state(COLORS[Math.floor(Math.random() * COLORS.length)])
+  let color = $state<string>(PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)])
   let isGm = $state(false)
 
   function submit(e: SubmitEvent) {
@@ -19,7 +19,7 @@
 
 <div class="backdrop">
   <form class="card" onsubmit={submit}>
-    <h1>Frolls</h1>
+    <h1 class="text-gradient">Frolls</h1>
     <p class="muted">Entra nella partita. Ogni scheda del browser è un giocatore diverso.</p>
 
     <label class="field">
@@ -31,12 +31,13 @@
     <div class="field">
       <span>Colore</span>
       <div class="swatches">
-        {#each COLORS as c (c)}
+        {#each PLAYER_COLORS as c (c)}
           <button
             type="button"
             class="swatch"
             class:active={color === c}
             style:background={c}
+            style:--c={c}
             aria-label={`Colore ${c}`}
             onclick={() => (color = c)}
           ></button>
@@ -64,7 +65,7 @@
     display: grid;
     place-items: center;
     padding: 16px;
-    background: radial-gradient(circle at 30% 20%, #3a2a1c 0%, var(--bg) 60%);
+    background: var(--halftone) 0 0 / 6px 6px, var(--glow), var(--bg);
   }
   .card {
     width: min(420px, 100%);
@@ -72,16 +73,18 @@
     flex-direction: column;
     gap: 18px;
     padding: 28px;
-    background: var(--surface);
+    background: var(--gradient-surface);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    box-shadow: 0 20px 60px rgb(0 0 0 / 0.5);
+    border-radius: 18px;
+    box-shadow:
+      var(--shadow),
+      0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
   }
   h1 {
     margin: 0;
-    font-size: 2rem;
-    color: var(--accent);
+    font-size: 2.2rem;
     letter-spacing: 0.02em;
+    width: fit-content;
   }
   p {
     margin: -8px 0 0;
@@ -101,7 +104,7 @@
   }
   .swatch.active {
     border-color: var(--text);
-    box-shadow: 0 0 0 2px var(--bg);
+    box-shadow: 0 0 0 2px var(--bg), 0 0 12px var(--c, transparent);
   }
   input[type='color'] {
     width: 32px;

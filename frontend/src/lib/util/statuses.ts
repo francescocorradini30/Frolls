@@ -33,5 +33,3 @@ export const STATUSES: { id: string; icon: string; label: string }[] = [
 ]
 
 export const STATUS_ICON = new Map(STATUSES.map((s) => [s.id, s.icon]))
-
-export const BAR_COLORS = ['#2ecc71', '#3498db', '#e74c3c'] as const

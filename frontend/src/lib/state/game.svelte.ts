@@ -12,6 +12,7 @@ import type {
   TurnEntry,
 } from '../net/protocol'
 import { GameSocket, type ConnectionStatus } from '../net/socket'
+import { DEFAULT_DRAW_COLOR } from '../theme'
 import type { Identity } from './identity'
 
 export type Tool =
@@ -74,7 +75,7 @@ export class GameStore {
   tool = $state<Tool>('select')
   layer = $state<Layer>('objects')
   toasts = $state<Toast[]>([])
-  drawStyle = $state<DrawStyle>({ stroke: '#e74c3c', fill: null, strokeWidth: 4, fontSize: 28 })
+  drawStyle = $state<DrawStyle>({ stroke: DEFAULT_DRAW_COLOR, fill: null, strokeWidth: 4, fontSize: 28 })
   /** Bumped on every object change so UI deriveds can re-read `objects`. */
   objectsVersion = $state(0)
 

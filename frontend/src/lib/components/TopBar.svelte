@@ -32,7 +32,7 @@
 <svelte:window onclick={() => (menuFor = null)} />
 
 <header class="topbar">
-  <span class="brand">Frolls</span>
+  <span class="brand text-gradient">Frolls</span>
 
   {#if store.isGm}
     <nav class="pages" aria-label="Pagine">
@@ -93,7 +93,7 @@
       <span class="me">
         <i style:background={store.me.color}></i>
         {store.me.name}
-        {#if store.me.is_gm}<em>GM</em>{/if}
+        {#if store.me.is_gm}<em class="badge">GM</em>{/if}
       </span>
     {/if}
     <button class="btn small" onclick={onLeave}>Esci</button>
@@ -107,14 +107,26 @@
     gap: 12px;
     height: var(--topbar-h);
     padding: 0 12px;
-    background: var(--surface);
+    background: var(--gradient-surface);
     border-bottom: 1px solid var(--border);
     min-width: 0;
+    position: relative;
+  }
+  /* Signature gradient line under the bar. */
+  .topbar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--gradient-accent);
+    opacity: 0.7;
+    pointer-events: none;
   }
   .brand {
     font-weight: 800;
-    font-size: 1.15rem;
-    color: var(--accent);
+    font-size: 1.2rem;
   }
   .pages {
     display: flex;
@@ -244,14 +256,6 @@
     align-items: center;
     gap: 6px;
     font-weight: 600;
-  }
-  .me em {
-    font-style: normal;
-    font-size: 0.7rem;
-    padding: 1px 5px;
-    border-radius: 4px;
-    background: var(--accent);
-    color: var(--accent-contrast);
   }
   @media (max-width: 700px) {
     .status,

@@ -78,12 +78,14 @@
     font-size: 0.85rem;
   }
   .die.crit {
-    background: #1f6b3a;
-    color: #c9ffd9;
+    background: color-mix(in srgb, var(--success) 30%, var(--surface-3));
+    color: var(--success);
+    box-shadow: inset 0 0 0 1px var(--success);
   }
   .die.fumble {
-    background: #7a2620;
-    color: #ffd4cf;
+    background: color-mix(in srgb, var(--danger) 30%, var(--surface-3));
+    color: var(--danger);
+    box-shadow: inset 0 0 0 1px var(--danger);
   }
   .die.dropped {
     opacity: 0.4;
@@ -99,7 +101,10 @@
     align-self: center;
     font-size: 1.7rem;
     font-weight: 800;
-    color: var(--accent);
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
     text-align: center;
     line-height: 1;
   }

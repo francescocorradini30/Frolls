@@ -1,6 +1,7 @@
 import { Application, Container, Graphics, Text } from 'pixi.js'
 import type { Layer, MapObject, ObjectPatch, Page, PreviewItem } from '../net/protocol'
 import type { GameStore, Ping, Tool } from '../state/game.svelte'
+import { canvasColors } from '../theme'
 import { uid } from '../util/ids'
 import { drawGrid, pagePixelSize, snapCenter, snapPoint, snapSize, type Point } from './grid'
 import { formatDistance, measure } from './measure'
@@ -53,11 +54,11 @@ export class Engine {
   private readonly overlayLabel = new Text({
     text: '',
     style: {
-      fill: '#ffffff',
+      fill: canvasColors.label,
       fontSize: 15,
       fontWeight: '700',
       fontFamily: 'Inter, system-ui, sans-serif',
-      stroke: { color: '#000000', width: 4 },
+      stroke: { color: canvasColors.outline, width: 4 },
     },
   })
   private readonly pings = new Container()
@@ -82,7 +83,7 @@ export class Engine {
   async mount(host: HTMLElement): Promise<void> {
     await this.app.init({
       resizeTo: host,
-      background: '#1b1714',
+      background: canvasColors.background,
       antialias: true,
       resolution: window.devicePixelRatio,
       autoDensity: true,
@@ -239,7 +240,7 @@ export class Engine {
 
   private refreshSelection(): void {
     const selected = new Set(this.store.selection)
-    const color = this.store.me?.color ?? '#3498db'
+    const color = this.store.me?.color ?? canvasColors.accent
     for (const [id, v] of this.views) v.setSelected(selected.has(id), color)
     this.drawOverlay()
   }
@@ -675,7 +676,7 @@ export class Engine {
           shape: geom.shape,
           size: geom.size,
           width: this.page.grid_size,
-          color: this.store.me?.color ?? '#e67e22',
+          color: this.store.me?.color ?? canvasColors.template,
         },
       },
     ])
@@ -707,7 +708,7 @@ export class Engine {
     const z = this.zoom
     g.clear()
     this.overlayLabel.text = ''
-    const accent = this.store.me?.color ?? '#3498db'
+    const accent = this.store.me?.color ?? canvasColors.accent
     const gesture = this.gesture
 
     // Handles for the single selected object.
@@ -719,9 +720,9 @@ export class Engine {
       const corner = fromLocal(o, { x: w / 2, y: h / 2 })
       const top = fromLocal(o, { x: 0, y: -h / 2 })
       const rot = fromLocal(o, { x: 0, y: -h / 2 - ROTATE_OFFSET_PX / z })
-      g.rect(corner.x - hs / 2, corner.y - hs / 2, hs, hs).fill('#ffffff').stroke({ width: 1.5 / z, color: accent })
+      g.rect(corner.x - hs / 2, corner.y - hs / 2, hs, hs).fill(canvasColors.handle).stroke({ width: 1.5 / z, color: accent })
       g.moveTo(top.x, top.y).lineTo(rot.x, rot.y).stroke({ width: 1.5 / z, color: accent })
-      g.circle(rot.x, rot.y, hs / 1.6).fill('#ffffff').stroke({ width: 1.5 / z, color: accent })
+      g.circle(rot.x, rot.y, hs / 1.6).fill(canvasColors.handle).stroke({ width: 1.5 / z, color: accent })
     }
 
     if (gesture.kind === 'drag' && gesture.moved && this.page) {
@@ -781,7 +782,7 @@ export class Engine {
   private rulerLine(g: Graphics, a: Point, b: Point, color: string): void {
     if (!this.page) return
     const z = this.zoom
-    g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 4 / z, color: '#000000', alpha: 0.5 })
+    g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 4 / z, color: canvasColors.outline, alpha: 0.6 })
     g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 2 / z, color })
     g.circle(a.x, a.y, 4 / z).fill(color)
     g.circle(b.x, b.y, 4 / z).fill(color)

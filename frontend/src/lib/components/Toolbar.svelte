@@ -168,8 +168,8 @@
     border-color: var(--accent);
   }
   .layer.active {
-    background: color-mix(in srgb, #3498db 25%, transparent);
-    border-color: #3498db;
+    background: color-mix(in srgb, var(--gm) 22%, transparent);
+    border-color: var(--gm);
   }
   .group {
     position: relative;

@@ -92,10 +92,10 @@
     line-height: 1.4;
   }
   .whisper {
-    background: color-mix(in srgb, #9b59b6 12%, transparent);
+    background: color-mix(in srgb, var(--whisper) 12%, transparent);
   }
   .gm-only {
-    background: color-mix(in srgb, #3498db 10%, transparent);
+    background: color-mix(in srgb, var(--gm) 10%, transparent);
   }
   .emote .body {
     font-style: italic;

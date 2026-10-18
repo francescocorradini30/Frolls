@@ -3,6 +3,7 @@
   import { Engine } from '../canvas/Engine'
   import { snapCenter, type Point } from '../canvas/grid'
   import type { MapObject } from '../net/protocol'
+  import { TOKEN_COLORS } from '../theme'
   import { store } from '../state/game.svelte'
   import { uid } from '../util/ids'
   import { imageSize, pickFile, uploadImage } from '../util/upload'
@@ -128,8 +129,7 @@
   }
 
   function randomColor() {
-    const palette = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#d35400', '#16a085', '#7f8c8d']
-    return palette[Math.floor(Math.random() * palette.length)]
+    return TOKEN_COLORS[Math.floor(Math.random() * TOKEN_COLORS.length)]
   }
 </script>
 
@@ -200,7 +200,7 @@
     place-items: center;
     border: 3px dashed var(--accent);
     border-radius: 12px;
-    background: rgb(0 0 0 / 0.35);
+    background: var(--backdrop);
     font-size: 1.2rem;
     font-weight: 700;
     pointer-events: none;

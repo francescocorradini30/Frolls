@@ -1,18 +1,6 @@
 :root {
-  --bg: #14110f;
-  --surface: #1f1a17;
-  --surface-2: #2a231f;
-  --surface-3: #352c26;
-  --border: #3d332c;
-  --text: #f3e7d3;
-  --text-muted: #a8977c;
-  --accent: #d4a24c;
-  --accent-contrast: #1b1409;
-  --danger: #e05d4f;
-  --online: #2ecc71;
-  --connecting: #e6a23c;
-  --offline: #e05d4f;
-  --radius: 8px;
+  /* Colours come from src/lib/theme.ts (applyTheme): never hardcode them here. */
+  --radius: 10px;
   --topbar-h: 48px;
   --toolbar-w: 52px;
   --sidebar-w: 340px;
@@ -37,6 +25,10 @@ body {
   overflow: hidden;
 }
 
+body {
+  background: var(--glow), var(--bg);
+}
+
 #app {
   height: 100%;
 }
@@ -54,7 +46,7 @@ select,
 textarea {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 7px 9px;
   min-width: 0;
 }
@@ -64,6 +56,27 @@ select:focus,
 textarea:focus {
   outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
   outline-offset: -1px;
+  border-color: var(--accent);
+}
+
+/* Gradient text, for brand and highlighted numbers. */
+.text-gradient {
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Small pill label (GM, roles). */
+.badge {
+  display: inline-block;
+  font-style: normal;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--gradient-accent);
+  color: var(--accent-contrast);
 }
 
 .muted {
@@ -96,15 +109,20 @@ textarea:focus {
   justify-content: center;
   gap: 6px;
   padding: 7px 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface-2);
   cursor: pointer;
   white-space: nowrap;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    filter 0.12s;
 }
 
 .btn:hover:not(:disabled) {
   background: var(--surface-3);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
 
 .btn:disabled {
@@ -113,15 +131,17 @@ textarea:focus {
 }
 
 .btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--gradient-accent);
+  border-color: transparent;
   color: var(--accent-contrast);
   font-weight: 700;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .btn.primary:hover:not(:disabled) {
-  filter: brightness(1.08);
-  background: var(--accent);
+  filter: brightness(1.1);
+  background: var(--gradient-accent);
+  border-color: transparent;
 }
 
 .btn.danger {
@@ -136,7 +156,7 @@ textarea:focus {
 .segmented {
   display: flex;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -153,16 +173,16 @@ textarea:focus {
 }
 
 .segmented button.active {
-  background: var(--accent);
+  background: var(--gradient-accent);
   color: var(--accent-contrast);
   font-weight: 700;
 }
 
 .panel {
-  background: var(--surface);
+  background: var(--gradient-surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 10px 40px rgb(0 0 0 / 0.45);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
 }
 
 .icon-btn {
@@ -171,7 +191,7 @@ textarea:focus {
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   cursor: pointer;
   color: var(--text-muted);
@@ -188,7 +208,7 @@ textarea:focus {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
+  background: var(--surface-4);
   border-radius: 5px;
   border: 2px solid var(--surface);
 }

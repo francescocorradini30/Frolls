@@ -2,6 +2,7 @@
   import { untrack } from 'svelte'
   import type { Aura, Bar, Layer, MapObject } from '../net/protocol'
   import { store } from '../state/game.svelte'
+  import { AURA_COLORS, BAR_COLORS, DEFAULT_TOKEN_COLOR } from '../theme'
   import { STATUSES } from '../util/statuses'
   import { pickFile, uploadImage } from '../util/upload'
 
@@ -16,7 +17,7 @@
   let name = $state<string>(p.name ?? '')
   let showName = $state<boolean>(p.show_name !== false)
   let image = $state<string>(p.image ?? '')
-  let color = $state<string>(p.color ?? '#7f8c8d')
+  let color = $state<string>(p.color ?? DEFAULT_TOKEN_COLOR)
   let cellsW = $state(Math.round((start.width / gridSize) * 100) / 100)
   let cellsH = $state(Math.round((start.height / gridSize) * 100) / 100)
   let layer = $state<Layer>(start.layer)
@@ -26,7 +27,7 @@
   let flipV = $state<boolean>(!!p.flip_v)
   let bars = $state<Bar[]>([0, 1, 2].map((i) => ({ value: null, max: null, ...(p[`bar${i + 1}`] ?? {}) })))
   let auras = $state<Aura[]>(
-    [0, 1].map((i) => ({ radius: 0, color: i ? '#3498db' : '#f1c40f', square: false, ...(p[`aura${i + 1}`] ?? {}) })),
+    [0, 1].map((i) => ({ radius: 0, color: AURA_COLORS[i], square: false, ...(p[`aura${i + 1}`] ?? {}) })),
   )
   let statuses = $state<string[]>([...(p.statuses ?? [])])
   let uploading = $state(false)
@@ -184,7 +185,7 @@
       {:else if tab === 'bars'}
         {#each bars as bar, i (i)}
           <div class="bar-row">
-            <span class="swatch" style:background={['#2ecc71', '#3498db', '#e74c3c'][i]}></span>
+            <span class="swatch" style:background={BAR_COLORS[i]}></span>
             <strong>Barra {i + 1}</strong>
             <input type="number" placeholder="valore" bind:value={bar.value} aria-label={`Barra ${i + 1} valore`} />
             <span>/</span>
@@ -229,7 +230,7 @@
     display: grid;
     place-items: center;
     padding: 16px;
-    background: rgb(0 0 0 / 0.5);
+    background: var(--backdrop);
   }
   .dialog {
     width: min(520px, 100%);

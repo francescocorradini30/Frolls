@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { Bar, MapObject } from '../net/protocol'
   import { store } from '../state/game.svelte'
-  import { BAR_COLORS, STATUSES } from '../util/statuses'
+  import { BAR_COLORS } from '../theme'
+  import { STATUSES } from '../util/statuses'
 
   let { onEdit }: { onEdit: (id: string) => void } = $props()
 

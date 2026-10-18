@@ -1,18 +1,19 @@
 import { Assets, Container, Graphics, Sprite, Text, Texture } from 'pixi.js'
 import type { Bar, MapObject, Page } from '../net/protocol'
 import { initials } from '../util/ids'
-import { BAR_COLORS, STATUS_ICON } from '../util/statuses'
+import { AURA_COLORS, BAR_COLORS, canvasColors, DEFAULT_DRAW_COLOR, DEFAULT_TOKEN_COLOR } from '../theme'
+import { STATUS_ICON } from '../util/statuses'
 import { unitsToPx } from './measure'
 
 // Text is rasterised once; a higher resolution keeps it crisp when zooming in.
 const TEXT_RESOLUTION = 3
 
 const LABEL_STYLE = {
-  fill: '#ffffff',
+  fill: canvasColors.label,
   fontSize: 13,
   fontFamily: 'Inter, system-ui, sans-serif',
   fontWeight: '600' as const,
-  stroke: { color: '#000000', width: 3 },
+  stroke: { color: canvasColors.outline, width: 3 },
 }
 
 /** One renderable map object. Rebuilds itself from the MapObject on update. */
@@ -128,8 +129,8 @@ export class ObjectView {
     const r = Math.min(o.width, o.height) / 2
     const disc = new Graphics()
       .ellipse(0, 0, o.width / 2, o.height / 2)
-      .fill(o.props.color ?? '#7f8c8d')
-      .stroke({ width: Math.max(2, r * 0.08), color: '#ffffff', alpha: 0.9 })
+      .fill(o.props.color ?? DEFAULT_TOKEN_COLOR)
+      .stroke({ width: Math.max(2, r * 0.08), color: canvasColors.tokenBorder, alpha: 0.9 })
     const label = new Text({
       text: initials(o.props.name),
       style: { ...LABEL_STYLE, fontSize: Math.max(10, r * 0.7), stroke: undefined },
@@ -162,7 +163,7 @@ export class ObjectView {
       }
     }
     if (p.fill) g.fill({ color: p.fill, alpha: 0.5 })
-    g.stroke({ width: p.stroke_width ?? 3, color: p.stroke ?? '#000000', cap: 'round', join: 'round' })
+    g.stroke({ width: p.stroke_width ?? 3, color: p.stroke ?? DEFAULT_DRAW_COLOR, cap: 'round', join: 'round' })
     this.body.addChild(g)
   }
 
@@ -171,7 +172,7 @@ export class ObjectView {
     const t = new Text({
       text: o.props.text ?? '',
       style: {
-        fill: o.props.color ?? '#000000',
+        fill: o.props.color ?? DEFAULT_DRAW_COLOR,
         fontSize: o.props.font_size ?? 24,
         fontFamily: 'Inter, system-ui, sans-serif',
         fontWeight: '600',
@@ -189,7 +190,7 @@ export class ObjectView {
     this.clearBody()
     const p = o.props
     const size: number = p.size ?? 0
-    const color: string = p.color ?? '#e67e22'
+    const color: string = p.color ?? canvasColors.template
     const g = new Graphics()
     switch (p.shape) {
       case 'circle':
@@ -229,8 +230,8 @@ export class ObjectView {
       const r = unitsToPx(page, aura.radius) + Math.max(o.width, o.height) / 2
       if (aura.square) g.rect(-r, -r, r * 2, r * 2)
       else g.circle(0, 0, r)
-      g.fill({ color: aura.color ?? '#f1c40f', alpha: 0.18 })
-      g.stroke({ width: 1.5, color: aura.color ?? '#f1c40f', alpha: 0.6 })
+      g.fill({ color: aura.color ?? AURA_COLORS[0], alpha: 0.18 })
+      g.stroke({ width: 1.5, color: aura.color ?? AURA_COLORS[0], alpha: 0.6 })
     }
   }
 
@@ -248,7 +249,7 @@ export class ObjectView {
       const frac = Math.max(0, Math.min(1, (bar.value ?? 0) / bar.max))
       const g = new Graphics()
         .roundRect(-w / 2, y - 6, w, 6, 3)
-        .fill({ color: '#000000', alpha: 0.55 })
+        .fill({ color: canvasColors.barTrack, alpha: 0.6 })
         .roundRect(-w / 2, y - 6, w * frac, 6, 3)
         .fill(BAR_COLORS[i])
       this.hud.addChild(g)
