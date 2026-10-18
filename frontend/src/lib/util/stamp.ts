@@ -22,6 +22,17 @@ export interface StampOptions {
   rotation: number
 }
 
+/** Kept on the token (props.stamp) so it can be framed again from the original picture. */
+export interface StoredStamp extends StampOptions {
+  source: string
+}
+
+/** What the stamp dialog produces: the token image and how it was made (null = picture as it is). */
+export interface StampResult {
+  image: string
+  stamp: StoredStamp | null
+}
+
 /** Border thickness as a fraction of the token size. */
 const BORDER_WIDTH: Record<StampBorder, number> = {
   none: 0,

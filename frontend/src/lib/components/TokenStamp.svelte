@@ -1,16 +1,29 @@
 <script lang="ts">
   import { onDestroy, onMount, untrack } from 'svelte'
+  import { store } from '../state/game.svelte'
   import { palette, STAMP_BORDER_COLORS } from '../theme'
-  import { drawStamp, exportStamp, loadImage, STAMP_SIZE, type StampBorder, type StampOptions } from '../util/stamp'
+  import {
+    drawStamp,
+    exportStamp,
+    loadImage,
+    STAMP_SIZE,
+    type StampBorder,
+    type StampOptions,
+    type StampResult,
+  } from '../util/stamp'
+  import { uploadImage } from '../util/upload'
 
   let {
-    file,
+    source,
+    initial,
     onDone,
     onCancel,
   }: {
-    file: File
-    /** The framed token, or the untouched file with "Use original". */
-    onDone: (file: File) => void
+    /** A picture just picked (uploaded on confirm) or the URL of an original already uploaded. */
+    source: File | string
+    /** Settings of a previous framing, to edit it. */
+    initial?: StampOptions | null
+    onDone: (result: StampResult) => void
     onCancel: () => void
   } = $props()
 
@@ -35,23 +48,29 @@
     rotation: 0,
   }
 
-  let opts = $state<StampOptions>({ ...DEFAULTS })
+  // The dialog is mounted for one picture: reading the props once is intended.
+  const src = untrack(() => source)
+  let opts = $state<StampOptions>({ ...DEFAULTS, ...untrack(() => initial) })
   let backgroundColor = $state<string>(palette.ink800)
   let img = $state<HTMLImageElement | null>(null)
   let busy = $state(false)
   let canvas: HTMLCanvasElement
   let drag: { x: number; y: number; ox: number; oy: number } | null = null
-  // The dialog is mounted for one file: reading it once is intended.
-  const url = URL.createObjectURL(untrack(() => file))
+  const url = typeof src === 'string' ? src : URL.createObjectURL(src)
   const dpr = window.devicePixelRatio || 1
 
   onMount(() => {
     loadImage(url).then(
       (i) => (img = i),
-      () => onDone(file),
+      (e: Error) => {
+        store.toast(e.message)
+        onCancel()
+      },
     )
   })
-  onDestroy(() => URL.revokeObjectURL(url))
+  onDestroy(() => {
+    if (typeof src !== 'string') URL.revokeObjectURL(url)
+  })
 
   $effect(() => {
     if (!img || !canvas) return
@@ -85,11 +104,24 @@
     opts = { ...opts, x: 0, y: 0, zoom: 1, rotation: 0 }
   }
 
-  async function create() {
+  /** URL of the original picture, uploading it if it is a new file. */
+  const original = (): Promise<string> => (typeof src === 'string' ? Promise.resolve(src) : uploadImage(src))
+
+  async function finish(framed: boolean) {
     if (!img || busy) return
     busy = true
     try {
-      onDone(await exportStamp(img, $state.snapshot(opts), file.name))
+      const sourceUrl = await original()
+      if (!framed) {
+        onDone({ image: sourceUrl, stamp: null })
+        return
+      }
+      const options = $state.snapshot(opts)
+      const name = typeof src === 'string' ? 'token' : src.name
+      const image = await uploadImage(await exportStamp(img, options, name))
+      onDone({ image, stamp: { ...options, source: sourceUrl } })
+    } catch (e) {
+      store.toast((e as Error).message)
     } finally {
       busy = false
     }
@@ -204,8 +236,10 @@
 
     <footer>
       <button class="btn" onclick={onCancel}>Cancel</button>
-      <button class="btn" onclick={() => onDone(file)} title="Upload the picture as it is">Use original</button>
-      <button class="btn primary" onclick={create} disabled={!img || busy}>{busy ? 'Creating…' : 'Create token'}</button>
+      <button class="btn" onclick={() => finish(false)} disabled={!img || busy} title="Use the picture as it is">Use original</button>
+      <button class="btn primary" onclick={() => finish(true)} disabled={!img || busy}>
+        {busy ? 'Saving…' : initial ? 'Update token' : 'Create token'}
+      </button>
     </footer>
   </div>
 </div>

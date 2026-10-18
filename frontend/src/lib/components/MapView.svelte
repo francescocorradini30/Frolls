@@ -6,6 +6,7 @@
   import { TOKEN_COLORS } from '../theme'
   import { store } from '../state/game.svelte'
   import { uid } from '../util/ids'
+  import type { StampResult } from '../util/stamp'
   import { imageSize, pickFile, uploadImage } from '../util/upload'
   import ContextMenu from './ContextMenu.svelte'
   import SelectionHud from './SelectionHud.svelte'
@@ -20,15 +21,15 @@
   let editing = $state<MapObject | null>(null)
   let textInput = $state<{ world: Point; x: number; y: number; value: string } | null>(null)
   let dropActive = $state(false)
-  let stamping = $state<{ file: File; resolve: (file: File | null) => void } | null>(null)
+  let stamping = $state<{ file: File; resolve: (result: StampResult | null) => void } | null>(null)
 
   /** Let the user frame a picture as a token; null if they cancel. */
-  function stampFile(file: File): Promise<File | null> {
+  function stampFile(file: File): Promise<StampResult | null> {
     return new Promise((resolve) => (stamping = { file, resolve }))
   }
 
-  function endStamp(file: File | null) {
-    stamping?.resolve(file)
+  function endStamp(result: StampResult | null) {
+    stamping?.resolve(result)
     stamping = null
   }
 
@@ -97,11 +98,11 @@
     const picked = file ?? (await pickFile())
     if (!picked) return
     const isMap = store.layer === 'map'
-    // Tokens are framed first; maps go up untouched.
-    const f = isMap ? picked : await stampFile(picked)
-    if (!f) return
     try {
-      const url = await uploadImage(f)
+      // Tokens are framed first (the dialog uploads them); maps go up untouched.
+      const framed = isMap ? { image: await uploadImage(picked), stamp: null } : await stampFile(picked)
+      if (!framed) return
+      const url = framed.image
       const size = await imageSize(url).catch(() => ({ w: page.grid_size, h: page.grid_size }))
       const point = at ?? engine.viewCenter()
       // Maps keep their natural size; tokens fit one cell.
@@ -109,7 +110,7 @@
       const w = Math.max(1, size.w * scale)
       const h = Math.max(1, size.h * scale)
       const pos = page.snap && !isMap ? snapCenter(page, point, w, h) : point
-      const name = f.name.replace(/\.[^.]+$/, '')
+      const name = picked.name.replace(/\.[^.]+$/, '')
       store.createObjects([
         {
           id: uid(),
@@ -121,7 +122,9 @@
           width: w,
           height: h,
           rotation: 0,
-          props: isMap ? { image: url, name } : { image: url, name, show_name: true },
+          props: isMap
+            ? { image: url, name }
+            : { image: url, name, show_name: true, ...(framed.stamp && { stamp: framed.stamp }) },
         },
       ])
     } catch (e) {
@@ -204,7 +207,7 @@
 {/if}
 
 {#if stamping}
-  <TokenStamp file={stamping.file} onDone={endStamp} onCancel={() => endStamp(null)} />
+  <TokenStamp source={stamping.file} onDone={endStamp} onCancel={() => endStamp(null)} />
 {/if}
 
 <style>

@@ -4,6 +4,7 @@
   import { store } from '../state/game.svelte'
   import { BARS, DEFAULT_TOKEN_COLOR } from '../theme'
   import { STATUSES } from '../util/statuses'
+  import type { StampResult, StoredStamp } from '../util/stamp'
   import { pickFile, uploadImage } from '../util/upload'
   import TokenStamp from './TokenStamp.svelte'
 
@@ -16,6 +17,7 @@
   let tab = $state<'base' | 'bars' | 'status'>('base')
   let name = $state<string>(p.name ?? '')
   let image = $state<string>(p.image ?? '')
+  let stamp = $state<StoredStamp | null>(p.stamp ?? null)
   let color = $state<string>(p.color ?? DEFAULT_TOKEN_COLOR)
   let layer = $state<Layer>(start.layer)
   let controlledBy = $state<string[]>([...(p.controlled_by ?? [])])
@@ -23,8 +25,8 @@
   let bars = $state<Bar[]>(BARS.map((b) => ({ value: null, max: null, ...(p[b.key] ?? {}) })))
   let statuses = $state<string[]>([...(p.statuses ?? [])])
   let uploading = $state(false)
-  // Picture waiting to be framed in the token stamp before upload.
-  let stamping = $state<File | null>(null)
+  // Picture being framed in the token stamp: a new file, or the original of the current image.
+  let stamping = $state<{ source: File | string; initial: StoredStamp | null } | null>(null)
 
   const isToken = start.kind === 'token'
   const players = $derived(
@@ -38,13 +40,29 @@
   async function chooseImage() {
     const file = await pickFile()
     if (!file) return
-    if (isToken) stamping = file
+    if (isToken) stamping = { source: file, initial: null }
     else await upload(file)
   }
 
-  async function upload(file: File) {
+  /** Frame the token again, starting from its original picture and previous settings. */
+  function editImage() {
+    stamping = { source: stamp?.source ?? image, initial: stamp }
+  }
+
+  function stamped(result: StampResult) {
+    image = result.image
+    stamp = result.stamp
     stamping = null
+  }
+
+  function removeImage() {
+    image = ''
+    stamp = null
+  }
+
+  async function upload(file: File) {
     uploading = true
+    stamp = null
     try {
       image = await uploadImage(file)
     } catch (e) {
@@ -64,6 +82,7 @@
     const props: Record<string, unknown> = {
       name: name.trim() || null,
       image: image || null,
+      stamp: image && stamp ? $state.snapshot(stamp) : null,
       color,
       statuses: statuses.length ? statuses : null,
     }
@@ -114,7 +133,8 @@
             <button class="btn small" onclick={chooseImage} disabled={uploading}>
               {uploading ? 'Uploading…' : 'Upload image'}
             </button>
-            {#if image}<button class="btn small" onclick={() => (image = '')}>Remove image</button>{/if}
+            {#if image && isToken}<button class="btn small" onclick={editImage}>Edit token</button>{/if}
+            {#if image}<button class="btn small" onclick={removeImage}>Remove image</button>{/if}
             {#if !image}<label class="row"><input type="color" bind:value={color} /> color</label>{/if}
           </div>
         </div>
@@ -188,7 +208,7 @@
 </div>
 
 {#if stamping}
-  <TokenStamp file={stamping} onDone={upload} onCancel={() => (stamping = null)} />
+  <TokenStamp source={stamping.source} initial={stamping.initial} onDone={stamped} onCancel={() => (stamping = null)} />
 {/if}
 
 <style>

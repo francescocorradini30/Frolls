@@ -247,6 +247,30 @@ check('player moves own token', g.objects.find((o) => o.id === tok.id).y === t2.
 await pl.evaluate((id) => window.__store.setSelection([id]), tok.id)
 await pl.waitForTimeout(200)
 check('HUD has no bar fields', (await pl.locator('.hud input').count()) === 0)
+const hpBubble = pl.getByRole('textbox', { name: 'HP', exact: true })
+await hpBubble.fill('-5')
+await hpBubble.press('Enter')
+await pl.waitForTimeout(400)
+g = await state(gm)
+const hpBar = g.objects.find((o) => o.id === tok.id).props.bar1
+check('HP bubble: relative -5, max shown below', hpBar.value === 17 && (await pl.locator('.bubble .max').first().innerText()) === '30', JSON.stringify(hpBar))
+await pl.locator('.hud-wrap').screenshot({ path: `${OUT}/hud-bubbles.png` })
+// Close-up of the token: bars sit inside the bottom of its box.
+const tokNow = g.objects.find((o) => o.id === tok.id)
+await pl.evaluate((t) => {
+  window.__store.setSelection([])
+  window.__engine.zoomBy(3 / window.__engine.zoom)
+  window.__engine.centerOn(t.x, t.y)
+}, tokNow)
+await pl.waitForTimeout(200)
+const tcl = await toClient(pl, tokNow.x, tokNow.y)
+const half = (Math.max(tokNow.width, tokNow.height) / 2) * 3 + 40
+await pl.screenshot({ path: `${OUT}/token-bars.png`, clip: { x: tcl.x - half, y: tcl.y - half, width: half * 2, height: half * 2 } })
+await pl.evaluate((id) => {
+  window.__engine.fitPage()
+  window.__store.setSelection([id])
+}, tok.id)
+await pl.waitForTimeout(200)
 await pl.locator('.hud').getByRole('button', { name: 'Statuses' }).click()
 await pl.locator('.hud .statuses').getByTitle('Prone').click()
 await pl.waitForTimeout(400)
@@ -512,6 +536,7 @@ const rotation = stampDialog.getByLabel('Rotation')
 await rotation.fill('90')
 await rotation.dblclick()
 check('stamp rotation resets on double click', (await rotation.inputValue()) === '0')
+await stampDialog.getByRole('button', { name: 'Double' }).click()
 await stampDialog.getByRole('button', { name: 'Create token' }).click()
 await stampDialog.waitFor({ state: 'detached', timeout: 5000 })
 await gm.waitForFunction(() => !document.querySelector('.dialog button[disabled]'), null, { timeout: 5000 }).catch(() => {})
@@ -519,6 +544,25 @@ await editor.getByRole('button', { name: 'Save' }).click()
 await gm.waitForTimeout(500)
 const restamped = (await state(gm)).objects.find((o) => o.id === stamped.id)
 check('editor upload goes through the stamp', restamped.props.image !== stamped.props.image && restamped.props.image.endsWith('.png'), restamped.props.image)
+
+// 25. "Edit token" reframes it from the original picture, with the previous settings
+const rc2 = await toClient(gm, restamped.x, restamped.y)
+await gm.mouse.dblclick(rc2.x, rc2.y)
+await editor.waitFor()
+await editor.getByRole('button', { name: 'Edit token' }).click()
+await stampDialog.waitFor({ timeout: 3000 })
+const kept = await stampDialog.getByRole('button', { name: 'Double' }).evaluate((b) => b.classList.contains('on'))
+await stampDialog.getByRole('button', { name: 'Bevel' }).click()
+await stampDialog.getByRole('button', { name: 'Update token' }).click()
+await stampDialog.waitFor({ state: 'detached', timeout: 5000 })
+await editor.getByRole('button', { name: 'Save' }).click()
+await gm.waitForTimeout(500)
+const edited = (await state(gm)).objects.find((o) => o.id === stamped.id)
+check(
+  'edit token keeps the original and the settings',
+  kept && edited.props.stamp?.border === 'bevel' && edited.props.stamp.source === restamped.props.stamp?.source && edited.props.image !== restamped.props.image,
+  JSON.stringify({ kept, before: restamped.props.stamp, after: edited.props.stamp }),
+)
 
 } catch (e) {
   results.push(`FAIL aborted: ${e.message.split('\n')[0]}`)

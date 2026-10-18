@@ -44,6 +44,18 @@ export interface Bar {
   max: number | null
 }
 
+/** Token stamp settings, see frontend/src/lib/util/stamp.ts (StoredStamp). */
+export interface TokenStampProps {
+  source: string
+  border: 'none' | 'thin' | 'solid' | 'double' | 'bevel'
+  borderColor: string
+  background: string | null
+  x: number
+  y: number
+  zoom: number
+  rotation: number
+}
+
 export interface TokenProps {
   name?: string
   image?: string
@@ -52,6 +64,7 @@ export interface TokenProps {
   bar1?: Bar
   bar2?: Bar
   statuses?: string[]
+  stamp?: TokenStampProps
   controlled_by?: string[]
   gm_notes?: string
 }

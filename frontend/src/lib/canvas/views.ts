@@ -219,19 +219,20 @@ export class ObjectView {
     const w = o.width
     const h = o.height
 
-    // Bars stacked above the token.
-    let y = -h / 2 - 6
+    // Thin bars inside the bottom of the token box, HP lowest, the next one above it.
+    const thick = Math.max(2, Math.min(w, h) * 0.035)
+    const barW = w * 0.56
+    let y = h / 2 - thick - Math.max(3, h * 0.05)
     BARS.forEach(({ key, color }) => {
       const bar = o.props[key] as Bar | undefined
       if (!bar || bar.max == null || bar.max <= 0) return
       const frac = Math.max(0, Math.min(1, (bar.value ?? 0) / bar.max))
       const g = new Graphics()
-        .roundRect(-w / 2, y - 6, w, 6, 3)
-        .fill({ color: canvasColors.barTrack, alpha: 0.6 })
-        .roundRect(-w / 2, y - 6, w * frac, 6, 3)
-        .fill(color)
+        .roundRect(-barW / 2, y, barW, thick, thick / 2)
+        .fill({ color: canvasColors.barTrack, alpha: 0.7 })
+      if (frac > 0) g.roundRect(-barW / 2, y, barW * frac, thick, thick / 2).fill(color)
       this.hud.addChild(g)
-      y -= 8
+      y -= thick + 2
     })
 
     // Status markers along the top-right edge.
