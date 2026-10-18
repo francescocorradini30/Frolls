@@ -107,6 +107,9 @@
   .danger {
     color: var(--danger);
   }
+  hr:first-child {
+    display: none;
+  }
   hr {
     border: none;
     border-top: 1px solid var(--border);

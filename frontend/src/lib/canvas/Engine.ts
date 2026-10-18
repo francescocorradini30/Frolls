@@ -5,7 +5,7 @@ import { canvasColors } from '../theme'
 import { uid } from '../util/ids'
 import { anchorCell, cellCenter, drawBackground, drawGrid, pagePixelSize, snapCenter, snapSize, type Point } from './grid'
 import { formatDistance, measure } from './measure'
-import { ObjectView } from './views'
+import { ObjectView, stackZ } from './views'
 
 const PREVIEW_INTERVAL_MS = 33
 const LONG_PRESS_MS = 550
@@ -298,7 +298,7 @@ export class Engine {
       const o = v.obj
       if (o.layer !== layer || !this.store.controls(o)) continue
       if (!contains(v, p)) continue
-      if (!best || o.z > best.obj.z) best = v
+      if (!best || stackZ(o) > stackZ(best.obj)) best = v
     }
     return best
   }

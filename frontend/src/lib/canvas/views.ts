@@ -16,6 +16,11 @@ const LABEL_STYLE = {
 }
 
 /** One renderable map object. Rebuilds itself from the MapObject on update. */
+/** Stacking key: spell areas always sit below tokens and other objects of their layer. */
+export function stackZ(obj: MapObject): number {
+  return obj.kind === 'template' ? obj.z - 1e9 : obj.z
+}
+
 export class ObjectView {
   readonly root = new Container()
   /** Rotates/scales with the object (image, shape). */
@@ -37,7 +42,7 @@ export class ObjectView {
   update(obj: MapObject, page: Page): void {
     this.obj = obj
     this.root.position.set(obj.x, obj.y)
-    this.root.zIndex = obj.z
+    this.root.zIndex = stackZ(obj)
     this.body.rotation = (obj.rotation * Math.PI) / 180
     this.root.alpha = obj.layer === 'gm' ? 0.55 : 1
     this.drawBody(obj)
