@@ -17,13 +17,10 @@ dist/
 .env.*
 !.env.example
 
-# PyCharm (keep shared project config, drop personal state)
-.idea/workspace.xml
-.idea/shelf/
-.idea/usage.statistics.xml
-.idea/dictionaries/
-.idea/httpRequests/
-.idea/dataSources.local.xml
+# PyCharm: only the run configurations in .run/ are shared,
+# everything in .idea/ is machine-specific (SDK paths, module names)
+.idea/*
+!.idea/.gitignore
 
 # OS
 .DS_Store

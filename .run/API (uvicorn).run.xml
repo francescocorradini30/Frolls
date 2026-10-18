@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="API (uvicorn)" type="PythonConfigurationType" factoryName="Python">
-    <module name="Rolling Francis" />
+    <module name="Frolls" />
     <option name="ENV_FILES" value="" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -8,7 +8,7 @@
       <env name="PYTHONUNBUFFERED" value="1" />
     </envs>
     <option name="SDK_HOME" value="$PROJECT_DIR$/backend/.venv/Scripts/python.exe" />
-    <option name="SDK_NAME" value="Python 3.13 virtualenv at D:\Rolling Francis\backend\.venv" />
+    <option name="SDK_NAME" value="Python 3.13 virtualenv at D:\Frolls\backend\.venv" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/backend" />
     <option name="IS_MODULE_SDK" value="false" />
     <option name="ADD_CONTENT_ROOTS" value="true" />

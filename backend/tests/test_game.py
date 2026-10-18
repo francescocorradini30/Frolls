@@ -44,7 +44,7 @@ def test_health(client: TestClient) -> None:
 
 def test_hello_requires_first(client: TestClient) -> None:
     with client.websocket_connect(WS) as ws:
-        ws.send_json({"type": "chat.send", "text": "ciao"})
+        ws.send_json({"type": "chat.send", "text": "hi"})
         assert recv(ws, "error")["detail"] == "send hello first"
 
 

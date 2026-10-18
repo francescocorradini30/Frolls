@@ -46,14 +46,14 @@ def test_valid_dice_expressions(text: str) -> None:
 @pytest.mark.parametrize(
     "text",
     [
-        "ciao",
+        "hello",
         "5",
         "2+2",
         "d",
-        "dado",
-        "ho tirato 1d20",
+        "dice",
+        "I rolled 1d20",
         "",
-        "1d20 ciao",
+        "1d20 hello",
         "0d6",
         "1d0",
         "kh1",

@@ -489,7 +489,7 @@ class GameServer:
         source = self._get_page(msg.id)
         fields = page_dict(source)
         del fields["id"]
-        fields["name"] = f"{source.name} (copia)"
+        fields["name"] = f"{source.name} (copy)"
         fields["sort_order"] = max(pg.sort_order for pg in self.pages.values()) + 1
         page = self._new_page(**fields)
         copies = [
