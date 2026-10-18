@@ -39,7 +39,7 @@ type Gesture =
       noSnap?: boolean
     }
   | { kind: 'marquee'; start: Point; additive: boolean; timer: number; startClient: Point }
-  | { kind: 'resize'; id: string; aspect: number }
+  | { kind: 'resize'; id: string; handle: ResizeHandle; start: MapObject }
   | { kind: 'rotate'; id: string; deg: number | null }
   | { kind: 'ruler'; start: Point }
   | { kind: 'draw'; tool: Tool; start: Point; points: number[] }
@@ -271,16 +271,20 @@ export class Engine {
     return v && this.store.controls(v.obj) && v.obj.kind !== 'path' ? v : null
   }
 
-  private handleAt(p: Point): 'resize' | 'rotate' | null {
+  private handleAt(p: Point): ResizeHandle | 'rotate' | null {
     const v = this.singleSelected()
     if (!v || v.obj.kind === 'template' || v.obj.kind === 'text') return null
     const o = v.obj
     const tol = HANDLE_PX / this.zoom
     const local = toLocal(o, p)
     const { w, h } = v.bounds()
-    if (Math.abs(local.x - w / 2) <= tol && Math.abs(local.y - h / 2) <= tol) return 'resize'
     const rotY = -h / 2 - ROTATE_OFFSET_PX / this.zoom
     if (Math.hypot(local.x, local.y - rotY) <= tol * 1.2) return 'rotate'
+    for (const handle of resizeHandles(w * this.zoom, h * this.zoom)) {
+      if (Math.abs(local.x - (handle.sx * w) / 2) <= tol && Math.abs(local.y - (handle.sy * h) / 2) <= tol) {
+        return handle
+      }
+    }
     return null
   }
 
@@ -312,9 +316,9 @@ export class Engine {
       if (handle) {
         const v = this.singleSelected()!
         this.gesture =
-          handle === 'resize'
-            ? { kind: 'resize', id: v.obj.id, aspect: v.obj.width / v.obj.height }
-            : { kind: 'rotate', id: v.obj.id, deg: null }
+          handle === 'rotate'
+            ? { kind: 'rotate', id: v.obj.id, deg: null }
+            : { kind: 'resize', id: v.obj.id, handle, start: v.obj }
         return
       }
       const hit = this.hitTest(p)
@@ -382,7 +386,13 @@ export class Engine {
         if (this.store.tool === 'select') {
           const handle = this.handleAt(p)
           this.app.canvas.style.cursor =
-            handle === 'resize' ? 'nwse-resize' : handle === 'rotate' ? 'grab' : this.hitTest(p) ? 'move' : 'default'
+            handle === 'rotate'
+              ? 'grab'
+              : handle
+                ? resizeCursor(handle, this.singleSelected()!.obj.rotation)
+                : this.hitTest(p)
+                  ? 'move'
+                  : 'default'
         } else if (this.store.tool === 'draw-polygon' && this.polygon) {
           this.drawOverlay(p)
         }
@@ -422,16 +432,8 @@ export class Engine {
       }
       case 'resize': {
         const v = this.views.get(g.id)
-        if (!v) return
-        const local = toLocal(v.obj, p)
-        let w = Math.max(10, Math.abs(local.x) * 2)
-        let h = Math.max(10, Math.abs(local.y) * 2)
-        if (!e.shiftKey && v.obj.kind === 'token') h = w / g.aspect
-        if (this.page?.snap && !e.altKey && (v.obj.kind === 'token' || v.obj.kind === 'image')) {
-          w = snapSize(this.page, w)
-          h = snapSize(this.page, h)
-        }
-        if (this.page) v.update({ ...v.obj, width: w, height: h }, this.page)
+        if (!v || !this.page) return
+        v.update(resizeFrom(this.page, g.start, g.handle, p, e), this.page)
         this.drawOverlay()
         return
       }
@@ -485,9 +487,9 @@ export class Engine {
       }
       case 'resize': {
         const v = this.views.get(g.id)
-        if (v) {
-          const shown = v.bounds()
-          this.store.updateObjects([{ id: g.id, width: shown.w, height: shown.h }])
+        if (v && v.obj !== g.start) {
+          const { x, y, width, height } = v.obj
+          this.store.updateObjects([{ id: g.id, x, y, width, height }])
         }
         break
       }
@@ -722,10 +724,12 @@ export class Engine {
       const o = v.obj
       const { w, h } = v.bounds()
       const hs = HANDLE_PX / z
-      const corner = fromLocal(o, { x: w / 2, y: h / 2 })
       const top = fromLocal(o, { x: 0, y: -h / 2 })
       const rot = fromLocal(o, { x: 0, y: -h / 2 - ROTATE_OFFSET_PX / z })
-      g.rect(corner.x - hs / 2, corner.y - hs / 2, hs, hs).fill(canvasColors.handle).stroke({ width: 1.5 / z, color: accent })
+      for (const handle of resizeHandles(w * z, h * z)) {
+        const c = fromLocal(o, { x: (handle.sx * w) / 2, y: (handle.sy * h) / 2 })
+        g.rect(c.x - hs / 2, c.y - hs / 2, hs, hs).fill(canvasColors.handle).stroke({ width: 1.5 / z, color: accent })
+      }
       g.moveTo(top.x, top.y).lineTo(rot.x, rot.y).stroke({ width: 1.5 / z, color: accent })
       g.circle(rot.x, rot.y, hs / 1.6).fill(canvasColors.handle).stroke({ width: 1.5 / z, color: accent })
     }
@@ -933,6 +937,86 @@ export class Engine {
     this.store.createObjects(copies)
     this.store.setSelection(copies.map((c) => c.id))
   }
+}
+
+// --- Resizing ---------------------------------------------------------------------
+
+/** A resize handle: which side it moves on each axis (-1 left/top, 0 none, 1 right/bottom). */
+interface ResizeHandle {
+  sx: -1 | 0 | 1
+  sy: -1 | 0 | 1
+}
+
+const RESIZE_HANDLES: ResizeHandle[] = [
+  { sx: -1, sy: -1 },
+  { sx: 0, sy: -1 },
+  { sx: 1, sy: -1 },
+  { sx: 1, sy: 0 },
+  { sx: 1, sy: 1 },
+  { sx: 0, sy: 1 },
+  { sx: -1, sy: 1 },
+  { sx: -1, sy: 0 },
+]
+
+/** Side handles only when the object is big enough on screen not to be buried by them. */
+function resizeHandles(screenW: number, screenH: number): ResizeHandle[] {
+  const roomy = Math.min(screenW, screenH) >= HANDLE_PX * 5
+  return roomy ? RESIZE_HANDLES : RESIZE_HANDLES.filter((h) => h.sx && h.sy)
+}
+
+const MIN_SIZE_PX = 10
+
+/**
+ * Resize `o` by dragging `handle` to `p`, keeping the opposite side (or corner) fixed.
+ * Corners keep the proportions of tokens (Shift frees them) and free those of images
+ * (Shift locks them). With snap on, sizes are whole cells.
+ */
+function resizeFrom(page: Page, o: MapObject, handle: ResizeHandle, p: Point, e: PointerEvent): MapObject {
+  const { sx, sy } = handle
+  const local = toLocal(o, p)
+  // Fixed side, in the object's local frame (centre = 0,0).
+  const ax = (-sx * o.width) / 2
+  const ay = (-sy * o.height) / 2
+  let w = sx ? Math.max(MIN_SIZE_PX, sx * (local.x - ax)) : o.width
+  let h = sy ? Math.max(MIN_SIZE_PX, sy * (local.y - ay)) : o.height
+
+  if (sx && sy && (o.kind === 'token') !== e.shiftKey) {
+    const k = Math.max(w / o.width, h / o.height)
+    w = o.width * k
+    h = o.height * k
+  }
+
+  if (page.snap && page.grid_type !== 'none' && !e.altKey && (o.kind === 'token' || o.kind === 'image')) {
+    // Always a whole number of cells, never 1.5 or 1.25.
+    if (sx) w = snapSize(page, w)
+    if (sy) h = snapSize(page, h)
+    if (page.grid_type === 'square' && o.rotation % 360 === 0) {
+      // The fixed side also settles on the nearest grid line, so the object ends up
+      // exactly covering whole cells (e.g. a map dropped off-grid lines up with it).
+      const s = page.grid_size
+      const fixedX = Math.round((o.x + ax) / s) * s
+      const fixedY = Math.round((o.y + ay) / s) * s
+      return {
+        ...o,
+        x: sx ? fixedX + (sx * w) / 2 : o.x,
+        y: sy ? fixedY + (sy * h) / 2 : o.y,
+        width: w,
+        height: h,
+      }
+    }
+  }
+
+  const center = fromLocal(o, { x: sx ? ax + (sx * w) / 2 : 0, y: sy ? ay + (sy * h) / 2 : 0 })
+  return { ...o, x: center.x, y: center.y, width: w, height: h }
+}
+
+const RESIZE_CURSORS = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize']
+
+/** Resize cursor matching the handle's on-screen direction, rotation included. */
+function resizeCursor(handle: ResizeHandle, rotation: number): string {
+  const deg = (Math.atan2(handle.sy, handle.sx) * 180) / Math.PI + rotation
+  const octant = Math.round(deg / 45)
+  return RESIZE_CURSORS[((octant % 4) + 4) % 4]
 }
 
 // --- Geometry helpers -------------------------------------------------------------

@@ -3,15 +3,12 @@
   "private": true,
   "version": "0.1.2",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c yellow,cyan \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "cd backend && \".venv/Scripts/python\" -m uvicorn app.main:app --reload --port 8000 --timeout-graceful-shutdown 1",
-    "dev:web": "npm --prefix frontend run dev",
+    "dev": "\"backend/.venv/Scripts/python\" scripts/dev.py",
     "setup": "cd backend && python -m venv .venv && \".venv/Scripts/python\" -m pip install -e \".[dev]\" && cd .. && npm install && npm --prefix frontend install",
     "e2e": "node e2e/game.mjs",
     "test": "cd backend && \".venv/Scripts/python\" -m pytest && cd .. && npm --prefix frontend run check"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0",
     "playwright-core": "^1.64.1"
   }
 }

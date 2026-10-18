@@ -177,7 +177,7 @@ await dialog.getByTitle('Poisoned').click()
 await dialog.getByRole('button', { name: 'Save' }).click()
 await gm.waitForTimeout(500)
 p = await state(pl)
-const t2 = p.objects.find((o) => o.id === tok.id)
+let t2 = p.objects.find((o) => o.id === tok.id)
 check(
   'editor: name, control, bars, aura, statuses',
   t2.props.name === 'Aria the Ranger' &&
@@ -188,7 +188,43 @@ check(
   JSON.stringify(t2.props),
 )
 
+// 4b. Resize keeps the opposite corner fixed and lands on grid lines
+await gm.evaluate((id) => window.__store.setSelection([id]), tok.id)
+const box = (o) => ({ l: o.x - o.width / 2, t: o.y - o.height / 2, r: o.x + o.width / 2, b: o.y + o.height / 2 })
+const b0 = box(t2)
+await drag(gm, await toClient(gm, b0.r, b0.b), await toClient(gm, b0.r + 75, b0.b + 60))
+await gm.waitForTimeout(400)
+const b1 = box((await state(gm)).objects.find((o) => o.id === tok.id))
+check('resize from bottom-right keeps top-left', b1.l === b0.l && b1.t === b0.t && b1.r === b0.r + 70 && b1.b === b0.b + 70, JSON.stringify({ b0, b1 }))
+await drag(gm, await toClient(gm, b1.l, b1.t), await toClient(gm, b1.l + 65, b1.t + 72))
+await gm.waitForTimeout(400)
+const b2 = box((await state(pl)).objects.find((o) => o.id === tok.id))
+check('resize from top-left keeps bottom-right', b2.r === b1.r && b2.b === b1.b && b2.l === b1.l + 70 && b2.t === b1.t + 70, JSON.stringify({ b1, b2 }))
+await gm.screenshot({ path: `${OUT}/resize-handles.png` })
+// Image off the grid with a size of 100 px (1.43 cells): resizing gives whole cells on grid lines.
+const imgId = await gm.evaluate(() => {
+  const s = window.__store
+  const id = crypto.randomUUID()
+  s.createObjects([
+    { id, page_id: s.page.id, kind: 'image', layer: 'objects', x: 1213, y: 333, width: 100, height: 100, rotation: 0, props: { name: 'odd' } },
+  ])
+  s.setSelection([id])
+  return id
+})
+await gm.waitForTimeout(400)
+await drag(gm, await toClient(gm, 1263, 383), await toClient(gm, 1263 + 80, 383 + 50))
+await gm.waitForTimeout(400)
+const img = (await state(gm)).objects.find((o) => o.id === imgId)
+// Top-left was at 1163,283: it settles on the nearest grid line (1190,280).
+check(
+  'resize gives whole cells aligned to the grid',
+  img.width === 210 && img.height === 140 && img.x - img.width / 2 === 1190 && img.y - img.height / 2 === 280,
+  JSON.stringify(img && { x: img.x, y: img.y, w: img.width, h: img.height }),
+)
+await gm.evaluate((id) => window.__store.deleteObjects([id]), imgId)
+
 // 5. Player drags own token now
+t2 = (await state(pl)).objects.find((o) => o.id === tok.id)
 const pc2 = await toClient(pl, t2.x, t2.y)
 const pz = await pl.evaluate(() => window.__engine.zoom)
 await drag(pl, pc2, { x: pc2.x, y: pc2.y + 70 * 2 * pz + 4 })
