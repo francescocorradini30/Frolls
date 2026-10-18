@@ -1,0 +1,37 @@
+/** Token status markers. Ids are stored on tokens; labels shown in the UI. */
+export const STATUSES: { id: string; icon: string; label: string }[] = [
+  { id: 'red', icon: '🔴', label: 'Rosso' },
+  { id: 'blue', icon: '🔵', label: 'Blu' },
+  { id: 'green', icon: '🟢', label: 'Verde' },
+  { id: 'yellow', icon: '🟡', label: 'Giallo' },
+  { id: 'purple', icon: '🟣', label: 'Viola' },
+  { id: 'dead', icon: '💀', label: 'Morto' },
+  { id: 'blinded', icon: '🙈', label: 'Accecato' },
+  { id: 'charmed', icon: '💘', label: 'Affascinato' },
+  { id: 'deafened', icon: '🙉', label: 'Assordato' },
+  { id: 'frightened', icon: '😱', label: 'Spaventato' },
+  { id: 'grappled', icon: '🤼', label: 'Afferrato' },
+  { id: 'incapacitated', icon: '💫', label: 'Incapacitato' },
+  { id: 'invisible', icon: '👻', label: 'Invisibile' },
+  { id: 'paralyzed', icon: '⚡', label: 'Paralizzato' },
+  { id: 'petrified', icon: '🗿', label: 'Pietrificato' },
+  { id: 'poisoned', icon: '🤢', label: 'Avvelenato' },
+  { id: 'prone', icon: '🛌', label: 'Prono' },
+  { id: 'restrained', icon: '⛓️', label: 'Trattenuto' },
+  { id: 'stunned', icon: '😵', label: 'Stordito' },
+  { id: 'unconscious', icon: '💤', label: 'Privo di sensi' },
+  { id: 'concentrating', icon: '🧠', label: 'Concentrazione' },
+  { id: 'bleeding', icon: '🩸', label: 'Sanguinante' },
+  { id: 'burning', icon: '🔥', label: 'In fiamme' },
+  { id: 'frozen', icon: '❄️', label: 'Congelato' },
+  { id: 'hasted', icon: '💨', label: 'Velocizzato' },
+  { id: 'blessed', icon: '✨', label: 'Benedetto' },
+  { id: 'cursed', icon: '🕸️', label: 'Maledetto' },
+  { id: 'shield', icon: '🛡️', label: 'Scudo' },
+  { id: 'flying', icon: '🪽', label: 'In volo' },
+  { id: 'target', icon: '🎯', label: 'Bersaglio' },
+]
+
+export const STATUS_ICON = new Map(STATUSES.map((s) => [s.id, s.icon]))
+
+export const BAR_COLORS = ['#2ecc71', '#3498db', '#e74c3c'] as const

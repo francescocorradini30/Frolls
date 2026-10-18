@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Frolls debug (API + Web)" type="CompoundRunConfigurationType">
+    <toRun name="API (uvicorn)" type="PythonConfigurationType" />
+    <toRun name="Web (vite)" type="ShConfigurationType" />
+    <method v="2" />
+  </configuration>
+</component>

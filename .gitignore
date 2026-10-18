@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# PyCharm (keep shared project config, drop personal state)
+.idea/workspace.xml
+.idea/shelf/
+.idea/usage.statistics.xml
+.idea/dictionaries/
+.idea/httpRequests/
+.idea/dataSources.local.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# User uploads (dev storage)
+backend/uploads/
+
+# E2E screenshots
+e2e/out/
+
+# Claude Code (local AI assistant files)
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
+# Logs
+*.log

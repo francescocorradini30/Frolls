@@ -1,0 +1,145 @@
+<script lang="ts">
+  import { tick } from 'svelte'
+  import { store } from '../state/game.svelte'
+  import ChatMessageView from './ChatMessageView.svelte'
+
+  let text = $state('')
+  let log: HTMLDivElement
+  let stick = true
+  const history: string[] = []
+  let historyIndex = -1
+  let showHelp = $state(false)
+
+  $effect(() => {
+    // Re-run on every new message; keep scrolled to bottom unless the user scrolled up.
+    void store.chat.length
+    if (stick) tick().then(() => log && (log.scrollTop = log.scrollHeight))
+  })
+
+  function onScroll() {
+    stick = log.scrollHeight - log.scrollTop - log.clientHeight < 40
+  }
+
+  function send() {
+    const value = text.trim()
+    if (!value) return
+    store.sendChat(value)
+    history.unshift(value)
+    historyIndex = -1
+    text = ''
+    stick = true
+  }
+
+  function onKey(e: KeyboardEvent) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      send()
+    } else if (e.key === 'ArrowUp' && !text.includes('\n') && history.length) {
+      e.preventDefault()
+      historyIndex = Math.min(historyIndex + 1, history.length - 1)
+      text = history[historyIndex]
+    } else if (e.key === 'ArrowDown' && historyIndex >= 0) {
+      e.preventDefault()
+      historyIndex -= 1
+      text = historyIndex >= 0 ? history[historyIndex] : ''
+    }
+  }
+
+  function compact(i: number): boolean {
+    if (i === 0) return false
+    const prev = store.chat[i - 1]
+    const cur = store.chat[i]
+    return (
+      prev.player_id === cur.player_id &&
+      prev.kind === cur.kind &&
+      cur.kind !== 'whisper' &&
+      !cur.gm_only &&
+      Date.parse(cur.created_at) - Date.parse(prev.created_at) < 120_000
+    )
+  }
+</script>
+
+<section class="chat">
+  <div class="log" bind:this={log} onscroll={onScroll}>
+    {#each store.chat as msg, i (msg.id)}
+      <ChatMessageView {msg} compact={compact(i)} />
+    {:else}
+      <p class="empty muted">Nessun messaggio. Prova a scrivere <code>d20</code>.</p>
+    {/each}
+  </div>
+
+  {#if showHelp}
+    <div class="help">
+      <p><code>d20</code>, <code>2d6+3</code>, <code>4d6dl1</code> → tiro diretto</p>
+      <p><code>2d20kh1</code> vantaggio · <code>2d20kl1</code> svantaggio</p>
+      <p><code>8d6!</code> esplode · <code>5d10&gt;8</code> successi · <code>1d20r1</code> ritira</p>
+      <p><code>Colpisco per [[1d8+3]]</code> → tiro nel testo</p>
+      <p><code>/w Nome msg</code> sussurro · <code>/w gm msg</code></p>
+      <p><code>/gr 1d20</code> tiro solo al GM · <code>/em</code> azione · <code>/ooc</code></p>
+      {#if store.isGm}<p><code>/desc testo</code> narrazione</p>{/if}
+    </div>
+  {/if}
+
+  <div class="composer">
+    <textarea
+      bind:value={text}
+      onkeydown={onKey}
+      rows="2"
+      maxlength="4000"
+      placeholder="Scrivi o tira i dadi (es. 1d20+5)…"
+    ></textarea>
+    <div class="actions">
+      <button class="icon-btn" title="Aiuto comandi" onclick={() => (showHelp = !showHelp)}>?</button>
+      <button class="btn primary small" onclick={send} disabled={!text.trim()}>Invia</button>
+    </div>
+  </div>
+</section>
+
+<style>
+  .chat {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+  .log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+  .empty {
+    padding: 16px;
+    text-align: center;
+  }
+  .help {
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    background: var(--surface-2);
+  }
+  .help p {
+    margin: 3px 0;
+  }
+  code {
+    font-family: ui-monospace, monospace;
+    background: var(--bg);
+    padding: 0 4px;
+    border-radius: 3px;
+  }
+  .composer {
+    border-top: 1px solid var(--border);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  textarea {
+    resize: none;
+    width: 100%;
+  }
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+</style>
