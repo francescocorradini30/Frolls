@@ -18,7 +18,6 @@ from app.game.server.base import (
 )
 from app.game.server.journal import MacroResolver
 from app.models import (
-    DEFAULT_GAME_ID,
     ChatMessage,
     Player,
 )
@@ -99,7 +98,7 @@ class MessagingMixin(ServerBase):
     ) -> None:
         """Save a chat message and send it to everyone allowed to see it."""
         row = ChatMessage(
-            game_id=DEFAULT_GAME_ID,
+            game_id=self.game_id,
             player_id=player.id,
             speaker=speaker,
             color=player.color,

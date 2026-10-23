@@ -26,7 +26,6 @@ from app.game.server.base import (
     _verb,
 )
 from app.models import (
-    DEFAULT_GAME_ID,
     Event,
     MapObject,
     Player,
@@ -279,7 +278,7 @@ class ObjectsMixin(ServerBase):
         async with session_scope() as s:
             await s.execute(
                 update(Event)
-                .where(Event.game_id == DEFAULT_GAME_ID, Event.seq == seq)
+                .where(Event.game_id == self.game_id, Event.seq == seq)
                 .values(reverted_by=by)
             )
         for c in self.connections:
@@ -330,7 +329,7 @@ class ObjectsMixin(ServerBase):
         """GM: undo any map-object change from the history, whoever made it."""
         self._require_gm(conn)
         async with session_scope() as s:
-            event = await s.get(Event, (DEFAULT_GAME_ID, msg.seq))
+            event = await s.get(Event, (self.game_id, msg.seq))
         if event is None or not event.data.get("objects"):
             raise GameError("this change cannot be reverted")
         if event.reverted_by is not None:
@@ -353,7 +352,7 @@ class ObjectsMixin(ServerBase):
             events = list(
                 await s.scalars(
                     select(Event)
-                    .where(Event.game_id == DEFAULT_GAME_ID)
+                    .where(Event.game_id == self.game_id)
                     .order_by(Event.seq.desc())
                     .limit(HISTORY_LIMIT)
                 )

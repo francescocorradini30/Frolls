@@ -102,7 +102,8 @@ class Connection:
 class ServerBase:
     """State, connections, filtering helpers and the event log, shared by every mixin."""
 
-    def __init__(self) -> None:
+    def __init__(self, game_id: int = DEFAULT_GAME_ID) -> None:
+        self.game_id = game_id
         self.game: Game | None = None
         self.players: dict[str, Player] = {}
         self.pages: dict[str, Page] = {}
@@ -133,10 +134,10 @@ class ServerBase:
 
     async def load(self) -> None:
         async with session_scope() as s:
-            game = await s.get(Game, DEFAULT_GAME_ID)
+            game = await s.get(Game, self.game_id)
             if game is None:
                 game = Game(
-                    id=DEFAULT_GAME_ID,
+                    id=self.game_id,
                     name="Frolls",
                     player_page_overrides={},
                     turn_order=[],
@@ -211,7 +212,7 @@ class ServerBase:
             if column.default is not None and not callable(column.default.arg)
         }
         defaults["scale_number"], defaults["scale_unit"] = units.CELL_SCALE[self.measurement]
-        return Page(id=str(uuid.uuid4()), game_id=DEFAULT_GAME_ID, **{**defaults, **fields})
+        return Page(id=str(uuid.uuid4()), game_id=self.game_id, **{**defaults, **fields})
 
     # --- Connections ---------------------------------------------------------
 
@@ -417,7 +418,7 @@ class ServerBase:
         seq = self.seq + 1
         author = self.actor.id if self.actor else None
         event = Event(
-            game_id=DEFAULT_GAME_ID,
+            game_id=self.game_id,
             seq=seq,
             created_at=datetime.now(UTC),
             player_id=author,

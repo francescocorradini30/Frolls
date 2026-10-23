@@ -22,7 +22,6 @@ from app.game.server.base import (
     _number,
 )
 from app.models import (
-    DEFAULT_GAME_ID,
     Character,
     JournalFolder,
     Macro,
@@ -101,7 +100,7 @@ class JournalMixin(ServerBase):
         values = self._character_values(msg.character)
         character = Character(
             id=msg.id,
-            game_id=DEFAULT_GAME_ID,
+            game_id=self.game_id,
             **{
                 "name": "New character",
                 "bio": "",
@@ -168,7 +167,7 @@ class JournalMixin(ServerBase):
         if msg.parent_id is not None and msg.parent_id not in self.folders:
             raise GameError("folder does not exist")
         folder = JournalFolder(
-            id=msg.id, game_id=DEFAULT_GAME_ID, name=msg.name.strip(), parent_id=msg.parent_id
+            id=msg.id, game_id=self.game_id, name=msg.name.strip(), parent_id=msg.parent_id
         )
         async with self._commit(msg.type, f'created folder "{folder.name}"') as s:
             s.add(folder)
@@ -269,7 +268,7 @@ class JournalMixin(ServerBase):
             raise GameError(f"id {msg.id} already in use")
         macro = Macro(
             id=msg.id,
-            game_id=DEFAULT_GAME_ID,
+            game_id=self.game_id,
             player_id=player.id,
             name=_macro_name(msg.name),
             action=msg.action,

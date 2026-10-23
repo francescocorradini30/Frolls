@@ -28,7 +28,6 @@ from app.game.server.base import (
     _tags,
 )
 from app.models import (
-    DEFAULT_GAME_ID,
     Asset,
     Character,
     Deck,
@@ -119,7 +118,7 @@ class WorldMixin(ServerBase):
         )
         if folder is None:
             folder = JournalFolder(
-                id=str(uuid.uuid4()), game_id=DEFAULT_GAME_ID, name="SRD monsters", parent_id=None
+                id=str(uuid.uuid4()), game_id=self.game_id, name="SRD monsters", parent_id=None
             )
             async with self._commit("folder.create", 'created folder "SRD monsters"') as s:
                 s.add(folder)
@@ -128,7 +127,7 @@ class WorldMixin(ServerBase):
         sheet = Sheet.model_validate(item["sheet"]).model_dump()
         character = Character(
             id=str(uuid.uuid4()),
-            game_id=DEFAULT_GAME_ID,
+            game_id=self.game_id,
             name=item["name"],
             bio="",
             gm_notes="",
@@ -247,7 +246,7 @@ class WorldMixin(ServerBase):
             raise GameError(f"id {msg.id} already in use")
         table = RollableTable(
             id=msg.id,
-            game_id=DEFAULT_GAME_ID,
+            game_id=self.game_id,
             name=self._table_name(msg.name, msg.id),
             items=[],
             show_players=True,
@@ -352,7 +351,7 @@ class WorldMixin(ServerBase):
             raise GameError(f"id {msg.id} already in use")
         deck = Deck(
             id=msg.id,
-            game_id=DEFAULT_GAME_ID,
+            game_id=self.game_id,
             name=msg.name.strip() or "Deck",
             back=None,
             cards=[],
@@ -618,7 +617,7 @@ class WorldMixin(ServerBase):
         values = msg.model_dump(exclude={"type", "rid"})
         values["tags"] = _tags(values["tags"])
         values["folder"] = values["folder"].strip()
-        asset = Asset(game_id=DEFAULT_GAME_ID, player_id=player.id, **values)
+        asset = Asset(game_id=self.game_id, player_id=player.id, **values)
         async with self._commit(msg.type, f'added "{asset.name}" to the art library') as s:
             s.add(asset)
         self.assets[asset.id] = asset

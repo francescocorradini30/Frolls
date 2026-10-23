@@ -6,7 +6,8 @@
     "dev": "\"backend/.venv/Scripts/python\" scripts/dev.py",
     "setup": "cd backend && python -m venv .venv && \".venv/Scripts/python\" -m pip install -e \".[dev]\" && cd .. && npm install && npm --prefix frontend install",
     "e2e": "node e2e/game.mjs",
-    "test": "cd backend && \".venv/Scripts/python\" -m pytest && cd .. && npm --prefix frontend run check"
+    "test": "cd backend && \".venv/Scripts/python\" -m pytest && cd .. && npm --prefix frontend run check",
+    "perf": "node e2e/perf.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"

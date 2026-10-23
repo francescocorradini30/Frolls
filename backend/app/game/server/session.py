@@ -28,7 +28,6 @@ from app.game.server.base import (
     ServerBase,
 )
 from app.models import (
-    DEFAULT_GAME_ID,
     ChatMessage,
     Game,
     MapObject,
@@ -61,7 +60,7 @@ class SessionMixin(ServerBase):
         values = {"name": info.name, "color": info.color, "is_gm": info.is_gm}
         player = self.players.get(player_id)
         if player is None:
-            player = Player(id=player_id, game_id=DEFAULT_GAME_ID, **values)
+            player = Player(id=player_id, game_id=self.game_id, **values)
         else:
             player.name, player.color, player.is_gm = info.name, info.color, info.is_gm
         resume = msg.resume if msg.resume and self._can_resume(player, msg.resume) else None
@@ -70,10 +69,10 @@ class SessionMixin(ServerBase):
             # Upsert: safe even if the row exists but this process hasn't seen it yet.
             await s.execute(
                 pg_insert(Player)
-                .values(id=player_id, game_id=DEFAULT_GAME_ID, **values)
+                .values(id=player_id, game_id=self.game_id, **values)
                 .on_conflict_do_update(index_elements=[Player.id], set_=values)
             )
-            chat_query = select(ChatMessage).where(ChatMessage.game_id == DEFAULT_GAME_ID)
+            chat_query = select(ChatMessage).where(ChatMessage.game_id == self.game_id)
             new_chat: list[ChatMessage] | None = None
             if resume and resume.chat_id is not None:
                 new_chat = list(
