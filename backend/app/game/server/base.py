@@ -129,6 +129,9 @@ class ServerBase:
         # Per player: steps {seq, summary, objects} that Ctrl+Z / Ctrl+Y apply.
         self.undo: dict[str, list[dict[str, Any]]] = {}
         self.redo: dict[str, list[dict[str, Any]]] = {}
+        # Combat action being captured (server/capture.py): helpers record instead of
+        # committing.
+        self.capture: Any = None
 
     # --- Lifecycle -----------------------------------------------------------
 
@@ -412,9 +415,13 @@ class ServerBase:
     ) -> AsyncIterator[AsyncSession]:
         """Transaction that also writes the event; on success the event becomes `self.seq`.
 
+        Never inside an action capture: the capture commits once at its end.
+
         Everything after the block up to the broadcast must stay synchronous: the new
         seq is visible to every message sent from then on.
         """
+        if self.capture is not None:
+            raise RuntimeError(f"commit of {kind} inside the action {self.capture.kind}")
         seq = self.seq + 1
         author = self.actor.id if self.actor else None
         event = Event(
@@ -529,7 +536,7 @@ def _history_entry(event: Event) -> dict[str, Any]:
         "player_id": event.player_id,
         "kind": event.kind,
         "summary": event.summary,
-        "revertible": bool(event.data.get("objects")),
+        "revertible": bool(event.data.get("objects") or event.data.get("action")),
         "reverted": event.reverted_by is not None,
         "created_at": event.created_at.isoformat(),
     }

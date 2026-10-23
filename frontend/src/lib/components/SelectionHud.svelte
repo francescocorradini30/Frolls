@@ -24,11 +24,23 @@
     return `${e.ending.rounds} round${e.ending.rounds === 1 ? '' : 's'} (${e.ending.when} of ${by}'s turn)`
   }
 
-  /** "12" sets the value, "-5" / "+3" change it relative to the current one, empty clears it. */
+  /** "12" sets the value, "-5" / "+3" change it relative to the current one, empty clears it.
+   *  On the HP of a token with a 5e sheet, "-12 fire", "+8" and "+5 temp" go through the
+   *  damage rules instead (resistances, concentration, 0 HP), as one undoable action. */
   function applyValue(key: string, raw: string, input: HTMLInputElement) {
     if (!token) return
     const bar: Bar = { value: null, max: null, ...(token.props[key] ?? {}) }
     const text = raw.trim()
+    const rules = key === 'bar1' && store.character(token.props.represents)?.sheet
+    const change = rules ? /^([+-])\s*(\d+)\s*([a-z]*)$/i.exec(text) : null
+    if (change) {
+      const [, sign, amount, word] = change
+      const type = word.toLowerCase()
+      if (sign === '-') store.applyHp([token.id], 'damage', Number(amount), type || null)
+      else store.applyHp([token.id], type === 'temp' ? 'temp' : 'healing', Number(amount))
+      input.value = bar.value === null ? '' : String(bar.value)
+      return
+    }
     let value: number | null
     if (text === '') value = null
     else if (/^[+-]\d+(\.\d+)?$/.test(text)) value = (bar.value ?? 0) + Number(text)
@@ -60,7 +72,9 @@
             value={bar?.value ?? ''}
             placeholder="–"
             inputmode="decimal"
-            title={`${b.label} (type -5 or +3 to subtract or add)`}
+            title={b.key === 'bar1' && store.character(token.props.represents)?.sheet
+              ? `${b.label}: -12 fire = damage with resistances, +8 = healing, +5 temp = temporary HP`
+              : `${b.label} (type -5 or +3 to subtract or add)`}
             aria-label={b.label}
             onfocus={(e) => e.currentTarget.select()}
             onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}

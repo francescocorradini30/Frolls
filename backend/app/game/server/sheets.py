@@ -20,6 +20,7 @@ from app.game.server.base import (
     _copy,
     _mode_label,
 )
+from app.game.server.capture import captured
 from app.models import (
     Character,
     MapObject,
@@ -63,6 +64,7 @@ class SheetsMixin(ServerBase):
         gap_y = abs(a.y - b.y) - (a.height + b.height) / 2
         return max(gap_x, gap_y) < cell / 2
 
+    @captured("sheet.roll", "rolled from a sheet")
     async def on_sheet_roll(self, conn: Connection, msg: p.SheetRoll) -> None:
         player = conn.player
         assert player is not None
@@ -339,7 +341,8 @@ class SheetsMixin(ServerBase):
         }
 
     async def _set_props(self, changes: dict[str, dict[str, Any]], kind: str, summary: str) -> None:
-        """Merge props into tokens (null removes a key), save and broadcast. Not undoable."""
+        """Merge props into tokens (null removes a key), save and broadcast. Not undoable,
+        except inside an action capture (then only recorded, see server/capture.py)."""
         planned: list[tuple[MapObject, dict[str, Any]]] = []
         for obj_id, patch in changes.items():
             obj = self.objects.get(obj_id)
@@ -351,6 +354,11 @@ class SheetsMixin(ServerBase):
                 planned.append((obj, props))
         if not planned:
             return
+        if self.capture is not None:
+            for obj, props in planned:
+                self._touch_object(obj, "props")
+                obj.props = props
+            return
         async with self._commit(kind, summary, None, [o.id for o, _ in planned]) as s:
             for obj, props in planned:
                 await s.execute(update(MapObject).where(MapObject.id == obj.id).values(props=props))
@@ -360,6 +368,10 @@ class SheetsMixin(ServerBase):
 
     async def _set_sheet(self, character: Character, sheet: dict[str, Any], summary: str) -> None:
         if sheet == character.sheet:
+            return
+        if self.capture is not None:
+            self._touch_character(character)
+            character.sheet = sheet
             return
         async with self._commit("char.update", summary) as s:
             await s.execute(
@@ -408,6 +420,11 @@ class SheetsMixin(ServerBase):
                 planned.append((o, side))
         if not planned:
             return
+        if self.capture is not None:
+            for o, side in planned:
+                self._touch_object(o, "width", "height")
+                o.width = o.height = side
+            return
         async with self._commit(
             "token.sync", f'size of "{character.name}"', None, [o.id for o, _ in planned]
         ) as s:
@@ -451,6 +468,7 @@ class SheetsMixin(ServerBase):
         """Whether everyone may see this token's hit point numbers."""
         return not self._is_monster(obj) or self.npc_hp == "full"
 
+    @captured("combat.apply", "changed hit points", undoable=True)
     async def on_combat_apply(self, conn: Connection, msg: p.CombatApply) -> None:
         player = conn.player
         assert player is not None
@@ -523,6 +541,7 @@ class SheetsMixin(ServerBase):
             ["Death saves", f"{h.successes} successes, {h.failures} failures"],
         ]
 
+    @captured("sheet.rest", "rested")
     async def on_sheet_rest(self, conn: Connection, msg: p.SheetRest) -> None:
         player = conn.player
         assert player is not None

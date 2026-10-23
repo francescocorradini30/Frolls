@@ -18,6 +18,7 @@ from app.game.server.base import (
     _round_head,
     _turn_value,
 )
+from app.game.server.capture import captured
 from app.models import (
     Game,
     MapObject,
@@ -40,6 +41,7 @@ class CombatMixin(ServerBase):
         sheet = self._sheet_for_token(obj)
         return _turn_value(entry["value"]), sheet.abilities.dex if sheet else 0
 
+    @captured("combat.initiative", "rolled initiative")
     async def on_combat_initiative(self, conn: Connection, msg: p.CombatInitiative) -> None:
         """GM: roll initiative for the given tokens, add them to the tracker and sort it."""
         player = self._require_gm(conn)
@@ -301,6 +303,7 @@ class CombatMixin(ServerBase):
         """GMs, or players acting with a token they control (their character's spell)."""
         return player.is_gm or (source is not None and permissions.controls(player, source))
 
+    @captured("effect.apply", "applied an effect")
     async def on_effect_apply(self, conn: Connection, msg: p.EffectApply) -> None:
         player = conn.player
         assert player is not None and self.game is not None
@@ -350,6 +353,7 @@ class CombatMixin(ServerBase):
             rows.append(["Concentration", source.props.get("name") or "Token" if source else ""])
         await self._card(source, f"{base.name}", rows)
 
+    @captured("effect.remove", "removed an effect")
     async def on_effect_remove(self, conn: Connection, msg: p.EffectRemove) -> None:
         player = conn.player
         assert player is not None
@@ -369,6 +373,7 @@ class CombatMixin(ServerBase):
             f'{effect.name} removed from "{obj.props.get("name") or "Token"}"',
         )
 
+    @captured("effect.concentration", "ended concentration")
     async def on_effect_end_concentration(self, conn: Connection, msg: p.EndConcentration) -> None:
         player = conn.player
         assert player is not None
@@ -430,6 +435,7 @@ class CombatMixin(ServerBase):
         mod = sheet5e.ability_mod(sheet, "spell") if spell.add_modifier else 0
         return f"{damage}{mod:+d}" if mod else damage
 
+    @captured("sheet.cast", "cast a spell", undoable=True)
     async def on_sheet_cast(self, conn: Connection, msg: p.SheetCast) -> None:
         player = conn.player
         assert player is not None
@@ -542,6 +548,7 @@ class CombatMixin(ServerBase):
             player, character.name, "", {"main": None, "inline": rolls, "template": template}
         )
 
+    @captured("spell.saves", "spell saving throws", undoable=True)
     async def on_spell_saves(self, conn: Connection, msg: p.SpellSaves) -> None:
         """Every target rolls its saving throw; damage (half on a success) and the spell's
         effect (on a failure) are applied."""
@@ -600,6 +607,10 @@ class CombatMixin(ServerBase):
         game_settings = self.game.settings
         if round_ is not None:
             game_settings = {**game_settings, "round": round_}
+        if self.capture is not None:
+            self._touch_turns()
+            self.game.turn_order, self.game.settings = order, game_settings
+            return
         async with self._commit(kind, summary) as s:
             await s.execute(
                 update(Game)
@@ -673,6 +684,7 @@ class CombatMixin(ServerBase):
             [e for e in self.game.turn_order if e["id"] != msg.id],
         )
 
+    @captured("turn.next", "next turn")
     async def on_turn_next(self, conn: Connection, msg: p.TurnNext) -> None:
         player = conn.player
         assert player is not None and self.game is not None

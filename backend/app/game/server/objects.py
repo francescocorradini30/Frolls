@@ -302,8 +302,13 @@ class ObjectsMixin(ServerBase):
         if not stack:
             raise GameError("nothing to undo")
         step = stack[-1]
-        self._skip_if_stale(player, stack, "after", "undo")
-        undo_seq = await self._apply(step["objects"], "after", "undo", f"undid: {step['summary']}")
+        if "action" in step:
+            undo_seq = await self._undo_action(step, "after", "undo")
+        else:
+            self._skip_if_stale(player, stack, "after", "undo")
+            undo_seq = await self._apply(
+                step["objects"], "after", "undo", f"undid: {step['summary']}"
+            )
         stack.pop()
         self.redo.setdefault(player.id, []).append(step)
         await self._mark_reverted(step["seq"], undo_seq)
@@ -317,8 +322,11 @@ class ObjectsMixin(ServerBase):
         if not stack:
             raise GameError("nothing to redo")
         step = stack[-1]
-        self._skip_if_stale(player, stack, "before", "redo")
-        await self._apply(step["objects"], "before", "redo", f"redid: {step['summary']}")
+        if "action" in step:
+            await self._undo_action(step, "before", "redo")
+        else:
+            self._skip_if_stale(player, stack, "before", "redo")
+            await self._apply(step["objects"], "before", "redo", f"redid: {step['summary']}")
         stack.pop()
         self.undo.setdefault(player.id, []).append(step)
         await self._mark_reverted(step["seq"], None)
@@ -330,13 +338,17 @@ class ObjectsMixin(ServerBase):
         self._require_gm(conn)
         async with session_scope() as s:
             event = await s.get(Event, (self.game_id, msg.seq))
-        if event is None or not event.data.get("objects"):
+        if event is None or not (event.data.get("objects") or event.data.get("action")):
             raise GameError("this change cannot be reverted")
         if event.reverted_by is not None:
             raise GameError("this change was already reverted")
-        revert_seq = await self._apply(
-            event.data["objects"], "after", "revert", f"reverted: {event.summary}"
-        )
+        if "action" in event.data:
+            step = {"seq": event.seq, "summary": event.summary, "action": event.data["action"]}
+            revert_seq = await self._undo_action(step, "after", "revert")
+        else:
+            revert_seq = await self._apply(
+                event.data["objects"], "after", "revert", f"reverted: {event.summary}"
+            )
         await self._mark_reverted(event.seq, revert_seq)
         # It no longer is anyone's last action.
         for stacks in (self.undo, self.redo):

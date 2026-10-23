@@ -687,6 +687,13 @@ class HistoryGet(_Msg):
     type: Literal["history.get"]
 
 
+class CombatUndo(_Msg):
+    """Undo a combat action from its chat card: the author, or the GM for anyone's."""
+
+    type: Literal["combat.undo"]
+    seq: Annotated[int, Field(ge=1)]
+
+
 class EventRevert(_Msg):
     """GM: undo one map-object change from the history, whoever made it."""
 
@@ -699,6 +706,7 @@ ClientMessage = Annotated[
     | PlayerUpdate
     | GameSettings
     | GameOptions
+    | CombatUndo
     | PageView
     | PageCreate
     | PageUpdate

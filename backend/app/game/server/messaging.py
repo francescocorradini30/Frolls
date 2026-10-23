@@ -108,6 +108,10 @@ class MessagingMixin(ServerBase):
             recipients=recipients,
             gm_only=gm_only,
         )
+        if self.capture is not None:
+            # Inserted and sent with the action's changes.
+            self.capture.chat.append(row)
+            return
         async with session_scope() as s:
             s.add(row)
             await s.flush()

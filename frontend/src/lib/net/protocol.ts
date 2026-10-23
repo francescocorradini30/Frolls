@@ -493,6 +493,7 @@ export type ClientMessage = { rid?: string } & (
   | { type: 'player.update'; name?: string; color?: string; settings?: PlayerSettings }
   | { type: 'game.settings'; measurement?: Measurement; npc_hp?: NpcHp }
   | { type: 'game.options'; patch: Record<string, OptionValue> }
+  | { type: 'combat.undo'; seq: number }
   | { type: 'page.view'; page_id: string }
   | { type: 'page.create'; page?: Partial<Page> }
   | { type: 'page.update'; id: string; patch: Partial<Page> }
