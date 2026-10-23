@@ -12,6 +12,7 @@ dependencies = [
     "alembic>=1.14",
     "python-multipart>=0.0.20",
     "pillow>=11",  # uploads: real-format check, WebP, thumbnails
+    "httpx2>=2.13",  # OAuth sign-in: code exchange with Discord and Google
 ]
 
 [project.optional-dependencies]
