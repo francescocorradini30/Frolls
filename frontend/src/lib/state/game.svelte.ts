@@ -12,7 +12,9 @@ import type {
   CharacterPatch,
   ChatMessage,
   ClientMessage,
+  GameOption,
   GameState,
+  OptionValue,
   HistoryEvent,
   HpChange,
   JournalFolder,
@@ -153,6 +155,9 @@ export class GameStore {
   compendiumResults = $state<CompendiumItem[]>([])
   compendiumEntry = $state<CompendiumEntry | null>(null)
 
+  /** Catalog of game options (from the server); values are in `game.settings`. */
+  options = $state<GameOption[]>([])
+
   /** Objects of the viewed page. Plain Map: the engine reads it every frame. */
   readonly objects = new Map<string, MapObject>()
 
@@ -180,6 +185,17 @@ export class GameStore {
 
   get isGm(): boolean {
     return this.me?.is_gm ?? false
+  }
+
+  /** Value of a game option, with its default. */
+  option<T extends OptionValue = OptionValue>(key: string): T {
+    const value = this.game?.settings[key]
+    const def = this.options.find((o) => o.key === key)?.default
+    return (value ?? def) as T
+  }
+
+  setOption(key: string, value: OptionValue): void {
+    this.send({ type: 'game.options', patch: { [key]: value } })
   }
 
   /** My personal settings, with defaults. */
@@ -276,6 +292,7 @@ export class GameStore {
           saveIdentity(this.identity)
         }
         this.me = msg.you
+        this.options = msg.options
         this.game = msg.game
         this.emit('turn')
         this.players = msg.players

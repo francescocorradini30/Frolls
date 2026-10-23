@@ -59,6 +59,13 @@ class GameSettings(_Msg):
     npc_hp: Literal["hidden", "status", "full"] | None = None
 
 
+class GameOptions(_Msg):
+    """GM: change game options (keys and values validated against app/game/options.py)."""
+
+    type: Literal["game.options"]
+    patch: dict[str, bool | int | str]
+
+
 class PageView(_Msg):
     type: Literal["page.view"]
     page_id: Id
@@ -691,6 +698,7 @@ ClientMessage = Annotated[
     Hello
     | PlayerUpdate
     | GameSettings
+    | GameOptions
     | PageView
     | PageCreate
     | PageUpdate

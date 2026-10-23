@@ -10,6 +10,7 @@
   import PageSettings from './PageSettings.svelte'
   import PlayersPanel from './PlayersPanel.svelte'
   import Settings from './Settings.svelte'
+  import GameOptions from './GameOptions.svelte'
 
   type Tab =
     | 'chat'
@@ -21,6 +22,7 @@
     | 'players'
     | 'page'
     | 'history'
+    | 'rules'
     | 'settings'
   let {
     tab = $bindable('chat'),
@@ -46,6 +48,7 @@
         >🕘</button
       >
     {/if}
+    <button class:active={tab === 'rules'} onclick={() => (tab = 'rules')} title="Game settings: automation and house rules" aria-label="Game settings">🎛</button>
     <button class:active={tab === 'settings'} onclick={() => (tab = 'settings')} title="My Settings" aria-label="My Settings">⚙</button>
     <button class="tracker" onclick={onToggleTracker} title="Turn Order">⚔</button>
   </nav>
@@ -68,6 +71,8 @@
       <PageSettings />
     {:else if tab === 'history' && store.isGm}
       <HistoryPanel />
+    {:else if tab === 'rules'}
+      <GameOptions />
     {:else if tab === 'settings'}
       <Settings {onLeave} />
     {/if}

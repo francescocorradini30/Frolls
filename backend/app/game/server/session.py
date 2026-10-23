@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import json
 import uuid
+from typing import Any
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.config import settings
 from app.db import session_scope
+from app.game import options, units
 from app.game import protocol as p
-from app.game import units
 from app.game.serialize import (
     asset_dict,
     chat_dict,
@@ -115,6 +116,7 @@ class SessionMixin(ServerBase):
                 # append: `chat` holds only the messages missed while disconnected.
                 "chat_mode": "replace" if new_chat is None else "append",
                 "resumed": resume is not None,
+                "options": options.catalog(),
             }
         )
         if resume:
@@ -185,18 +187,8 @@ class SessionMixin(ServerBase):
     async def on_game_settings(self, conn: Connection, msg: p.GameSettings) -> None:
         self._require_gm(conn)
         assert self.game is not None
-        if msg.npc_hp is not None and msg.npc_hp != self.npc_hp:
-            game_settings = {**self.game.settings, "npc_hp": msg.npc_hp}
-            async with self._commit(msg.type, f"monster hit points: {msg.npc_hp}") as s:
-                await s.execute(
-                    update(Game).where(Game.id == self.game.id).values(settings=game_settings)
-                )
-            self.game.settings = game_settings
-            self._broadcast_game()
-            # Players' copies of the tokens change: send them their pages again.
-            for c in self.connections:
-                if c.player and not c.player.is_gm and c.viewing:
-                    self._page_snapshot(c, c.viewing)
+        if msg.npc_hp is not None:
+            await self._set_options({"npc_hp": msg.npc_hp})
         if msg.measurement is None or msg.measurement == self.measurement:
             return
         # Convert every page scale to the new system: 5 ft <-> 1.5 m.
@@ -225,6 +217,33 @@ class SessionMixin(ServerBase):
         for pg, _, _ in pages:
             for c in self._viewers(pg.id):
                 c.send({"type": "page.updated", "page": page_dict(pg)})
+
+    async def on_game_options(self, conn: Connection, msg: p.GameOptions) -> None:
+        self._require_gm(conn)
+        if error := options.validate(msg.patch):
+            raise GameError(error)
+        await self._set_options(msg.patch)
+
+    async def _set_options(self, patch: dict[str, Any]) -> None:
+        assert self.game is not None
+        changed = {k: v for k, v in patch.items() if self.option(k) != v}
+        if not changed:
+            return
+        game_settings = {**self.game.settings, **changed}
+        labels = ", ".join(
+            f"{options.BY_KEY[k].label.lower()}: {str(v).lower()}" for k, v in changed.items()
+        )
+        async with self._commit("game.options", f"game options: {labels}") as s:
+            await s.execute(
+                update(Game).where(Game.id == self.game.id).values(settings=game_settings)
+            )
+        self.game.settings = game_settings
+        self._broadcast_game()
+        if "npc_hp" in changed:
+            # Players' copies of the tokens change: send them their pages again.
+            for c in self.connections:
+                if c.player and not c.player.is_gm and c.viewing:
+                    self._page_snapshot(c, c.viewing)
 
     # --- Pages ---------------------------------------------------------------
 

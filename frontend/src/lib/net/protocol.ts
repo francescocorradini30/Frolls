@@ -134,6 +134,20 @@ export interface TurnEntry {
   moved?: number | null
 }
 
+/** A game option the GM can change (catalog: backend/app/game/options.py). */
+export interface GameOption {
+  key: string
+  section: string
+  label: string
+  help: string
+  default: OptionValue
+  kind: 'bool' | 'choice' | 'int'
+  choices: [string, string][]
+  min: number
+  max: number
+}
+export type OptionValue = boolean | number | string
+
 export interface GameState {
   name: string
   player_page_id: string | null
@@ -478,6 +492,7 @@ export type ClientMessage = { rid?: string } & (
   | { type: 'hello'; player: Omit<Player, 'online' | 'settings'>; resume?: Resume }
   | { type: 'player.update'; name?: string; color?: string; settings?: PlayerSettings }
   | { type: 'game.settings'; measurement?: Measurement; npc_hp?: NpcHp }
+  | { type: 'game.options'; patch: Record<string, OptionValue> }
   | { type: 'page.view'; page_id: string }
   | { type: 'page.create'; page?: Partial<Page> }
   | { type: 'page.update'; id: string; patch: Partial<Page> }
@@ -641,6 +656,7 @@ export type ServerMessage = { seq?: number } & (
       /** append: `chat` holds only the messages missed while disconnected. */
       chat_mode: 'replace' | 'append'
       resumed: boolean
+      options: GameOption[]
     }
   | { type: 'page.snapshot'; page: Page; objects: MapObject[] }
   /** Answer to a resume: only the objects changed since, and the ids gone. */

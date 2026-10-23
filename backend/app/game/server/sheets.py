@@ -279,8 +279,7 @@ class SheetsMixin(ServerBase):
     @property
     def npc_hp(self) -> str:
         """What players see of monsters' hit points: hidden, status or full."""
-        assert self.game is not None
-        return self.game.settings.get("npc_hp", "status")
+        return self.option("npc_hp")
 
     def _represented(self, obj: MapObject) -> Character | None:
         character = self.characters.get(obj.props.get("represents") or "")

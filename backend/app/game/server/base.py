@@ -34,7 +34,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import session_scope
-from app.game import fog, permissions, units
+from app.game import fog, options, permissions, units
 from app.game import protocol as p
 from app.game.serialize import (
     game_dict,
@@ -193,6 +193,11 @@ class ServerBase:
             )
         self.recent_floor = self.seq
         self._loaded = True
+
+    def option(self, key: str) -> Any:
+        """Value of a game option (app/game/options.py), with its default."""
+        assert self.game is not None
+        return options.value(self.game.settings, key)
 
     @property
     def measurement(self) -> units.Measurement:
