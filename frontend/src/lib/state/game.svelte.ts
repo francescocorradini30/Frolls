@@ -65,6 +65,24 @@ export type Tool =
   | 'eraser'
   | 'pin'
 
+/** Target mode: an action waits for its targets to be clicked on the map. */
+export interface Targeting {
+  actorId: string
+  action: ActAction
+  label: string
+  /** Several targets: Shift-click to pick, Enter to confirm. Single: a click resolves. */
+  multi: boolean
+  mode: RollMode
+  targets: string[]
+  cover: Record<string, 0 | 2 | 5>
+  /** Feet. Melee: reach; ranged: normal / long range. */
+  range: { reach: number | null; normal: number | null; long: number | null }
+  /** Spells are cast through the sheet path (character, spell, slot level). */
+  spell?: { characterId: string; spellId: string; slot: number | null }
+  /** Enter with nothing picked still acts (spells with no target, self). */
+  allowNone?: boolean
+}
+
 /** Another player's live measurement; segment null = they stopped measuring. */
 export interface RemoteMeasure {
   player_id: string
@@ -92,6 +110,8 @@ export interface EngineEvents {
   measure: (m: RemoteMeasure) => void
   selection: (ids: string[]) => void
   focus: (x: number, y: number) => void
+  /** Target mode started, changed or ended. */
+  targeting: () => void
 }
 
 type Listeners = { [K in keyof EngineEvents]: Set<EngineEvents[K]> }
@@ -156,6 +176,11 @@ export class GameStore {
   compendiumResults = $state<CompendiumItem[]>([])
   compendiumEntry = $state<CompendiumEntry | null>(null)
 
+  /** Action waiting for its targets on the map. */
+  targeting = $state<Targeting | null>(null)
+  /** Last targets of each actor token: Enter in target mode reuses them. */
+  private lastTargets = new Map<string, string[]>()
+
   /** Catalog of game options (from the server); values are in `game.settings`. */
   options = $state<GameOption[]>([])
 
@@ -182,6 +207,7 @@ export class GameStore {
     measure: new Set(),
     selection: new Set(),
     focus: new Set(),
+    targeting: new Set(),
   }
 
   get isGm(): boolean {
@@ -764,6 +790,67 @@ export class GameStore {
     })
   }
 
+  // --- Target mode ---------------------------------------------------------------
+
+  startTargeting(t: Omit<Targeting, 'mode' | 'targets' | 'cover'> & { mode?: RollMode }): void {
+    this.targetPick = null
+    this.pickingSheetTarget = false
+    this.targeting = { ...t, mode: t.mode ?? 'normal', targets: [], cover: {} }
+    this.emit('targeting')
+  }
+
+  /** Last targets of an actor that are still on the page. */
+  lastTargetsOf(actorId: string): string[] {
+    return (this.lastTargets.get(actorId) ?? []).filter((id) => this.objects.has(id))
+  }
+
+  clickTarget(id: string, additive: boolean): void {
+    const t = this.targeting
+    if (!t) return
+    if (!t.multi && !additive) {
+      t.targets = [id]
+      this.confirmTargeting()
+      return
+    }
+    t.targets = t.targets.includes(id) ? t.targets.filter((x) => x !== id) : [...t.targets, id]
+    this.emit('targeting')
+  }
+
+  setTargetMode(mode: RollMode): void {
+    if (!this.targeting) return
+    this.targeting.mode = this.targeting.mode === mode ? 'normal' : mode
+    this.emit('targeting')
+  }
+
+  cycleCover(id: string): void {
+    const t = this.targeting
+    if (!t) return
+    const next = { 0: 2, 2: 5, 5: 0 } as const
+    t.cover = { ...t.cover, [id]: next[t.cover[id] ?? 0] }
+    this.emit('targeting')
+  }
+
+  confirmTargeting(): void {
+    const t = this.targeting
+    if (!t) return
+    const targets = t.targets.length ? t.targets : this.lastTargetsOf(t.actorId)
+    if (!targets.length && !t.allowNone) {
+      this.toast('Click a target first')
+      return
+    }
+    this.targeting = null
+    this.emit('targeting')
+    if (targets.length) this.lastTargets.set(t.actorId, targets)
+    if (t.spell) this.cast(t.spell.characterId, t.spell.spellId, t.spell.slot, false, targets)
+    else this.act(t.actorId, t.action, targets, { mode: t.mode, cover: t.cover })
+  }
+
+  cancelTargeting(): void {
+    if (!this.targeting) return
+    this.targeting = null
+    this.emit('targeting')
+  }
+
   undoCard(cardId: number): void {
     this.send({ type: 'combat.undo', card_id: cardId })
   }
@@ -786,11 +873,13 @@ export class GameStore {
   }
 
   /** Cast a spell from a sheet; targets: the sheet target, else the selected tokens. */
-  cast(characterId: string, spellId: string, slot: number | null, ritual = false): void {
+  cast(characterId: string, spellId: string, slot: number | null, ritual = false, chosen?: string[]): void {
     const caster = this.tokenFor(characterId)
-    const targets = this.sheetTarget && this.objects.has(this.sheetTarget)
-      ? [this.sheetTarget]
-      : this.selection.filter((id) => id !== caster && this.objects.get(id)?.kind === 'token')
+    const targets = chosen
+      ? chosen
+      : this.sheetTarget && this.objects.has(this.sheetTarget)
+        ? [this.sheetTarget]
+        : this.selection.filter((id) => id !== caster && this.objects.get(id)?.kind === 'token')
     this.send({ type: 'sheet.cast', character_id: characterId, spell_id: spellId, slot, ritual, token_id: caster, target_ids: targets })
   }
 

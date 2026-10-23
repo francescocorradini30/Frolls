@@ -3,6 +3,7 @@
   import { store } from '../state/game.svelte'
   import { BARS } from '../theme'
   import { STATUSES } from '../util/statuses'
+  import ActionBar from './ActionBar.svelte'
 
   let { onEdit }: { onEdit: (id: string) => void } = $props()
 
@@ -129,6 +130,9 @@
         {/if}
       </div>
     </div>
+    {#if store.character(token.props.represents)?.sheet}
+      <ActionBar {token} />
+    {/if}
   </div>
 {/if}
 

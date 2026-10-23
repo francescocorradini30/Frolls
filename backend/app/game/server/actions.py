@@ -236,9 +236,10 @@ class ActionsMixin(ServerBase):
                 used["action_extra"] = int(used.get("action_extra") or 0) + 1
             used["action"] = True
         else:
-            if used.get(cost):
-                used[f"{cost}_extra"] = int(used.get(f"{cost}_extra") or 0) + 1
-            used[cost] = True
+            key = "bonus_action" if cost == "bonus" else cost
+            if used.get(key):
+                used[f"{key}_extra"] = int(used.get(f"{key}_extra") or 0) + 1
+            used[key] = True
         entry["used"] = used
         await self._save_turns("turn.use", "", order)
 

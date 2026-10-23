@@ -1030,6 +1030,49 @@ await gm.evaluate(() => {
   window.__store.deleteObjects(['big-map'])
 })
 
+
+// 56. Action bar: the player selects their token, presses 1 and clicks the goblin;
+// the attack resolves on the server, both tabs get the card, and Undo takes it back.
+await gm.evaluate((ariaId) => {
+  const s = window.__store
+  const sheet = (kind, extra) => ({ kind, abilities: { str: 16, dex: 14, con: 12, int: 10, wis: 10, cha: 10 }, hp: { current: 30, max: 30, temp: 0 }, ...extra })
+  s.send({ type: 'char.create', id: 'ab-hero', character: { name: 'Bree', player_id: ariaId, sheet: sheet('pc', { attacks: [{ id: 'axe', name: 'Battleaxe', damage: '1d8', damage_type: 'slashing' }] }) } })
+  s.send({ type: 'char.create', id: 'ab-gob', character: { name: 'Bar Goblin', sheet: sheet('npc', { ac: 5, hp: { current: 40, max: 40, temp: 0 } }) } })
+}, ariaId)
+await gm.waitForFunction(() => window.__store.characters.some((c) => c.id === 'ab-gob'), null, { timeout: 3000 })
+await gm.evaluate((ariaId) => {
+  const s = window.__store
+  const t = (id, x, props) => ({ id, page_id: s.page.id, kind: 'token', layer: 'objects', x, y: 1645, width: 70, height: 70, rotation: 0, props })
+  s.createObjects([
+    t('ab-h', 1505, { name: 'Bree', represents: 'ab-hero', controlled_by: [ariaId] }),
+    t('ab-g', 1575, { name: 'Bar Goblin', represents: 'ab-gob' }),
+  ])
+}, ariaId)
+await pl.waitForFunction(() => window.__store.objects.has('ab-h') && window.__store.objects.has('ab-g'), null, { timeout: 4000 })
+await pl.evaluate(() => window.__engine.centerOn(1540, 1645))
+const heroAt = await toClient(pl, 1505, 1645)
+await pl.mouse.click(heroAt.x, heroAt.y)
+await pl.locator('.bar .slot').first().waitFor({ timeout: 3000 }).catch(() => {})
+check('the action bar shows the attacks of my token', (await pl.locator('.bar .slot').first().textContent().catch(() => ''))?.includes('Battleaxe'))
+await pl.keyboard.press('1')
+check('pressing 1 starts target mode', await pl.evaluate(() => window.__store.targeting?.label === 'Battleaxe'))
+await pl.screenshot({ path: `${OUT}/pl-targeting.png` })
+const gobAt = await toClient(pl, 1575, 1645)
+await pl.mouse.move(gobAt.x, gobAt.y)
+await pl.mouse.click(gobAt.x, gobAt.y)
+const cardSeen = (page) =>
+  page.waitForFunction(() => window.__store.chat.some((m) => m.roll?.card?.action === 'Battleaxe'), null, { timeout: 4000 }).then(() => true, () => false)
+check('clicking the goblin resolves the attack: the card reaches both tabs', (await cardSeen(pl)) && (await cardSeen(gm)))
+const gobHp = () => gm.evaluate(() => window.__store.objects.get('ab-g')?.props.bar1?.value)
+const hpAfter = await gobHp()
+check('the hit is applied to the goblin', hpAfter < 40, String(hpAfter))
+await pl.screenshot({ path: `${OUT}/pl-combat-card.png` })
+await pl.locator('.card', { hasText: 'Battleaxe' }).last().getByRole('button', { name: 'Undo' }).click()
+await gm.waitForFunction(() => window.__store.objects.get('ab-g')?.props.bar1?.value === 40, null, { timeout: 4000 }).catch(() => {})
+check('Undo on the card gives the hit points back, for everyone', (await gobHp()) === 40)
+check('…and the card shows it was undone', await pl.waitForFunction(() => !!window.__store.chat.findLast((m) => m.roll?.card?.action === 'Battleaxe')?.roll.card.undone_by, null, { timeout: 3000 }).then(() => true, () => false))
+await gm.evaluate(() => window.__store.deleteObjects(['ab-h', 'ab-g']))
+
 } catch (e) {
   results.push(`FAIL aborted: ${e.message.split('\n')[0]}`)
 } finally {

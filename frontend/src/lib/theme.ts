@@ -78,6 +78,12 @@ export const canvasColors = {
   template: palette.periwinkle,
   /** Ring around the token whose turn it is. */
   turn: palette.butter,
+  /** Target mode: range rings, valid / disadvantaged / out-of-range targets, picked ones. */
+  range: palette.sky,
+  targetOk: palette.mint,
+  targetWarn: palette.peach,
+  targetBad: palette.rose,
+  targetPick: palette.pink,
   fog: palette.ink950,
   /** Cards without a picture: face and back. */
   cardFace: palette.lavender,

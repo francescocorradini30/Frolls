@@ -300,7 +300,7 @@
 <div
   class="map"
   class:drop={dropActive}
-  class:picking={!!store.targetPick || store.pickingSheetTarget}
+  class:picking={!!store.targetPick || store.pickingSheetTarget || !!store.targeting}
   role="application"
   aria-label="Game map"
   ondragenter={(e) => {
@@ -315,6 +315,19 @@
   <div class="canvas-host" bind:this={host}></div>
 
   <SelectionHud onEdit={openEditor} />
+
+  {#if store.targeting}
+    {@const t = store.targeting}
+    <div class="target-hint panel" role="status">
+      <strong>{t.label}</strong>
+      {#if t.mode !== 'normal'}<span class="mode">{t.mode === 'advantage' ? 'ADV' : 'DIS'}</span>{/if}
+      <span class="muted">
+        {t.multi ? 'Shift-click the targets, Enter to confirm' : 'click a target'} · A/D advantage · C cover ·
+        {t.multi ? '' : 'Enter last target ·'} Esc cancel
+      </span>
+      {#if t.multi && t.targets.length}<span class="count">{t.targets.length} picked</span>{/if}
+    </div>
+  {/if}
 
   {#if pinNote && pinShown}
     <div
@@ -379,6 +392,29 @@
 {/if}
 
 <style>
+  .target-hint {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .target-hint .mode,
+  .target-hint .count {
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--gradient-accent);
+    color: var(--accent-contrast);
+  }
   .map.picking :global(canvas) {
     cursor: crosshair !important;
   }

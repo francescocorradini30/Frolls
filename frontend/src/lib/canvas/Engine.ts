@@ -5,6 +5,7 @@ import { canvasColors } from '../theme'
 import { uid } from '../util/ids'
 import { anchorCell, cellCenter, drawBackground, drawGrid, pagePixelSize, snapCenter, snapSize, type Point } from './grid'
 import { formatDistance, measure } from './measure'
+import { distanceFt, feetLabel, FEET_PER_CELL } from './rules'
 import { ObjectView, PIN_HEAD_Y, PIN_RADIUS, setMaxTextureSize, stackZ } from './views'
 
 // Objects off screen are not drawn (each view is cullable).
@@ -93,6 +94,11 @@ export class Engine {
   private readonly remoteLayer = new Container()
   private readonly remoteRulers = new Map<string, RemoteRuler>()
   private readonly pings = new Container()
+  // Target mode: range rings, the line to the cursor, picked and hovered targets.
+  private readonly targetG = new Graphics({ label: 'targeting' })
+  private readonly targetLabel = new Text({ text: '', style: { ...LABEL_STYLE, fontSize: 13 } })
+  private targetCursor: Point | null = null
+  private targetHover: string | null = null
   private readonly fogSprite = new Sprite()
   private fogTexture: RenderTexture | null = null
   private readonly views = new Map<string, ObjectView>()
@@ -144,7 +150,8 @@ export class Engine {
     this.overlayLabel.anchor.set(0.5, 1.2)
     // Fog above every layer, below rulers, pings and what I'm drawing.
     this.world.addChild(this.fogSprite)
-    this.world.addChild(this.remoteLayer, this.overlay, this.overlayLabel, this.pings)
+    this.targetLabel.anchor.set(0, 1.3)
+    this.world.addChild(this.remoteLayer, this.overlay, this.overlayLabel, this.targetG, this.targetLabel, this.pings)
     this.app.stage.addChild(this.world)
 
     const canvas = this.app.canvas
@@ -171,6 +178,7 @@ export class Engine {
       s.on('ping', (p) => this.showPing(p)),
       s.on('measure', (m) => this.showRemoteMeasure(m)),
       s.on('focus', (x, y) => this.centerOn(x, y)),
+      s.on('targeting', () => this.drawTargeting()),
     )
     if (s.page) this.loadPage(s.page, [...s.objects.values()])
   }
@@ -447,6 +455,13 @@ export class Engine {
     }
     if (e.button !== 0) return
 
+    // Target mode: a click picks (or toggles, with Shift) a token, nothing else.
+    if (this.store.targeting) {
+      const target = this.tokenAt(p)
+      if (target && target.obj.id !== this.store.targeting.actorId) this.store.clickTarget(target.obj.id, e.shiftKey)
+      return
+    }
+
     // A chat message waits for its @{target|…}: the click picks a token, nothing else.
     if (this.store.targetPick || this.store.pickingSheetTarget) {
       const target = this.tokenAt(p)
@@ -552,6 +567,11 @@ export class Engine {
 
     switch (g.kind) {
       case 'none':
+        if (this.store.targeting) {
+          this.targetCursor = p
+          this.drawTargeting()
+          return
+        }
         if (this.store.tool === 'select') {
           const handle = this.handleAt(p)
           this.app.canvas.style.cursor =
@@ -1196,11 +1216,89 @@ export class Engine {
     this.app.ticker.add(tick)
   }
 
+  // --- Target mode ----------------------------------------------------------------
+
+  /** Range rings around the actor, the line to the cursor, picked and hovered targets. */
+  private drawTargeting(): void {
+    const g = this.targetG
+    g.clear()
+    this.targetLabel.visible = false
+    const t = this.store.targeting
+    const actor = t && this.store.objects.get(t.actorId)
+    if (!t || !actor || !this.page) {
+      this.targetHover = null
+      if (this.mounted) this.app.canvas.style.cursor = 'default'
+      return
+    }
+    this.app.canvas.style.cursor = 'crosshair'
+    const cell = this.page.grid_size
+    const w = 2 / this.zoom
+    const ftPx = (ft: number) => (ft / FEET_PER_CELL) * cell
+    const half = Math.max(actor.width, actor.height) / 2
+    const { reach, normal, long } = t.range
+    if (normal) {
+      g.circle(actor.x, actor.y, half + ftPx(normal)).stroke({ color: canvasColors.range, width: w, alpha: 0.45 })
+      if (long && long > normal) {
+        g.circle(actor.x, actor.y, half + ftPx(long)).stroke({ color: canvasColors.range, width: w, alpha: 0.2 })
+      }
+    }
+    if (reach) {
+      const r = ftPx(reach)
+      g.roundRect(actor.x - actor.width / 2 - r, actor.y - actor.height / 2 - r, actor.width + 2 * r, actor.height + 2 * r, 6 / this.zoom)
+        .stroke({ color: canvasColors.range, width: w, alpha: 0.45 })
+    }
+    const ring = (o: MapObject, color: string, width: number, alpha = 1) =>
+      g.circle(o.x, o.y, Math.max(o.width, o.height) / 2 + 5 / this.zoom).stroke({ color, width: width / this.zoom, alpha })
+    const picked = t.targets.length ? t.targets : this.store.lastTargetsOf(t.actorId)
+    for (const id of picked) {
+      const o = this.store.objects.get(id)
+      if (o) ring(o, canvasColors.targetPick, t.targets.length ? 3 : 2, t.targets.length ? 1 : 0.45)
+    }
+    const cursor = this.targetCursor
+    const hover = cursor ? this.tokenAt(cursor)?.obj : undefined
+    this.targetHover = hover && hover.id !== actor.id ? hover.id : null
+    if (!cursor) return
+    const color = this.store.me?.color ?? canvasColors.accent
+    const end = hover && hover.id !== actor.id ? hover : cursor
+    g.moveTo(actor.x, actor.y).lineTo(end.x, end.y).stroke({ color, width: w, alpha: 0.85 })
+    const tags: string[] = []
+    if (t.mode !== 'normal') tags.push(t.mode === 'advantage' ? 'ADV' : 'DIS')
+    if (hover && hover.id !== actor.id) {
+      const feet = distanceFt(actor, hover, cell)
+      let tone: string = canvasColors.targetOk
+      if (reach != null && normal == null && feet > reach) tone = canvasColors.targetBad
+      else if (normal != null && feet > (long ?? normal)) tone = canvasColors.targetBad
+      else if (normal != null && feet > normal) tone = canvasColors.targetWarn
+      ring(hover, tone, 3)
+      tags.unshift(feetLabel(feet, this.store.measurement === 'metric'))
+      const cover = t.cover[hover.id]
+      if (cover) tags.push(cover === 2 ? '½ cover' : '¾ cover')
+    }
+    if (tags.length) {
+      this.targetLabel.text = tags.join(' · ')
+      this.targetLabel.position.set(cursor.x + 14 / this.zoom, cursor.y)
+      this.targetLabel.scale.set(1 / this.zoom)
+      this.targetLabel.visible = true
+    }
+  }
+
   // --- Keyboard -------------------------------------------------------------------
 
   private onKeyDown = (e: KeyboardEvent): void => {
     if (isTyping(e)) return
     const s = this.store
+    if (s.targeting && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const key = e.key.toLowerCase()
+      if (key === 'enter') s.confirmTargeting()
+      else if (key === 'escape') s.cancelTargeting()
+      else if (key === 'a') s.setTargetMode('advantage')
+      else if (key === 'd') s.setTargetMode('disadvantage')
+      else if (key === 'c' && this.targetHover) s.cycleCover(this.targetHover)
+      else if (key !== ' ') return
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
     if (e.code === 'Space') {
       e.preventDefault()
       const g = this.gesture

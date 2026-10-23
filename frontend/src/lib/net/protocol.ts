@@ -377,6 +377,28 @@ export interface SheetAttack {
   half_on_save: boolean
   range: string
   notes: string
+  /** Feet. Melee: reach; ranged: normal / long range. */
+  reach?: number | null
+  range_normal?: number | null
+  range_long?: number | null
+  extra_damage?: DamagePart[]
+  cost?: ActionCost
+  legendary_cost?: number
+  /** Recharge 5-6 = 5. */
+  recharge?: number | null
+  uses?: { max: number; reset: 'day' | 'short' | 'long' } | null
+  area?: Area | null
+  mastery?: string | null
+}
+
+export type ActionCost = 'action' | 'bonus' | 'reaction' | 'legendary'
+export interface DamagePart {
+  formula: string
+  type: string
+}
+export interface Area {
+  shape: 'sphere' | 'cylinder' | 'emanation' | 'cone' | 'cube' | 'line'
+  size_ft: number
 }
 
 export interface SheetSpell {
@@ -396,6 +418,13 @@ export interface SheetSpell {
   description: string
   /** Effect preset it puts on its targets (on a failed save, if it has one). */
   effect?: string | null
+  heal?: '' | 'healing' | 'temp'
+  add_modifier?: boolean
+  casting_time?: 'action' | 'bonus' | 'reaction' | 'long'
+  /** Feet; 0 = self, 5 = touch. */
+  range_ft?: number | null
+  area?: Area | null
+  extra_damage?: DamagePart[]
 }
 
 /** Mirror of Effect in backend/app/rules5e/effects.py; lives in a token's `props.effects`. */
@@ -446,6 +475,12 @@ export interface Sheet {
   death_saves: { successes: number; failures: number }
   exhaustion: number
   attacks: SheetAttack[]
+  extra_attack?: number
+  crit_range?: number
+  multiattack?: { attack_id: string; count: number }[]
+  multiattack_note?: string
+  legendary_uses?: number
+  legendary_resistance?: number
   spellcasting: { ability: AbilityKey | null; slots: Record<string, { max: number; used: number }> }
   spells: SheetSpell[]
   resources: SheetResource[]
@@ -467,7 +502,7 @@ export interface SheetDerived {
   spell_dc: number | null
   spell_attack: number | null
   xp: number | null
-  attacks: Record<string, { to_hit: number | null; dc: number | null; damage: string }>
+  attacks: Record<string, { to_hit: number | null; dc: number | null; damage: string; parts?: [string, string][] }>
   hit_dice_total: number
 }
 
