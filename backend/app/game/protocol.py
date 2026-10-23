@@ -688,10 +688,62 @@ class HistoryGet(_Msg):
 
 
 class CombatUndo(_Msg):
-    """Undo a combat action from its chat card: the author, or the GM for anyone's."""
+    """Undo a combat action: by event seq (Ctrl+Z history) or by its chat card (every event
+    of the card). The author, or the GM for anyone's."""
 
     type: Literal["combat.undo"]
-    seq: Annotated[int, Field(ge=1)]
+    seq: Annotated[int, Field(ge=1)] | None = None
+    card_id: Annotated[int, Field(ge=1)] | None = None
+
+
+class CombatRedo(_Msg):
+    type: Literal["combat.redo"]
+    card_id: Annotated[int, Field(ge=1)]
+
+
+class ActTarget(BaseModel):
+    id: Id
+    # AC bonus of the target's cover: half (+2) or three-quarters (+5).
+    cover: Literal[0, 2, 5] = 0
+
+
+class ActAction(BaseModel):
+    kind: Literal["attack", "spell", "multiattack", "standard", "legendary", "item", "feature"]
+    # Attack, spell, standard action or item id.
+    id: Annotated[str, Field(max_length=36)] = ""
+    slot: Annotated[int, Field(ge=0, le=9)] | None = None
+
+
+class ActPoint(BaseModel):
+    x: float
+    y: float
+
+
+class CombatAct(_Msg):
+    """One combat action, resolved and applied by the server (rules5e/resolve.py)."""
+
+    type: Literal["combat.act"]
+    # Token that acts.
+    actor_id: Id
+    action: ActAction
+    targets: Annotated[list[ActTarget], Field(max_length=50)] = []
+    # Centre of an area spell.
+    point: ActPoint | None = None
+    mode: Literal["normal", "advantage", "disadvantage"] = "normal"
+    # GM: only the GM sees the card.
+    hidden: bool = False
+    # Made with the reaction (opportunity attack).
+    reaction: bool = False
+
+
+class CombatAddDamage(_Msg):
+    """Extra damage on a hit of a card (Sneak Attack, Smite, Hex...): doubled on a critical."""
+
+    type: Literal["combat.add_damage"]
+    card_id: Annotated[int, Field(ge=1)]
+    target_id: Id
+    formula: Annotated[str, Field(min_length=1, max_length=80)]
+    damage_type: Annotated[str, Field(max_length=20)] | None = None
 
 
 class EventRevert(_Msg):
@@ -707,6 +759,9 @@ ClientMessage = Annotated[
     | GameSettings
     | GameOptions
     | CombatUndo
+    | CombatRedo
+    | CombatAct
+    | CombatAddDamage
     | PageView
     | PageCreate
     | PageUpdate

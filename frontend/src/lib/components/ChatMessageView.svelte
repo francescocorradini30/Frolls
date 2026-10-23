@@ -2,6 +2,7 @@
   import type { ChatMessage, Roll } from '../net/protocol'
   import { store } from '../state/game.svelte'
   import RollView from './RollView.svelte'
+  import CombatCard from './CombatCard.svelte'
 
   let { msg, compact }: { msg: ChatMessage; compact: boolean } = $props()
 
@@ -66,6 +67,10 @@
     <p class="body"><span style:color={msg.color}>{msg.speaker}</span> {@render rich(parts)}</p>
   {:else if parts.length}
     <p class="body">{@render rich(parts)}</p>
+  {/if}
+
+  {#if msg.roll?.card}
+    <CombatCard {msg} card={msg.roll.card} />
   {/if}
 
   {#if template}

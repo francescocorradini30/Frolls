@@ -15,7 +15,6 @@ from app.game import options, units
 from app.game import protocol as p
 from app.game.serialize import (
     asset_dict,
-    chat_dict,
     macro_dict,
     object_dict,
     page_dict,
@@ -89,7 +88,14 @@ class SessionMixin(ServerBase):
                     await s.scalars(chat_query.order_by(ChatMessage.id.desc()).limit(limit))
                 )[::-1]
             else:
-                history = new_chat
+                # Plus the older cards that changed meanwhile (undone, extra damage).
+                changed = await s.scalars(
+                    chat_query.where(
+                        ChatMessage.id <= (resume.chat_id or 0),
+                        ChatMessage.updated_seq >= resume.seq,
+                    ).order_by(ChatMessage.id)
+                )
+                history = [*changed, *new_chat]
         self.players[player.id] = player
         conn.player = player
         online = self._online_ids()
@@ -111,7 +117,9 @@ class SessionMixin(ServerBase):
                     if self._sees_deck(player, d)
                 ],
                 "assets": [asset_dict(a) for a in self.assets.values() if a.player_id == player.id],
-                "chat": [chat_dict(m) for m in history if self._chat_visible(player, m)],
+                "chat": [
+                    self._chat_for(player, m) for m in history if self._chat_visible(player, m)
+                ],
                 # append: `chat` holds only the messages missed while disconnected.
                 "chat_mode": "replace" if new_chat is None else "append",
                 "resumed": resume is not None,

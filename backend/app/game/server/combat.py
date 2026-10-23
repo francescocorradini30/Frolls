@@ -290,6 +290,11 @@ class CombatMixin(ServerBase):
             player = next((p for p in self.players.values() if p.is_gm), None) or next(
                 iter(self.players.values())
             )
+        if self.capture is not None and self.capture.fold is not None:
+            # Part of the combat card being built.
+            details = "; ".join(f"{k}: {v}" if k else str(v) for k, v in fields)
+            self.capture.fold.append(f"{title}" + (f" ({details})" if details else ""))
+            return
         template = {"name": "default", "title": title, "fields": fields}
         await self._post_chat(
             player,

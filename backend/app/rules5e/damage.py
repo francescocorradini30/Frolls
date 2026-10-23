@@ -129,6 +129,27 @@ def apply(
     return out
 
 
+def apply_parts(
+    health: Health,
+    parts: list[tuple[int, str]],
+    defenses: Defenses | None = None,
+    half: bool = False,
+    critical: bool = False,
+) -> Outcome:
+    """Damage of one hit made of several parts ("7 slashing plus 4 acid"): each part meets
+    the defenses against its own type, then the total is one instance of damage (one death
+    save failure at 0 HP, temporary hit points first)."""
+    total = 0
+    notes: list[str] = []
+    for amount, damage_type in parts:
+        taken, part_notes = adjust(max(0, amount), damage_type, defenses or Defenses(), half)
+        total += taken
+        notes += [n for n in part_notes if n not in notes]
+    out = apply(health, "damage", total, None, None, False, critical)
+    out.notes = notes + out.notes
+    return out
+
+
 def _die(out: Outcome, why: str) -> None:
     out.health.current = 0
     out.added |= {"dead"}

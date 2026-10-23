@@ -1,5 +1,6 @@
 """The game server: one class assembled from a mixin per area (see the modules)."""
 
+from app.game.server.actions import ActionsMixin
 from app.game.server.base import Connection, GameError, ServerBase
 from app.game.server.capture import CaptureMixin
 from app.game.server.combat import CombatMixin
@@ -13,6 +14,7 @@ from app.game.server.world import WorldMixin
 
 class GameServer(
     CaptureMixin,
+    ActionsMixin,
     SessionMixin,
     ObjectsMixin,
     JournalMixin,

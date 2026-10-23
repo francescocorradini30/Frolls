@@ -6,7 +6,7 @@ import json
 from typing import Any
 
 from app.db import session_scope
-from app.game import chat, macros, permissions
+from app.game import cards, chat, macros, permissions
 from app.game import protocol as p
 from app.game.serialize import (
     chat_dict,
@@ -116,10 +116,34 @@ class MessagingMixin(ServerBase):
             s.add(row)
             await s.flush()
             await s.refresh(row, ["created_at"])
-        payload = json.dumps({"type": "chat", "message": chat_dict(row), "seq": self.seq})
+        self._send_chat(row)
+
+    def _chat_for(self, player: Player, row: ChatMessage) -> dict[str, Any]:
+        """A chat message as this player sees it (combat cards hide monster details)."""
+        data = chat_dict(row)
+        if not player.is_gm and row.roll and "card" in row.roll:
+            data["roll"] = cards.redact(
+                row.roll,
+                self.option("npc_hp"),
+                self.option("show_monster_ac"),
+                self.option("hide_monster_rolls"),
+            )
+        return data
+
+    def _send_chat(self, row: ChatMessage, kind: str = "chat") -> None:
+        """Send a new (`chat`) or changed (`chat.update`) message to whoever may see it;
+        serialized once per distinct view."""
+        cache: dict[bool, str] = {}
         for c in self.connections:
-            if c.player and self._chat_visible(c.player, row):
-                c.send_raw(payload)
+            if not (c.player and self._chat_visible(c.player, row)):
+                continue
+            view = c.player.is_gm or not (row.roll and "card" in row.roll)
+            if view not in cache:
+                cache[view] = json.dumps(
+                    {"type": kind, "message": self._chat_for(c.player, row), "seq": self.seq},
+                    separators=(",", ":"),
+                )
+            c.send_raw(cache[view])
 
     # --- Live measurement ----------------------------------------------------
 

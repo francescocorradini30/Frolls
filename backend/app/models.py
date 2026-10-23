@@ -299,3 +299,6 @@ class ChatMessage(Base):
     recipients: Mapped[list[str] | None] = mapped_column(JSONB)
     # GM-only rolls (/gr) are visible to GMs and the sender.
     gm_only: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Last event seq at which a combat card changed (undo, extra damage): a resuming client
+    # gets the cards changed since its seq again.
+    updated_seq: Mapped[int | None] = mapped_column(BigInteger)

@@ -4,9 +4,10 @@ Only base values are stored. Modifiers, proficiency, save and skill bonuses, spe
 attack bonuses are always computed by `derive`, so they can never go out of sync.
 """
 
+import re
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.rules5e.data import (
     ABILITIES,
@@ -49,6 +50,35 @@ class DeathSaves(BaseModel):
     failures: Annotated[int, Field(ge=0, le=3)] = 0
 
 
+Feet = Annotated[int, Field(ge=0, le=5000)]
+
+
+class DamagePart(BaseModel):
+    """An extra damage part of an attack ("plus 4 (1d8) Acid damage")."""
+
+    formula: Formula
+    type: Text = ""
+
+
+class Area(BaseModel):
+    shape: Literal["sphere", "cylinder", "emanation", "cone", "cube", "line"]
+    size_ft: Annotated[int, Field(ge=5, le=500)]
+
+
+class Uses(BaseModel):
+    max: Annotated[int, Field(ge=1, le=9)] = 1
+    reset: Literal["day", "short", "long"] = "day"
+
+
+class MultiattackStep(BaseModel):
+    attack_id: Annotated[str, Field(min_length=1, max_length=36)]
+    count: Annotated[int, Field(ge=1, le=6)] = 1
+
+
+RANGE_RE = re.compile(r"range\s+(\d+)(?:\s*/\s*(\d+))?")
+REACH_RE = re.compile(r"reach\s+(\d+)")
+
+
 class Attack(BaseModel):
     """A weapon attack, an NPC action, or an effect that forces a saving throw."""
 
@@ -70,8 +100,45 @@ class Attack(BaseModel):
     # Fixed save DC from a stat block; otherwise 8 + proficiency + modifier.
     dc: Annotated[int, Field(ge=1, le=40)] | None = None
     half_on_save: bool = True
+    # Free text, as written in a stat block ("reach 10 ft · range 80/320 ft").
     range: Text = ""
     notes: Annotated[str, Field(max_length=2000)] = ""
+    # Numbers the automation uses (feet). Melee: reach; ranged: normal / long range.
+    reach: Feet | None = None
+    range_normal: Feet | None = None
+    range_long: Feet | None = None
+    extra_damage: Annotated[list[DamagePart], Field(max_length=4)] = []
+    # What it costs on the turn; legendary actions cost 1-3 uses.
+    cost: Literal["action", "bonus", "reaction", "legendary"] = "action"
+    legendary_cost: Annotated[int, Field(ge=1, le=3)] = 1
+    # Recharge 5-6 = 5: rolled on a d6 at the start of the creature's turn.
+    recharge: Annotated[int, Field(ge=2, le=6)] | None = None
+    uses: Uses | None = None
+    area: Area | None = None
+    # Weapon mastery property (stored for later automation).
+    mastery: Annotated[str, Field(max_length=20)] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _numbers_from_range_text(cls, data: Any) -> Any:
+        """Older sheets only have the range text: read reach and range from it."""
+        if (
+            isinstance(data, dict)
+            and data.get("range")
+            and not any(data.get(k) is not None for k in ("reach", "range_normal", "range_long"))
+        ):
+            text = str(data["range"]).lower()
+            data = dict(data)
+            if m := REACH_RE.search(text):
+                data["reach"] = int(m.group(1))
+            if m := RANGE_RE.search(text):
+                data["range_normal"] = int(m.group(1))
+                data["range_long"] = int(m.group(2)) if m.group(2) else None
+        return data
+
+    @property
+    def melee(self) -> bool:
+        return self.range_normal is None or self.reach is not None
 
 
 class Slot(BaseModel):
@@ -103,6 +170,11 @@ class Spell(BaseModel):
     heal: Literal["", "healing", "temp"] = ""
     # Add the spellcasting modifier to the dice ("2d8 plus your spellcasting ability modifier").
     add_modifier: bool = False
+    casting_time: Literal["action", "bonus", "reaction", "long"] = "action"
+    # Feet; 0 = self, 5 = touch.
+    range_ft: Feet | None = None
+    area: Area | None = None
+    extra_damage: Annotated[list[DamagePart], Field(max_length=4)] = []
 
 
 class Resource(BaseModel):
@@ -146,6 +218,13 @@ class Sheet(BaseModel):
     death_saves: DeathSaves = DeathSaves()
     exhaustion: Annotated[int, Field(ge=0, le=6)] = 0
     attacks: Annotated[list[Attack], Field(max_length=50)] = []
+    # Attacks per Attack action (Extra Attack), lowest d20 that is a critical hit.
+    extra_attack: Annotated[int, Field(ge=1, le=4)] = 1
+    crit_range: Annotated[int, Field(ge=18, le=20)] = 20
+    multiattack: Annotated[list[MultiattackStep], Field(max_length=6)] = []
+    multiattack_note: Text = ""
+    legendary_uses: Annotated[int, Field(ge=0, le=5)] = 0
+    legendary_resistance: Annotated[int, Field(ge=0, le=5)] = 0
     spellcasting: Spellcasting = Spellcasting()
     spells: Annotated[list[Spell], Field(max_length=200)] = []
     resources: Annotated[list[Resource], Field(max_length=50)] = []
@@ -194,6 +273,13 @@ def save_dc(sheet: Sheet, attack: Attack) -> int:
     return 8 + proficiency(sheet) + ability_mod(sheet, attack.ability)
 
 
+def damage_parts(sheet: Sheet, attack: Attack) -> list[tuple[str, str]]:
+    """(formula, type) of every damage part; the modifier goes on the first one."""
+    first = damage_formula(sheet, attack)
+    parts = [(first, attack.damage_type)] if first else []
+    return parts + [(p.formula, p.type) for p in attack.extra_damage if p.formula.strip()]
+
+
 def damage_formula(sheet: Sheet, attack: Attack) -> str:
     mod = ability_mod(sheet, attack.ability) if attack.add_modifier else 0
     if not attack.damage.strip():
@@ -235,6 +321,7 @@ def derive(raw: dict[str, Any]) -> dict[str, Any]:
                 "to_hit": attack_bonus(sheet, a) if a.kind == "attack" else None,
                 "dc": save_dc(sheet, a) if a.kind == "save" else None,
                 "damage": damage_formula(sheet, a),
+                "parts": [list(p) for p in damage_parts(sheet, a)],
             }
             for a in sheet.attacks
         },

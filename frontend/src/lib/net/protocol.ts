@@ -187,6 +187,59 @@ export interface Roll {
 
 export type ChatKind = 'text' | 'roll' | 'emote' | 'ooc' | 'whisper' | 'system' | 'desc'
 
+/** One damage roll on a combat card row. */
+export interface CardDamage {
+  /** Index of the roll in the message's `inline` list. */
+  roll?: number | null
+  formula: string
+  type: string
+  total: number
+  /** Added afterwards with "+ Damage" (Sneak Attack, Smite...). */
+  extra?: boolean
+  seq?: number
+}
+
+/** What happened to one target of a combat action. */
+export interface CardRow {
+  token_id: string | null
+  name: string
+  monster: boolean
+  outcome: 'hit' | 'critical hit' | 'miss' | 'critical miss' | 'rolled' | string
+  d20?: number | null
+  total?: number
+  natural?: number | null
+  ac?: number | null
+  damage?: CardDamage[]
+  taken?: number
+  hp?: { current: number; max: number; temp: number }
+  state?: string
+  notes?: string[]
+  added?: string[]
+  conc?: 'kept' | 'lost'
+  distance?: number
+}
+
+/** Structured chat card of a combat action (backend/app/game/cards.py). */
+export interface CombatCard {
+  v: number
+  kind: string
+  author_id: string
+  actor_id: string
+  actor_name: string
+  actor_monster: boolean
+  action: string
+  hidden: boolean
+  seqs: number[]
+  undone_seqs: number[]
+  undone_by?: string | null
+  turn: { round: number; entry: string } | null
+  rows: CardRow[]
+  reasons?: string[]
+  warnings?: string[]
+  notes?: string[]
+  text?: string
+}
+
 export interface ChatMessage {
   id: number
   created_at: string
@@ -195,7 +248,7 @@ export interface ChatMessage {
   color: string
   kind: ChatKind
   content: string
-  roll: { main: Roll | null; inline: Roll[]; template?: RollTemplate | null } | null
+  roll: { main: Roll | null; inline: (Roll | null)[]; template?: RollTemplate | null; card?: CombatCard } | null
   recipients: string[] | null
   gm_only: boolean
 }
@@ -493,7 +546,19 @@ export type ClientMessage = { rid?: string } & (
   | { type: 'player.update'; name?: string; color?: string; settings?: PlayerSettings }
   | { type: 'game.settings'; measurement?: Measurement; npc_hp?: NpcHp }
   | { type: 'game.options'; patch: Record<string, OptionValue> }
-  | { type: 'combat.undo'; seq: number }
+  | { type: 'combat.undo'; seq?: number; card_id?: number }
+  | { type: 'combat.redo'; card_id: number }
+  | {
+      type: 'combat.act'
+      actor_id: string
+      action: ActAction
+      targets: { id: string; cover?: 0 | 2 | 5 }[]
+      point?: { x: number; y: number } | null
+      mode?: RollMode
+      hidden?: boolean
+      reaction?: boolean
+    }
+  | { type: 'combat.add_damage'; card_id: number; target_id: string; formula: string; damage_type: string | null }
   | { type: 'page.view'; page_id: string }
   | { type: 'page.create'; page?: Partial<Page> }
   | { type: 'page.update'; id: string; patch: Partial<Page> }
@@ -637,6 +702,12 @@ export type ClientMessage = { rid?: string } & (
     }
 )
 
+export interface ActAction {
+  kind: 'attack' | 'spell' | 'multiattack' | 'standard' | 'legendary' | 'item' | 'feature'
+  id: string
+  slot?: number | null
+}
+
 export type SheetRollKind = 'check' | 'save' | 'skill' | 'initiative' | 'attack' | 'damage' | 'death_save'
 export type HpChange = 'damage' | 'healing' | 'temp'
 
@@ -672,6 +743,8 @@ export type ServerMessage = { seq?: number } & (
   | { type: 'obj.preview'; items: PreviewItem[] }
   | { type: 'measure'; page_id: string; player_id: string; color?: string; segment: Segment | null }
   | { type: 'chat'; message: ChatMessage }
+  /** A combat card changed (undone, extra damage): replace it by id. */
+  | { type: 'chat.update'; message: ChatMessage }
   | {
       type: 'ping'
       page_id: string

@@ -107,8 +107,13 @@ def exhaustion_penalty(level: int) -> int:
 DICE_RE = re.compile(r"(\d*)d(\d+)")
 
 
-def critical(formula: str) -> str:
-    """Critical hit: twice the dice, the same modifiers. `1d8+3` -> `2d8+3`."""
+def critical(formula: str, rule: str = "double") -> str:
+    """Critical hit damage. Rules: twice the dice, the same modifiers (`1d8+3` -> `2d8+3`).
+    House rule "max": one set of dice at their maximum plus one rolled set (`1d8+3` ->
+    `1d8+3+8`)."""
+    if rule == "max":
+        top = sum(int(m.group(1) or 1) * int(m.group(2)) for m in DICE_RE.finditer(formula))
+        return f"{formula}+{top}" if top else formula
     return DICE_RE.sub(lambda m: f"{2 * int(m.group(1) or 1)}d{m.group(2)}", formula)
 
 

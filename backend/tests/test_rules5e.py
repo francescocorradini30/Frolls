@@ -67,7 +67,12 @@ def test_derived_values() -> None:
     assert d["passive_perception"] == 17
     assert d["initiative"] == 2
     assert (d["spell_dc"], d["spell_attack"]) == (12, 4)
-    assert d["attacks"]["a"] == {"to_hit": 6, "dc": None, "damage": "1d8+3"}
+    assert d["attacks"]["a"] == {
+        "to_hit": 6,
+        "dc": None,
+        "damage": "1d8+3",
+        "parts": [["1d8+3", "slashing"]],
+    }
     assert d["attacks"]["b"]["to_hit"] == 6 and d["attacks"]["b"]["damage"] == "2d8+4"
     assert d["attacks"]["c"]["dc"] == 13
 

@@ -34,6 +34,7 @@ import type {
   TurnAction,
   SheetRollKind,
   TurnEntry,
+  ActAction,
 } from '../net/protocol'
 import { GameSocket, type ConnectionStatus } from '../net/socket'
 import { DEFAULT_DRAW_COLOR } from '../theme'
@@ -304,7 +305,14 @@ export class GameStore {
         this.characters = msg.journal.characters
         this.folders = msg.journal.folders
         if (this.speakingAs && !this.character(this.speakingAs)) this.speakingAs = null
-        if (msg.chat_mode === 'append') this.chat.push(...msg.chat)
+        if (msg.chat_mode === 'append') {
+          // Missed messages, plus older cards that changed meanwhile: upsert by id.
+          for (const m of msg.chat) {
+            const i = this.chat.findIndex((c) => c.id === m.id)
+            if (i >= 0) this.chat[i] = m
+            else this.chat.push(m)
+          }
+        }
         else this.chat = msg.chat
         if (!msg.you.is_gm) this.layer = 'objects'
         // Until the page arrives the loaded one is not up to date.
@@ -372,6 +380,11 @@ export class GameStore {
       case 'obj.preview':
         this.emit('preview', msg.items)
         break
+      case 'chat.update': {
+        const i = this.chat.findIndex((m) => m.id === msg.message.id)
+        if (i >= 0) this.chat[i] = msg.message
+        break
+      }
       case 'chat':
         this.chat.push(msg.message)
         if (this.chat.length > 500) this.chat.splice(0, this.chat.length - 500)
@@ -664,6 +677,19 @@ export class GameStore {
     opts: { crit?: boolean; tokenId?: string | null; targetId?: string | null } = {},
   ): void {
     const targetId = opts.targetId !== undefined ? opts.targetId : this.sheetTarget
+    const actor = opts.tokenId !== undefined ? opts.tokenId : this.tokenFor(characterId)
+    if (roll === 'attack' && key && actor) {
+      // With a token on the map an attack is a combat action: resolved and applied.
+      const targets =
+        targetId && this.objects.has(targetId)
+          ? [targetId]
+          : this.selection.filter((id) => id !== actor && this.objects.get(id)?.kind === 'token')
+      this.act(actor, { kind: 'attack', id: key }, targets, {
+        mode: this.sheetMode,
+        hidden: this.sheetGmOnly && this.isGm,
+      })
+      return
+    }
     this.send({
       type: 'sheet.roll',
       character_id: characterId,
@@ -717,6 +743,37 @@ export class GameStore {
   applyHp(tokenIds: string[], kind: HpChange, amount: number, damageType: string | null = null, half = false): void {
     if (!Number.isFinite(amount) || amount < 0) return
     this.send({ type: 'combat.apply', token_ids: tokenIds, kind, amount: Math.round(amount), damage_type: damageType, half })
+  }
+
+  /** One combat action: the server rolls, compares, applies and posts the card. */
+  act(
+    actorId: string,
+    action: ActAction,
+    targets: string[],
+    opts: { mode?: RollMode; cover?: Record<string, 0 | 2 | 5>; hidden?: boolean; reaction?: boolean; point?: { x: number; y: number } } = {},
+  ): void {
+    this.send({
+      type: 'combat.act',
+      actor_id: actorId,
+      action,
+      targets: targets.map((id) => ({ id, cover: opts.cover?.[id] ?? 0 })),
+      point: opts.point ?? null,
+      mode: opts.mode ?? 'normal',
+      hidden: opts.hidden ?? false,
+      reaction: opts.reaction ?? false,
+    })
+  }
+
+  undoCard(cardId: number): void {
+    this.send({ type: 'combat.undo', card_id: cardId })
+  }
+
+  redoCard(cardId: number): void {
+    this.send({ type: 'combat.redo', card_id: cardId })
+  }
+
+  addDamage(cardId: number, targetId: string, formula: string, damageType: string | null): void {
+    this.send({ type: 'combat.add_damage', card_id: cardId, target_id: targetId, formula, damage_type: damageType })
   }
 
   /** GM: roll initiative for tokens (monsters of the same kind share a roll) and sort the tracker. */

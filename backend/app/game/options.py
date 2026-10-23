@@ -62,6 +62,21 @@ CATALOG: tuple[Option, ...] = (
         "choice",
         (("hidden", "Hidden"), ("status", "How hurt they look"), ("full", "Numbers")),
     ),
+    Option(
+        "show_monster_ac",
+        "Visibility",
+        "Show monsters' AC on attack cards",
+        "Off: players see Hit or Miss but not the number they rolled against.",
+        False,
+    ),
+    Option(
+        "hide_monster_rolls",
+        "Visibility",
+        "Hide monster dice",
+        "Players see the result of a monster's attack (hit, miss, damage) but not the dice, "
+        "as behind a GM screen.",
+        True,
+    ),
 )
 
 # Drafted switches, moved into CATALOG as their features are built.
@@ -175,20 +190,6 @@ PLANNED: tuple[Option, ...] = (
         False,
     ),
     # --- Visibility -----------------------------------------------------------
-    Option(
-        "show_monster_ac",
-        "Visibility",
-        "Show monsters' AC on attack cards",
-        "Off: players see Hit or Miss but not the number they rolled against.",
-        False,
-    ),
-    Option(
-        "hide_monster_rolls",
-        "Visibility",
-        "Hide monster attack rolls",
-        "Players see the result of a monster's attack (hit, miss, damage) but not the dice.",
-        False,
-    ),
 )
 
 BY_KEY = {o.key: o for o in CATALOG}
@@ -212,4 +213,6 @@ def validate(patch: dict[str, Any]) -> str | None:
 
 
 def catalog() -> list[dict[str, Any]]:
-    return [o.as_dict() for o in CATALOG]
+    """The options for the client, grouped by section in panel order."""
+    ordered = sorted(CATALOG, key=lambda o: SECTIONS.index(o.section))
+    return [o.as_dict() for o in ordered]

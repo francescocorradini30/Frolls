@@ -15,7 +15,6 @@ works even after the game went on, and is itself one event.
 from __future__ import annotations
 
 import functools
-import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -26,7 +25,6 @@ from sqlalchemy import update
 from app.db import session_scope
 from app.game import merge
 from app.game import protocol as p
-from app.game.serialize import chat_dict
 from app.game.server.base import (
     UNDO_LIMIT,
     Connection,
@@ -51,6 +49,11 @@ class Capture:
     # (turn order, settings) before.
     turn: tuple[list[dict[str, Any]], dict[str, Any]] | None = None
     chat: list[ChatMessage] = field(default_factory=list)
+    # While a combat card is being built: lines that game cards (concentration, effects)
+    # add to it instead of posting their own message.
+    fold: list[str] | None = None
+    # Existing cards this action adds to (extra damage): their Undo includes it.
+    card_ids: list[int] = field(default_factory=list)
 
 
 Handler = Callable[[Any, Connection, Any], Awaitable[None]]
@@ -174,6 +177,11 @@ class CaptureMixin(ServerBase):
         touched_objs = [self.objects[o["id"]] for o in data["objects"]]
         touched_chars = [self.characters[c["id"]] for c in data["characters"]]
         if changed:
+            # The cards of this action know the event that made them (for their Undo).
+            for row in cap.chat:
+                card = (row.roll or {}).get("card")
+                if card is not None:
+                    card["seqs"] = [*card.get("seqs", []), self.seq + 1]
             event = {"action": data}
             async with self._commit(
                 cap.kind, cap.summary, event, [o.id for o in touched_objs]
@@ -197,6 +205,10 @@ class CaptureMixin(ServerBase):
                         .values(turn_order=self.game.turn_order, settings=self.game.settings)
                     )
                 await self._insert_chat(s, cap.chat)
+                cards = [r.id for r in cap.chat if (r.roll or {}).get("card") is not None]
+                cards += cap.card_ids
+                if cards:
+                    data["card_ids"] = cards
         else:
             async with session_scope() as s:
                 await self._insert_chat(s, cap.chat)
@@ -208,10 +220,7 @@ class CaptureMixin(ServerBase):
         if "turn" in data:
             self._broadcast_game()
         for row in cap.chat:
-            payload = json.dumps({"type": "chat", "message": chat_dict(row), "seq": self.seq})
-            for c in self.connections:
-                if c.player and self._chat_visible(c.player, row):
-                    c.send_raw(payload)
+            self._send_chat(row)
         if changed and cap.undoable and cap.author is not None:
             self._push_action_undo(cap.author, cap.summary, data)
 
@@ -282,6 +291,8 @@ class CaptureMixin(ServerBase):
         verb = "undid" if kind == "undo" else "redid"
         async with self._action(kind, f"{verb}: {step['summary']}"):
             conflicts = await self._merge_action(step["action"], frm)
+        by = self.actor.name if self.actor else "the GM"
+        await self._mark_cards(step["action"], step["seq"], by if frm == "after" else None)
         if conflicts and self.actor is not None:
             for c in self.connections:
                 if c.player and c.player.id == self.actor.id:
@@ -297,6 +308,11 @@ class CaptureMixin(ServerBase):
         """Undo a combat action from its chat card (the author, or the GM for anyone's)."""
         player = conn.player
         assert player is not None
+        if msg.card_id is not None:
+            await self._undo_card(player, msg.card_id)
+            return
+        if msg.seq is None:
+            raise GameError("which action?")
         stack = self.undo.get(player.id, [])
         step = next((s for s in stack if s["seq"] == msg.seq and "action" in s), None)
         if step is None:
