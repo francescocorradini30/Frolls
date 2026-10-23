@@ -1,11 +1,27 @@
 <script lang="ts">
   import { store } from '../state/game.svelte'
   import Chat from './Chat.svelte'
+  import HistoryPanel from './HistoryPanel.svelte'
+  import JournalPanel from './JournalPanel.svelte'
+  import MacrosPanel from './MacrosPanel.svelte'
+  import CompendiumPanel from './CompendiumPanel.svelte'
+  import CollectionsPanel from './CollectionsPanel.svelte'
+  import ArtLibraryPanel from './ArtLibraryPanel.svelte'
   import PageSettings from './PageSettings.svelte'
   import PlayersPanel from './PlayersPanel.svelte'
   import Settings from './Settings.svelte'
 
-  type Tab = 'chat' | 'players' | 'page' | 'settings'
+  type Tab =
+    | 'chat'
+    | 'journal'
+    | 'compendium'
+    | 'macros'
+    | 'collections'
+    | 'library'
+    | 'players'
+    | 'page'
+    | 'history'
+    | 'settings'
   let {
     tab = $bindable('chat'),
     onToggleTracker,
@@ -17,10 +33,18 @@
 
 <aside class="sidebar">
   <nav class="tabs">
-    <button class:active={tab === 'chat'} onclick={() => (tab = 'chat')}>💬 Chat</button>
+    <button class:active={tab === 'chat'} onclick={() => (tab = 'chat')} title="Chat" aria-label="Chat">💬</button>
+    <button class:active={tab === 'journal'} onclick={() => (tab = 'journal')} title="Journal" aria-label="Journal">📖</button>
+    <button class:active={tab === 'compendium'} onclick={() => (tab = 'compendium')} title="Compendium" aria-label="Compendium">📚</button>
+    <button class:active={tab === 'macros'} onclick={() => (tab = 'macros')} title="Macros" aria-label="Macros">⚡</button>
+    <button class:active={tab === 'collections'} onclick={() => (tab = 'collections')} title="Tables and card decks" aria-label="Collections">🎴</button>
+    <button class:active={tab === 'library'} onclick={() => (tab = 'library')} title="Art library" aria-label="Art library">🖼</button>
     <button class:active={tab === 'players'} onclick={() => (tab = 'players')}>👥 {online}</button>
     {#if store.isGm}
-      <button class:active={tab === 'page'} onclick={() => (tab = 'page')} title="Page settings">🗺 Page</button>
+      <button class:active={tab === 'page'} onclick={() => (tab = 'page')} title="Page settings" aria-label="Page">🗺</button>
+      <button class:active={tab === 'history'} onclick={() => (tab = 'history')} title="History" aria-label="History"
+        >🕘</button
+      >
     {/if}
     <button class:active={tab === 'settings'} onclick={() => (tab = 'settings')} title="My Settings" aria-label="My Settings">⚙</button>
     <button class="tracker" onclick={onToggleTracker} title="Turn Order">⚔</button>
@@ -28,10 +52,22 @@
   <div class="content">
     {#if tab === 'chat'}
       <Chat />
+    {:else if tab === 'journal'}
+      <JournalPanel />
+    {:else if tab === 'compendium'}
+      <CompendiumPanel />
+    {:else if tab === 'macros'}
+      <MacrosPanel />
+    {:else if tab === 'collections'}
+      <CollectionsPanel />
+    {:else if tab === 'library'}
+      <ArtLibraryPanel />
     {:else if tab === 'players'}
       <PlayersPanel />
     {:else if tab === 'page' && store.isGm}
       <PageSettings />
+    {:else if tab === 'history' && store.isGm}
+      <HistoryPanel />
     {:else if tab === 'settings'}
       <Settings {onLeave} />
     {/if}
@@ -49,6 +85,7 @@
   }
   .tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 2px;
     padding: 6px 6px 0;
     border-bottom: 1px solid var(--border);
@@ -56,7 +93,8 @@
   .tabs button {
     border: none;
     background: none;
-    padding: 8px 10px;
+    padding: 8px 8px;
+    white-space: nowrap;
     cursor: pointer;
     color: var(--text-muted);
     border-bottom: 2px solid transparent;

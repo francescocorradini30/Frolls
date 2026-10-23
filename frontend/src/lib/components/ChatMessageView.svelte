@@ -5,22 +5,36 @@
 
   let { msg, compact }: { msg: ChatMessage; compact: boolean } = $props()
 
-  type Part = { text: string } | { roll: Roll }
+  type Part = { text: string } | { roll: Roll } | { button: string; run: string }
 
-  const parts = $derived.by<Part[]>(() => {
+  /** Text with inline rolls `[[#n]]` and chat buttons `[Label](~Character|Ability)` / `[Label](#Macro)`. */
+  function split(content: string): Part[] {
     const inline = msg.roll?.inline ?? []
     const out: Part[] = []
-    const re = /\[\[#(\d+)\]\]/g
+    const re = /\[\[#(\d+)\]\]|\[([^\]\n]+)\]\(([~#!][^)\n]+)\)/g
     let last = 0
-    for (const m of msg.content.matchAll(re)) {
-      if (m.index > last) out.push({ text: msg.content.slice(last, m.index) })
-      const r = inline[Number(m[1])]
-      out.push(r ? { roll: r } : { text: m[0] })
+    for (const m of content.matchAll(re)) {
+      if (m.index > last) out.push({ text: content.slice(last, m.index) })
+      if (m[1] !== undefined) {
+        const r = inline[Number(m[1])]
+        out.push(r ? { roll: r } : { text: m[0] })
+      } else {
+        out.push({ button: m[2], run: m[3] })
+      }
       last = m.index + m[0].length
     }
-    if (last < msg.content.length) out.push({ text: msg.content.slice(last) })
+    if (last < content.length) out.push({ text: content.slice(last) })
     return out
-  })
+  }
+
+  /** Natural value of the kept d20, to highlight 20s and 1s. */
+  function natural(roll: Roll): number | null {
+    const term = roll.terms.find((t) => t.sides === 20)
+    return term?.dice.find((d) => d.kept)?.value ?? null
+  }
+
+  const parts = $derived(split(msg.content))
+  const template = $derived(msg.roll?.template ?? null)
 
   const whisperLabel = $derived.by(() => {
     if (msg.kind !== 'whisper' || !msg.recipients) return ''
@@ -32,6 +46,10 @@
     new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   )
 </script>
+
+{#snippet rich(list: Part[])}
+  {#each list as part, i (i)}{#if 'text' in part}{part.text}{:else if 'roll' in part}<span class="inline" class:crit={natural(part.roll) === 20} class:fumble={natural(part.roll) === 1} title={`${part.roll.expression} → ${part.roll.breakdown}`}>{part.roll.text ?? part.roll.total}</span>{:else}<button class="chat-button" title={part.run} onclick={() => store.runButton(part.run)}>{part.button}</button>{/if}{/each}
+{/snippet}
 
 <article class="msg {msg.kind}" class:gm-only={msg.gm_only} class:compact>
   {#if !compact && msg.kind !== 'emote' && msg.kind !== 'desc'}
@@ -45,13 +63,18 @@
   {/if}
 
   {#if msg.kind === 'emote'}
-    <p class="body"><span style:color={msg.color}>{msg.speaker}</span>
-      {#each parts as part, i (i)}{#if 'text' in part}{part.text}{:else}<span class="inline" title={`${part.roll.expression} → ${part.roll.breakdown}`}>{part.roll.total}</span>{/if}{/each}
-    </p>
+    <p class="body"><span style:color={msg.color}>{msg.speaker}</span> {@render rich(parts)}</p>
   {:else if parts.length}
-    <p class="body">
-      {#each parts as part, i (i)}{#if 'text' in part}{part.text}{:else}<span class="inline" title={`${part.roll.expression} → ${part.roll.breakdown}`}>{part.roll.total}</span>{/if}{/each}
-    </p>
+    <p class="body">{@render rich(parts)}</p>
+  {/if}
+
+  {#if template}
+    <div class="template">
+      {#if template.title}<div class="template-title">{@render rich(split(template.title))}</div>{/if}
+      {#each template.fields as [key, value], i (i)}
+        <div class="template-row"><span class="key">{key}</span><span class="value">{@render rich(split(value))}</span></div>
+      {/each}
+    </div>
   {/if}
 
   {#if msg.roll?.main}
@@ -60,6 +83,51 @@
 </article>
 
 <style>
+  .template {
+    margin-top: 4px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface-2);
+  }
+  .template-title {
+    padding: 5px 10px;
+    font-weight: 700;
+    color: var(--accent-contrast);
+    background: var(--gradient-accent);
+  }
+  .template-row {
+    display: grid;
+    grid-template-columns: minmax(70px, auto) 1fr;
+    gap: 8px;
+    padding: 4px 10px;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .template-row:first-of-type {
+    border-top: none;
+  }
+  .key {
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .value {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .chat-button {
+    border: 1px solid var(--accent);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 1px 8px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+  }
+  .chat-button:hover {
+    background: color-mix(in srgb, var(--accent) 32%, transparent);
+  }
   .msg {
     padding: 6px 12px;
   }
@@ -120,5 +188,13 @@
     border: 1px solid var(--accent);
     font-weight: 700;
     cursor: help;
+  }
+  .inline.crit {
+    border-color: var(--success);
+    background: color-mix(in srgb, var(--success) 25%, var(--bg));
+  }
+  .inline.fumble {
+    border-color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 25%, var(--bg));
   }
 </style>

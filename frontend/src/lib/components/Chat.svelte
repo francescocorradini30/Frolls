@@ -75,6 +75,8 @@
       <p><code>8d6!</code> exploding · <code>5d10&gt;8</code> successes · <code>1d20r1</code> reroll</p>
       <p><code>I hit for [[1d8+3]]</code> → inline roll</p>
       <p><code>/w Name msg</code> whisper · <code>/w gm msg</code></p>
+      <p><code>#Macro</code> · <code>%&#123;Character|Ability&#125;</code> · <code>@&#123;selected|hp&#125;</code> · <code>@&#123;target|hp&#125;</code></p>
+      <p><code>?&#123;Bonus|0&#125;</code> asks before rolling · <code>&amp;&#123;template:default&#125; &#123;&#123;name=Title&#125;&#125; &#123;&#123;Hit=[[1d20]]&#125;&#125;</code></p>
       <p><code>/gr 1d20</code> roll to GM only · <code>/em</code> emote · <code>/ooc</code></p>
       {#if store.isGm}<p><code>/desc text</code> narration</p>{/if}
     </div>
@@ -90,6 +92,16 @@
     ></textarea>
     <div class="actions">
       <button class="icon-btn" title="Command help" onclick={() => (showHelp = !showHelp)}>?</button>
+      {#if store.isGm}
+        <select class="as" bind:value={store.speakingAs} title="Speaking as" aria-label="Speaking as">
+          <option value={null}>As {store.me?.name ?? 'me'}</option>
+          {#each [...store.characters].filter((c) => !c.archived).sort((a, b) => a.name.localeCompare(b.name)) as c (c.id)}
+            <option value={c.id}>As {c.name}</option>
+          {/each}
+        </select>
+      {:else if store.myCharacter}
+        <span class="as muted" title="In chat you speak with your character's name">As {store.myCharacter.name}</span>
+      {/if}
       <button class="btn primary small" onclick={send} disabled={!text.trim()}>Send</button>
     </div>
   </div>
@@ -136,6 +148,15 @@
   textarea {
     resize: none;
     width: 100%;
+  }
+  .as {
+    flex: 1;
+    min-width: 0;
+    max-width: 180px;
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .actions {
     display: flex;

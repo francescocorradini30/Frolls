@@ -5,8 +5,9 @@ Grammar (case-insensitive, whitespace ignored):
     expr    := term (('+' | '-') term)*
     term    := unary (('*' | '/') unary)*
     unary   := '-' unary | primary
-    primary := NUMBER | dice | '(' expr ')'
+    primary := NUMBER | dice | table | '(' expr ')'
     dice    := [NUMBER] 'd' (NUMBER | '%' | 'F') modifier*
+    table   := [NUMBER] 't[' NAME ']'     draws from a rollable table
 
 Modifiers, in any order, as in Roll20:
 
@@ -23,6 +24,9 @@ Modifiers, in any order, as in Roll20:
 
     cmp := ('>' | '<' | '=')? NUMBER    ('>' means >=, '<' means <=)
 
+Table items are drawn by weight, with replacement. A table result counts in the math
+only when the item name is a number; otherwise the roll shows the names (`text`).
+
 Randomness comes from `secrets.SystemRandom`: rolls happen on the server only.
 """
 
@@ -30,6 +34,7 @@ from __future__ import annotations
 
 import re
 import secrets
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -37,6 +42,7 @@ MAX_DICE = 1000
 MAX_SIDES = 10_000
 MAX_EXTRA_ROLLS = 100
 MAX_EXPRESSION_LENGTH = 200
+MAX_TABLE_DRAWS = 100
 
 _rng = secrets.SystemRandom()
 
@@ -48,7 +54,7 @@ class DiceError(ValueError):
 # --- Tokenizer ---------------------------------------------------------------
 
 _TOKEN_RE = re.compile(
-    r"\s*(?:(?P<num>\d+)|(?P<op>!!|!p|ro|kh|kl|dh|dl|sa|sd|[-+*/()d%f!rks><=]))",
+    r"\s*(?:(?P<num>\d+)|(?P<table>t\[[^\]]+\])|(?P<op>!!|!p|ro|kh|kl|dh|dl|sa|sd|[-+*/()d%f!rks><=]))",
     re.IGNORECASE,
 )
 
@@ -61,7 +67,11 @@ def _tokenize(text: str) -> list[str]:
         match = _TOKEN_RE.match(text, pos)
         if not match or match.end() == pos:
             raise DiceError(f"unexpected character at position {pos}: {text[pos]!r}")
-        tokens.append((match.group("num") or match.group("op")).lower())
+        if match.group("table"):
+            # Keeps the case: "t[Name" names the table.
+            tokens.append(match.group("table")[:-1].strip())
+        else:
+            tokens.append((match.group("num") or match.group("op")).lower())
         pos = match.end()
     return tokens
 
@@ -88,12 +98,30 @@ class DiceTermResult:
     success_mode: bool
 
 
+@dataclass(frozen=True)
+class TableItem:
+    name: str
+    weight: int = 1
+    image: str | None = None
+
+
+@dataclass
+class TableTermResult:
+    notation: str
+    table: str
+    items: list[TableItem]
+    total: float
+    numeric: bool
+
+
 @dataclass
 class RollResult:
     expression: str
     total: float
-    terms: list[DiceTermResult] = field(default_factory=list)
+    terms: list[DiceTermResult | TableTermResult] = field(default_factory=list)
     breakdown: str = ""
+    # Names drawn from tables, shown instead of the total when they aren't numbers.
+    text: str | None = None
 
     @property
     def display_total(self) -> str:
@@ -162,7 +190,13 @@ class Group:
     inner: Node
 
 
-Node = Number | DiceSpec | BinOp | Neg | Group
+@dataclass
+class TableSpec:
+    count: int
+    name: str
+
+
+Node = Number | DiceSpec | TableSpec | BinOp | Neg | Group
 
 
 # --- Parser ------------------------------------------------------------------
@@ -226,10 +260,14 @@ class _Parser:
             return Group(inner)
         if tok == "d":
             return self.dice(1)
+        if tok is not None and tok.startswith("t["):
+            return self.table(1)
         if tok is not None and tok.isdigit():
             n = int(self.next())
             if self.peek() == "d":
                 return self.dice(n)
+            if (nxt := self.peek()) is not None and nxt.startswith("t["):
+                return self.table(n)
             return Number(n)
         raise DiceError(f"unexpected token {tok!r}")
 
@@ -256,6 +294,15 @@ class _Parser:
         self.modifiers(spec)
         self.validate(spec)
         return spec
+
+    def table(self, count: int) -> TableSpec:
+        name = self.next()[2:].strip()
+        if not name:
+            raise DiceError("missing table name")
+        if count < 1 or count > MAX_TABLE_DRAWS:
+            raise DiceError(f"table draws must be between 1 and {MAX_TABLE_DRAWS}")
+        self.has_dice = True
+        return TableSpec(count, name)
 
     def compare(self, required: bool) -> Compare | None:
         tok = self.peek()
@@ -442,9 +489,35 @@ def _fmt_dice(term: DiceTermResult) -> str:
     return "(" + "+".join(parts) + ")"
 
 
+def _number_name(name: str) -> float | None:
+    try:
+        return float(name.strip())
+    except ValueError:
+        return None
+
+
+def _draw(spec: TableSpec, items: Sequence[TableItem]) -> TableTermResult:
+    weighted = [i for i in items if i.weight > 0]
+    if not weighted:
+        raise DiceError(f"table {spec.name!r} has no items to draw")
+    drawn = _rng.choices(weighted, weights=[i.weight for i in weighted], k=spec.count)
+    values = [_number_name(i.name) for i in drawn]
+    numeric = all(v is not None for v in values)
+    total = sum(v for v in values if v is not None) if numeric else 0
+    return TableTermResult(
+        notation=f"{spec.count}t[{spec.name}]",
+        table=spec.name,
+        items=drawn,
+        total=total,
+        numeric=numeric,
+    )
+
+
 class _Evaluator:
-    def __init__(self) -> None:
-        self.terms: list[DiceTermResult] = []
+    def __init__(self, tables: Mapping[str, Sequence[TableItem]] | None) -> None:
+        self.terms: list[DiceTermResult | TableTermResult] = []
+        # Lowercase table name -> items.
+        self.tables = tables or {}
 
     def eval(self, node: Node) -> tuple[float, str]:
         if isinstance(node, Number):
@@ -453,6 +526,13 @@ class _Evaluator:
             term = _eval_dice(node, _notation(node))
             self.terms.append(term)
             return term.total, _fmt_dice(term)
+        if isinstance(node, TableSpec):
+            items = self.tables.get(node.name.casefold())
+            if items is None:
+                raise DiceError(f"no rollable table named {node.name!r}")
+            table = _draw(node, items)
+            self.terms.append(table)
+            return table.total, "(" + ", ".join(i.name for i in table.items) + ")"
         if isinstance(node, Neg):
             v, s = self.eval(node.operand)
             return -v, f"-{s}"
@@ -496,13 +576,21 @@ def is_dice_expression(text: str) -> bool:
     return has_dice
 
 
-def roll(text: str) -> RollResult:
+def roll(text: str, tables: Mapping[str, Sequence[TableItem]] | None = None) -> RollResult:
+    """Roll `text`; `tables` maps lowercase table names to their items."""
     node, _ = _parse(text)
-    evaluator = _Evaluator()
+    evaluator = _Evaluator(tables)
     total, breakdown = evaluator.eval(node)
+    names = [t for t in evaluator.terms if isinstance(t, TableTermResult) and not t.numeric]
+    text_result = None
+    if names:
+        if not isinstance(node, TableSpec):
+            raise DiceError("table items that aren't numbers can't be used in math")
+        text_result = ", ".join(i.name for i in names[0].items)
     return RollResult(
         expression=text.strip(),
         total=round(total, 2),
         terms=evaluator.terms,
         breakdown=breakdown,
+        text=text_result,
     )

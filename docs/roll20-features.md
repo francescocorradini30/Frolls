@@ -779,7 +779,7 @@ To let a player play a PC the GM must add the player **in both** fields: a compl
 
 ## 17. 5e character sheet (reference: "D&D 5E by Roll20", formerly 5th Edition OGL)
 
-> Frolls implements a **5e compatible** sheet with **SRD 5.1/5.2 only** content (CC-BY-4.0) and its own names, without WotC trademarks. Below is the behavior of the Roll20 sheet, to be replicated in function, not in appearance.
+> Frolls implements a **5e compatible** sheet with **SRD 5.2 only** content (CC-BY-4.0) and its own names, without WotC trademarks. Below is the behavior of the Roll20 sheet, to be replicated in function, not in appearance.
 
 ### 17.1 Principles
 - Saves automatically on every change.
@@ -866,7 +866,7 @@ Guided creation and level-up wizard based on the compendium. Doesn't work in pop
   - **Item or spell onto the sheet**: "ACCEPTING DROP FROM COMPENDIUM" appears and dropping fills in the right section; weapons also create an attack, items with MODS are applied, ammunition becomes resources.
 - **Settings**: compendium given by the sheet template or chosen by hand; **sharing** of purchased compendiums with the game's players; selection of active expansions.
 - **The most voted complaint of all those seen: "Custom Compendium" at +1732** ([forum](https://app.roll20.net/forum/post/2940484/)). Today you can neither create nor edit the compendium.
-- [Frolls+] **Built-in SRD 5.1/5.2 compendium** plus a game or account **custom compendium** (homebrew monsters, items and spells with the same data structure), importable and exportable as JSON.
+- [Frolls+] **Built-in SRD 5.2 compendium** plus a game or account **custom compendium** (homebrew monsters, items and spells with the same data structure), importable and exportable as JSON.
 
 ### Data
 `CompendiumEntry(id, source: srd|homebrew, owner_id?, kind: monster|spell|item|rule|class|race|condition, name, data_json, text_md, image_asset_id?)`
@@ -1003,6 +1003,8 @@ Chosen with the swatch next to your name in the player area. Used for pings, dic
 
 Each slice is **end-to-end**: Postgres model, API or WebSocket messages, Svelte or Pixi UI and tests. The order takes user decisions into account: auth last, a single persistent game until then, dice in chat without a command.
 
+**Current order (2026-10-20).** Slices 2, 3, 4 (basic chat and dice), 9, 10 (ruler and circle only), 11 and the basic turn tracker are done. Slice 1 is complete since 2026-10-20: event log with sequence numbers, resume after a reconnection with only the missed changes, per-player undo/redo of map changes and a GM history that reverts anyone's change. Slice 6 is in progress: characters, nested folders, search, archive, token link (`represents`) and drag onto the map are done; players speak with their character's name automatically and only the GM has "speaking as". Handouts, journal permissions and bars linked to attributes are in the backlog. Slice 7 is done for the core: server-side expansion of `#macro`, `%{}` abilities, `@{}` attributes (selected, target, max, token bars), roll queries in a single dialog, the default roll template, chat buttons, personal macros with a quick bar and token actions from character abilities (`&{tracker}`, shared macros and other templates later). Then: the rest of 4 (groups, `m`/`mt`, `cs`/`cf`, `/as`, hidden rolls), 12-13 5e sheet and SRD 5.2 compendium (with the effects and durations engine, damage and death, 5e token sizes and monster HP visibility), manual fog of war, 14-16, 17, and 18 accounts together with GDPR, Italian translation, daily backups and measured performance targets. The MVP checklist that tracks this lives outside the repo.
+
 1. **Persistence and shared state**: Postgres (pages, tokens, events), loading a snapshot on join, delta sync, per-user undo/redo (basis of §7.2). *Exit*: tokens persist after restart.
 2. **Base canvas**: a page with size, background color, **square and hex grid**, scale and units; zoom, pan, arrows; **ping and pull ping**; upload of a **map image** (S3 or MinIO storage, or local in dev) on the map layer.
 3. **Tokens v1**: creation from upload, movement with snap and Alt, resizing (GM), rotation, flip, multiple and rectangle selection, group, z-order, copy/paste/delete, lock, **map, objects and GM layers** with visibility rules, waypoints and last move.
@@ -1029,7 +1031,7 @@ Each slice is **end-to-end**: Postgres model, API or WebSocket messages, Svelte 
 
 - **Voice and video**: dropped, not to be developed.
 - **Audio / Jukebox** (playlists, page play-on-load, volume).
-- **Fog of war** (basic and advanced).
+- **Fog of war, advanced** (the basic manual reveal/hide is in the MVP, after the 5e sheet).
 - **Dynamic lighting** (walls, doors, windows, lights, darkness, lighting layer).
 - **Vision and line of sight** (sight, darkvision, Ctrl+L, movement restriction).
 

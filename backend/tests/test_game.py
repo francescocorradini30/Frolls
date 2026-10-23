@@ -1,8 +1,12 @@
+import io
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 from starlette.testclient import WebSocketTestSession
 
+from app.api import assets
 from app.game.server import server
 
 WS = "/ws/game"
@@ -422,11 +426,35 @@ def test_upload_rejects_non_image(client: TestClient) -> None:
     assert r.status_code == 415
 
 
-def test_upload_image(client: TestClient) -> None:
-    png = b"\x89PNG\r\n\x1a\n" + b"0" * 20
-    r = client.post("/api/assets", files={"file": ("a.png", png, "image/png")})
+def _png(width: int, height: int) -> bytes:
+    out = io.BytesIO()
+    Image.new("RGBA", (width, height), (120, 80, 255, 200)).save(out, "PNG")
+    return out.getvalue()
+
+
+def test_upload_image_becomes_webp_with_thumbnail(client: TestClient) -> None:
+    r = client.post("/api/assets", files={"file": ("a.png", _png(600, 300), "image/png")})
     assert r.status_code == 200
-    assert client.get(r.json()["url"]).content == png
+    body = r.json()
+    assert body["url"].endswith(".webp") and (body["width"], body["height"]) == (600, 300)
+    full = Image.open(io.BytesIO(client.get(body["url"]).content))
+    assert full.format == "WEBP" and full.size == (600, 300) and full.mode == "RGBA"
+    thumb = Image.open(io.BytesIO(client.get(body["thumb"]).content))
+    assert thumb.size == (256, 128)
+
+
+def test_upload_rejects_fake_image(client: TestClient) -> None:
+    fake = b"\x89PNG\r\n\x1a\n" + b"0" * 20
+    r = client.post("/api/assets", files={"file": ("a.png", fake, "image/png")})
+    assert r.status_code == 415
+    r = client.post("/api/assets", files={"file": ("a.jpg", _png(4, 4), "image/jpeg")})
+    assert r.status_code == 415
+
+
+def test_upload_scales_down_huge_maps(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(assets, "MAX_SIDE", 100)
+    r = client.post("/api/assets", files={"file": ("m.png", _png(400, 200), "image/png")})
+    assert (r.json()["width"], r.json()["height"]) == (100, 50)
 
 
 def test_turn_entry_hidden_when_token_moves_to_gm_layer(client: TestClient) -> None:

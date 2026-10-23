@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Bar, MapObject } from '../net/protocol'
+  import type { Bar, Effect, MapObject } from '../net/protocol'
   import { store } from '../state/game.svelte'
   import { BARS } from '../theme'
   import { STATUSES } from '../util/statuses'
@@ -10,10 +10,19 @@
     void store.objectsVersion
     if (store.selection.length !== 1) return null
     const o = store.objects.get(store.selection[0])
-    return o && o.kind === 'token' && store.controls(o) ? o : null
+    // Cards are tokens too, but have no hit points or conditions.
+    return o && o.kind === 'token' && o.props.shape !== 'card' && store.controls(o) ? o : null
   })
 
   let showStatuses = $state(false)
+  let showEffects = $state(false)
+  const effects = $derived<Effect[]>(token?.props.effects ?? [])
+
+  function remaining(e: Effect): string {
+    if (!e.ending) return e.duration || 'until removed'
+    const by = store.objects.get(e.ending.of)?.props.name ?? 'its creator'
+    return `${e.ending.rounds} round${e.ending.rounds === 1 ? '' : 's'} (${e.ending.when} of ${by}'s turn)`
+  }
 
   /** "12" sets the value, "-5" / "+3" change it relative to the current one, empty clears it. */
   function applyValue(key: string, raw: string, input: HTMLInputElement) {
@@ -79,11 +88,74 @@
           </div>
         {/if}
       </div>
+      <div class="status-wrap">
+        <button class="btn small" onclick={() => (showEffects = !showEffects)}>
+          Effects{effects.length ? ` (${effects.length})` : ''} ▾
+        </button>
+        {#if showEffects}
+          <div class="effects panel">
+            {#each effects as e (e.id)}
+              <div class="effect" title={remaining(e)}>
+                <span class="effect-name">{e.name}</span>
+                <small class="muted">{remaining(e)}</small>
+                <button class="mini" aria-label={`Remove ${e.name}`} onclick={() => store.removeEffect(token.id, e.id)}>✕</button>
+              </div>
+            {:else}
+              <p class="muted none">No effects.</p>
+            {/each}
+            {#if token.props.concentrating}
+              <button class="btn small" onclick={() => store.endConcentration(token.id)}>
+                End concentration ({token.props.concentrating.name})
+              </button>
+            {/if}
+            <button class="btn small primary" onclick={() => ((store.effectTargets = [...store.selection]), (showEffects = false))}>
+              + Add effect
+            </button>
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
 {/if}
 
 <style>
+  .effects {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    width: 280px;
+  }
+  .effect {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: 6px;
+  }
+  .effect small {
+    grid-column: 1;
+    font-size: 0.7rem;
+  }
+  .effect .mini {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+  }
+  .effect-name {
+    font-weight: 600;
+  }
+  .none {
+    margin: 0;
+    font-size: 0.8rem;
+  }
+  .mini {
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
   .hud-wrap {
     position: absolute;
     left: 0;

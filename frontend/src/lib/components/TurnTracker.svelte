@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { TurnAction, TurnEntry } from '../net/protocol'
   import { store } from '../state/game.svelte'
 
   let { onClose }: { onClose: () => void } = $props()
@@ -11,6 +12,26 @@
     const obj = objectId ? store.objects.get(objectId) : undefined
     void store.objectsVersion
     return !!obj && store.controls(obj)
+  }
+
+  const ACTIONS: [TurnAction, string][] = [
+    ['action', 'Action'],
+    ['bonus_action', 'Bonus'],
+    ['reaction', 'Reaction'],
+  ]
+  const fighting = $derived(round > 0 && order.length > 0)
+  const myTurn = $derived(order.length > 0 && canEdit(order[0].object_id))
+
+  /** Movement this turn against the speed on the sheet, in the game's units. */
+  function movement(entry: TurnEntry): string | null {
+    void store.objectsVersion
+    const obj = entry.object_id ? store.objects.get(entry.object_id) : undefined
+    const speed = store.character(obj?.props.represents)?.sheet?.speed
+    const moved = entry.moved ?? 0
+    if (speed === undefined && !moved) return null
+    const metric = store.measurement === 'metric'
+    const show = (ft: number) => (metric ? `${Math.round((ft / 5) * 1.5 * 10) / 10}` : `${ft}`)
+    return `${show(moved)}${speed !== undefined ? ` / ${show(speed)}` : ''} ${metric ? 'm' : 'ft'}`
   }
 
   function setValue(id: string, value: string) {
@@ -86,6 +107,22 @@
           <button class="icon-btn" aria-label="Remove" onclick={() => store.send({ type: 'turn.remove', id: entry.id })}>✕</button>
         {/if}
       </li>
+      {#if i === 0 && fighting}
+        {@const move = movement(entry)}
+        <li class="economy" aria-label="This turn">
+          {#each ACTIONS as [what, text] (what)}
+            {@const used = !!entry.used?.[what]}
+            <button
+              class="chip"
+              class:used
+              disabled={!editable}
+              title={used ? `${text} used: click to give it back` : `${text} available: click when used`}
+              onclick={() => store.turnUse(entry.id, what, !used)}>{text}</button
+            >
+          {/each}
+          {#if move}<span class="move" title="Movement this turn">🦶 {move}</span>{/if}
+        </li>
+      {/if}
     {:else}
       <li class="empty muted">Select some tokens and press "Add selected".</li>
     {/each}
@@ -96,6 +133,12 @@
       Add selected
     </button>
     {#if store.isGm}
+      <button
+        class="btn small"
+        onclick={() => store.rollInitiative(store.selection)}
+        disabled={!store.selection.length}
+        title="Roll initiative for the selected tokens: monsters of the same kind share a roll">🎲 Initiative</button
+      >
       <button class="btn small" onclick={() => store.send({ type: 'turn.sort' })} title="Sort highest first">⇅ Sort</button>
       <button class="btn small" onclick={addCustom}>＋ Entry</button>
       <button
@@ -104,13 +147,48 @@
         >Clear</button
       >
     {/if}
-    <button class="btn primary small next" onclick={() => store.send({ type: 'turn.next' })} disabled={!order.length}>
-      Next turn ▶
+    <button
+      class="btn primary small next"
+      onclick={() => store.send({ type: 'turn.next' })}
+      disabled={!order.length || !myTurn}
+      title={store.isGm ? 'Next turn' : 'End your turn'}
+    >
+      {store.isGm ? 'Next turn ▶' : 'End turn ▶'}
     </button>
   </footer>
 </div>
 
 <style>
+  .economy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px 8px;
+  }
+  .chip {
+    border: 1px solid var(--success);
+    background: color-mix(in srgb, var(--success) 15%, transparent);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+  .chip.used {
+    border-color: var(--border);
+    background: none;
+    color: var(--text-muted);
+    text-decoration: line-through;
+  }
+  .chip:disabled {
+    cursor: default;
+  }
+  .move {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
   .tracker {
     position: fixed;
     z-index: 40;

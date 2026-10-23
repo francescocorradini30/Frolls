@@ -1,11 +1,14 @@
-import { Application, Container, Graphics, Text } from 'pixi.js'
+import { Application, Container, CullerPlugin, extensions, Graphics, RenderTexture, Sprite, Text } from 'pixi.js'
 import type { Layer, MapObject, ObjectPatch, Page, PreviewItem, Segment } from '../net/protocol'
 import type { GameStore, Ping, RemoteMeasure, Tool } from '../state/game.svelte'
 import { canvasColors } from '../theme'
 import { uid } from '../util/ids'
 import { anchorCell, cellCenter, drawBackground, drawGrid, pagePixelSize, snapCenter, snapSize, type Point } from './grid'
 import { formatDistance, measure } from './measure'
-import { ObjectView, stackZ } from './views'
+import { ObjectView, PIN_HEAD_Y, PIN_RADIUS, setMaxTextureSize, stackZ } from './views'
+
+// Objects off screen are not drawn (each view is cullable).
+extensions.add(CullerPlugin)
 
 const PREVIEW_INTERVAL_MS = 33
 const LONG_PRESS_MS = 550
@@ -14,6 +17,8 @@ const MIN_ZOOM = 0.1
 const MAX_ZOOM = 6
 const HANDLE_PX = 9
 const ROTATE_OFFSET_PX = 26
+// Eraser reach around the pointer, in screen pixels.
+const ERASER_PX = 10
 
 export interface EngineCallbacks {
   /** Double click on an object. */
@@ -24,6 +29,8 @@ export interface EngineCallbacks {
   onTextRequest: (world: Point, clientX: number, clientY: number) => void
   /** Zoom level changed (for the zoom indicator). */
   onZoom: (zoom: number) => void
+  /** Click on a map pin: show its notes. Client (screen) pixels. */
+  onPin: (id: string, clientX: number, clientY: number) => void
 }
 
 type Gesture =
@@ -37,14 +44,19 @@ type Gesture =
       lastSent: number
       // Alt held on the last move: free placement, no grid snapping.
       noSnap?: boolean
+      // Positions of the lead object where Space was pressed (Roll20-style waypoints).
+      waypoints: Point[]
     }
   | { kind: 'marquee'; start: Point; additive: boolean; timer: number; startClient: Point }
   | { kind: 'resize'; id: string; handle: ResizeHandle; start: MapObject }
   | { kind: 'rotate'; id: string; deg: number | null }
-  | { kind: 'ruler'; start: Point; end?: Point }
+  | { kind: 'ruler'; start: Point; end?: Point; waypoints: Point[] }
   | { kind: 'draw'; tool: Tool; start: Point; points: number[] }
   | { kind: 'template'; start: Point; snapped: boolean }
+  | { kind: 'fog'; mode: 'reveal' | 'hide'; start: Point }
+  | { kind: 'erase'; ids: Set<string> }
 
+// Bottom to top.
 const LAYERS: Layer[] = ['map', 'objects', 'gm']
 
 const LABEL_STYLE = {
@@ -81,6 +93,8 @@ export class Engine {
   private readonly remoteLayer = new Container()
   private readonly remoteRulers = new Map<string, RemoteRuler>()
   private readonly pings = new Container()
+  private readonly fogSprite = new Sprite()
+  private fogTexture: RenderTexture | null = null
   private readonly views = new Map<string, ObjectView>()
   private page: Page | null = null
   private gesture: Gesture = { kind: 'none' }
@@ -96,6 +110,8 @@ export class Engine {
   private measureSentAt = 0
   private measureTimer = 0
   private measurePending: Measured | null = null
+  // A pin I just placed: its editor opens when the server confirms it.
+  private editOnArrival: string | null = null
 
   constructor(store: GameStore, callbacks: EngineCallbacks) {
     this.store = store
@@ -114,6 +130,8 @@ export class Engine {
     })
     host.appendChild(this.app.canvas)
     this.mounted = true
+    const gl = (this.app.renderer as unknown as { gl?: WebGL2RenderingContext }).gl
+    if (gl) this.limitTextureSize(gl.getParameter(gl.MAX_TEXTURE_SIZE))
 
     this.world.addChild(this.background)
     for (const layer of LAYERS) {
@@ -124,6 +142,8 @@ export class Engine {
       if (layer === 'map') this.world.addChild(this.grid)
     }
     this.overlayLabel.anchor.set(0.5, 1.2)
+    // Fog above every layer, below rulers, pings and what I'm drawing.
+    this.world.addChild(this.fogSprite)
     this.world.addChild(this.remoteLayer, this.overlay, this.overlayLabel, this.pings)
     this.app.stage.addChild(this.world)
 
@@ -147,6 +167,7 @@ export class Engine {
       s.on('removed', (ids) => this.remove(ids)),
       s.on('preview', (items) => this.applyPreview(items)),
       s.on('selection', () => this.refreshSelection()),
+      s.on('turn', () => this.refreshTurn()),
       s.on('ping', (p) => this.showPing(p)),
       s.on('measure', (m) => this.showRemoteMeasure(m)),
       s.on('focus', (x, y) => this.centerOn(x, y)),
@@ -176,6 +197,12 @@ export class Engine {
     this.world.position.set(anchor.x - before.x * z, anchor.y - before.y * z)
     this.cb.onZoom(z)
     this.redrawRemoteRulers()
+    this.rescalePins()
+  }
+
+  /** Pins keep the same size on screen whatever the zoom. */
+  private rescalePins(): void {
+    for (const v of this.views.values()) if (v.obj.kind === 'pin') v.setScreenScale(1 / this.zoom)
   }
 
   zoomBy(factor: number): void {
@@ -192,6 +219,7 @@ export class Engine {
     this.world.position.set((width - w * z) / 2, (height - h * z) / 2)
     this.cb.onZoom(z)
     this.redrawRemoteRulers()
+    this.rescalePins()
   }
 
   centerOn(x: number, y: number): void {
@@ -225,6 +253,7 @@ export class Engine {
     this.page = page
     this.drawPage(page)
     for (const o of objects) this.upsertOne(o)
+    this.refreshTurn()
     if (!samePage) {
       for (const r of this.remoteRulers.values()) r.root.destroy({ children: true })
       this.remoteRulers.clear()
@@ -239,7 +268,41 @@ export class Engine {
     this.redrawRemoteRulers()
   }
 
+  /** The fog as one texture: the page dark, revealed areas cut out, hidden ones dark again. */
+  private drawFog(page: Page): void {
+    const fog = page.fog
+    if (!fog?.enabled) {
+      this.fogSprite.visible = false
+      return
+    }
+    const { w, h } = pagePixelSize(page)
+    // Huge pages: a coarser fog texture keeps under the GPU size limit.
+    const resolution = Math.min(1, 4096 / Math.max(w, h))
+    if (!this.fogTexture || this.fogTexture.width !== w || this.fogTexture.height !== h) {
+      this.fogTexture?.destroy(true)
+      this.fogTexture = RenderTexture.create({ width: w, height: h, resolution })
+    }
+    const scene = new Container()
+    scene.addChild(new Graphics().rect(0, 0, w, h).fill(canvasColors.fog))
+    for (const area of fog.ops) {
+      const g = new Graphics()
+      const p = area.points
+      if (area.shape === 'rect') g.rect(Math.min(p[0], p[2]), Math.min(p[1], p[3]), Math.abs(p[2] - p[0]), Math.abs(p[3] - p[1]))
+      else g.poly(p)
+      g.fill(canvasColors.fog)
+      if (area.mode === 'reveal') g.blendMode = 'erase'
+      scene.addChild(g)
+    }
+    this.app.renderer.render({ container: scene, target: this.fogTexture, clear: true })
+    scene.destroy({ children: true })
+    this.fogSprite.texture = this.fogTexture
+    // The GM sees through it.
+    this.fogSprite.alpha = this.store.isGm ? 0.45 : 1
+    this.fogSprite.visible = true
+  }
+
   private drawPage(page: Page): void {
+    this.drawFog(page)
     drawBackground(this.background, page)
     drawGrid(this.grid, page)
   }
@@ -247,6 +310,7 @@ export class Engine {
   private upsert(objs: MapObject[]): void {
     for (const o of objs) this.upsertOne(o)
     this.refreshSelection()
+    this.refreshTurn()
   }
 
   private upsertOne(o: MapObject): void {
@@ -262,8 +326,13 @@ export class Engine {
       if (dragging) view.setPosition(x, y)
     } else {
       view = new ObjectView(o, this.page)
+      if (o.kind === 'pin') view.setScreenScale(1 / this.zoom)
       this.views.set(o.id, view)
       this.layers.get(o.layer)!.addChild(view.root)
+    }
+    if (o.id === this.editOnArrival) {
+      this.editOnArrival = null
+      this.cb.onEdit(o.id)
     }
   }
 
@@ -276,6 +345,13 @@ export class Engine {
 
   private applyPreview(items: PreviewItem[]): void {
     for (const item of items) this.views.get(item.id)?.setPosition(item.x, item.y, item.rotation)
+  }
+
+  /** Mark the token whose turn it is (when combat is running). */
+  private refreshTurn(): void {
+    const game = this.store.game
+    const current = game && (game.settings.round ?? 0) > 0 ? game.turn_order[0]?.object_id : null
+    for (const [id, v] of this.views) v.setTurn(id === current)
   }
 
   private refreshSelection(): void {
@@ -297,8 +373,28 @@ export class Engine {
     for (const v of this.views.values()) {
       const o = v.obj
       if (o.layer !== layer || !this.store.controls(o)) continue
-      if (!contains(v, p)) continue
+      if (!contains(v, p, this.zoom)) continue
       if (!best || stackZ(o) > stackZ(best.obj)) best = v
+    }
+    return best
+  }
+
+  /** Topmost pin at a point among those I can see (players click them to read the notes). */
+  private pinAt(p: Point): ObjectView | null {
+    let best: ObjectView | null = null
+    for (const v of this.views.values()) {
+      if (v.obj.kind !== 'pin' || !contains(v, p, this.zoom)) continue
+      if (!best || stackZ(v.obj) > stackZ(best.obj)) best = v
+    }
+    return best
+  }
+
+  /** Topmost visible token at a point, on any layer I can see, controlled or not. */
+  private tokenAt(p: Point): ObjectView | null {
+    let best: ObjectView | null = null
+    for (const v of this.views.values()) {
+      if (v.obj.kind !== 'token' || !contains(v, p, this.zoom)) continue
+      if (!best || stackZ(v.obj) > stackZ(best.obj)) best = v
     }
     return best
   }
@@ -311,7 +407,9 @@ export class Engine {
 
   private handleAt(p: Point): ResizeHandle | 'rotate' | null {
     const v = this.singleSelected()
-    if (!v || v.obj.kind === 'template' || v.obj.kind === 'text') return null
+    if (!v || v.obj.kind === 'template' || v.obj.kind === 'text' || v.obj.kind === 'pin') return null
+    // Locked: no resizing or rotating either.
+    if (v.obj.props.locked) return null
     const o = v.obj
     const tol = HANDLE_PX / this.zoom
     const local = toLocal(o, p)
@@ -349,6 +447,13 @@ export class Engine {
     }
     if (e.button !== 0) return
 
+    // A chat message waits for its @{target|…}: the click picks a token, nothing else.
+    if (this.store.targetPick || this.store.pickingSheetTarget) {
+      const target = this.tokenAt(p)
+      if (target) this.store.pickTarget(target.obj.id)
+      return
+    }
+
     if (tool === 'select') {
       const handle = this.handleAt(p)
       if (handle) {
@@ -371,9 +476,16 @@ export class Engine {
         const origins = new Map<string, Point>()
         for (const sid of this.store.selection) {
           const o = this.store.objects.get(sid)
-          if (o && this.store.controls(o)) origins.set(sid, { x: o.x, y: o.y })
+          if (o && this.store.controls(o) && !o.props.locked) origins.set(sid, { x: o.x, y: o.y })
         }
-        this.gesture = { kind: 'drag', start: p, origins, moved: false, lastSent: 0 }
+        this.gesture = { kind: 'drag', start: p, origins, moved: false, lastSent: 0, waypoints: [] }
+        if (!origins.size && hit.obj.kind === 'pin') this.cb.onPin(id, e.clientX, e.clientY)
+        return
+      }
+      // Pins I don't control (players): a click shows their notes.
+      const pin = this.pinAt(p)
+      if (pin) {
+        this.cb.onPin(pin.obj.id, e.clientX, e.clientY)
         return
       }
       const startClient = { x: e.clientX, y: e.clientY }
@@ -390,7 +502,19 @@ export class Engine {
     }
 
     if (tool === 'ruler') {
-      this.gesture = { kind: 'ruler', start: this.maybeSnapPoint(p, e) }
+      this.gesture = { kind: 'ruler', start: this.maybeSnapPoint(p, e), waypoints: [] }
+      return
+    }
+
+    if (tool === 'eraser') {
+      const g: Gesture = { kind: 'erase', ids: new Set() }
+      this.gesture = g
+      this.eraseAt(p, g)
+      return
+    }
+
+    if (tool === 'pin' && this.store.isGm) {
+      this.placePin(p)
       return
     }
 
@@ -399,8 +523,13 @@ export class Engine {
       return
     }
 
-    if (tool === 'draw-polygon') {
+    if (tool === 'draw-polygon' || tool === 'fog-reveal-poly' || tool === 'fog-hide-poly') {
       this.addPolygonPoint(p, e.detail >= 2)
+      return
+    }
+
+    if (tool === 'fog-reveal' || tool === 'fog-hide') {
+      this.gesture = { kind: 'fog', mode: tool === 'fog-reveal' ? 'reveal' : 'hide', start: p }
       return
     }
 
@@ -430,12 +559,20 @@ export class Engine {
               ? 'grab'
               : handle
                 ? resizeCursor(handle, this.singleSelected()!.obj.rotation)
-                : this.hitTest(p)
-                  ? 'move'
-                  : 'default'
+                : this.hitTest(p)?.obj.props.locked
+                  ? 'not-allowed'
+                  : this.hitTest(p) || this.pinAt(p)
+                    ? 'pointer'
+                    : 'default'
         } else if (this.store.tool === 'draw-polygon' && this.polygon) {
           this.drawOverlay(p)
+        } else if (this.store.tool === 'eraser') {
+          this.drawOverlay(p)
         }
+        return
+      case 'erase':
+        this.eraseAt(p, g)
+        this.drawOverlay(p)
         return
       case 'pan': {
         const dx = screen.x - g.startX
@@ -520,6 +657,14 @@ export class Engine {
         break
       case 'drag':
         if (g.moved) this.commitDrag(g, e.altKey)
+        else if (g.origins.size === 1) {
+          // A click on a pin I can move (GM): show it like everyone else.
+          const id = [...g.origins.keys()][0]
+          if (this.store.objects.get(id)?.kind === 'pin') this.cb.onPin(id, e.clientX, e.clientY)
+        }
+        break
+      case 'erase':
+        this.commitErase(g)
         break
       case 'marquee': {
         clearTimeout(g.timer)
@@ -546,6 +691,11 @@ export class Engine {
         break
       case 'template':
         this.commitTemplate(g, p)
+        break
+      case 'fog':
+        if (Math.hypot(p.x - g.start.x, p.y - g.start.y) * this.zoom >= CLICK_SLOP_PX) {
+          this.store.fogArea(g.mode, 'rect', [g.start.x, g.start.y, p.x, p.y])
+        }
         break
     }
     this.drawOverlay()
@@ -598,14 +748,68 @@ export class Engine {
   private commitDrag(g: Extract<Gesture, { kind: 'drag' }>, noSnap: boolean): void {
     if (!this.page) return
     const patches: ObjectPatch[] = []
-    for (const id of g.origins.keys()) {
+    // Every object followed the lead one: its waypoints, shifted to where each object started.
+    const lead = g.origins.values().next().value
+    const via: Record<string, number[]> = {}
+    for (const [id, origin] of g.origins) {
       const v = this.views.get(id)
       if (!v) continue
       const pos = this.snapObject(v.obj, { x: v.root.x, y: v.root.y }, noSnap)
       v.setPosition(pos.x, pos.y)
       patches.push({ id, x: pos.x, y: pos.y })
+      if (lead && g.waypoints.length) {
+        via[id] = g.waypoints.flatMap((w) => [w.x - lead.x + origin.x, w.y - lead.y + origin.y])
+      }
     }
-    if (patches.length) this.store.updateObjects(patches)
+    if (patches.length) this.store.updateObjects(patches, g.waypoints.length ? via : undefined)
+  }
+
+  // --- Eraser and pins ------------------------------------------------
+
+  /** Mark the drawings under the eraser (mine, or any for the GM); they go on release. */
+  private eraseAt(p: Point, g: Extract<Gesture, { kind: 'erase' }>): void {
+    const layer = this.drawingLayer()
+    const reach = ERASER_PX / this.zoom
+    for (const v of this.views.values()) {
+      const o = v.obj
+      if (g.ids.has(o.id) || o.layer !== layer || (o.kind !== 'path' && o.kind !== 'text')) continue
+      if (!this.store.canDelete(o) || !touchesDrawing(v, p, reach)) continue
+      g.ids.add(o.id)
+      v.root.alpha = 0.3
+    }
+  }
+
+  private commitErase(g: Extract<Gesture, { kind: 'erase' }>): void {
+    if (!g.ids.size) return
+    this.store.deleteObjects([...g.ids])
+    // Anything the server refused to delete comes back.
+    window.setTimeout(() => {
+      for (const id of g.ids) {
+        const v = this.views.get(id)
+        if (v && this.page) v.update(v.obj, this.page)
+      }
+    }, 1500)
+  }
+
+  private placePin(p: Point): void {
+    if (!this.page) return
+    const id = uid()
+    this.editOnArrival = id
+    this.store.createObjects([
+      {
+        id,
+        page_id: this.page.id,
+        kind: 'pin',
+        layer: this.store.layer === 'gm' ? 'gm' : 'objects',
+        x: p.x,
+        y: p.y,
+        width: 1,
+        height: 1,
+        rotation: 0,
+        props: { title: '', icon: '📍', notes: '' },
+      },
+    ])
+    this.store.tool = 'select'
   }
 
   private marqueeHits(a: Point, b: Point): string[] {
@@ -632,7 +836,9 @@ export class Engine {
     const closeToStart =
       pts.length >= 6 && Math.hypot(p.x - pts[0], p.y - pts[1]) * this.zoom < HANDLE_PX * 1.5
     if (finish || closeToStart) {
-      if (pts.length >= 6) this.createPath('polygon', pts)
+      const tool = this.store.tool
+      if (pts.length >= 6 && tool === 'draw-polygon') this.createPath('polygon', pts)
+      else if (pts.length >= 6) this.store.fogArea(tool === 'fog-reveal-poly' ? 'reveal' : 'hide', 'poly', pts)
       this.polygon = null
       this.drawOverlay()
       return
@@ -796,16 +1002,26 @@ export class Engine {
           from = anchorCell(this.page, from, width, height)
           to = anchorCell(this.page, to, width, height)
         }
-        this.rulerLine(g, this.overlayLabel, from, to, accent)
-        measured = { segment: segment(from, to), objectId: id }
+        const lead = view.obj
+        const stops = gesture.waypoints.map((w) =>
+          snaps && this.page!.snap && !gesture.noSnap ? anchorCell(this.page!, w, lead.width, lead.height) : w,
+        )
+        const path = [from, ...stops, to]
+        this.rulerPath(g, this.overlayLabel, path, accent)
+        measured = { segment: pathSegment(path), objectId: id }
       }
     } else if (gesture.kind === 'ruler' && gesture.end) {
-      this.rulerLine(g, this.overlayLabel, gesture.start, gesture.end, accent)
-      measured = { segment: segment(gesture.start, gesture.end) }
+      const path = [gesture.start, ...gesture.waypoints, gesture.end]
+      this.rulerPath(g, this.overlayLabel, path, accent)
+      measured = { segment: pathSegment(path) }
     }
     this.shareMeasure(measured)
 
     if (!cursor) return
+
+    if (this.store.tool === 'eraser') {
+      g.circle(cursor.x, cursor.y, ERASER_PX / z).stroke({ width: 1.5 / z, color: accent })
+    }
 
     if (gesture.kind === 'marquee') {
       const { start } = gesture
@@ -840,6 +1056,18 @@ export class Engine {
       g.circle(o.x, o.y, size).fill({ color: accent, alpha: 0.25 }).stroke({ width: 2 / z, color: accent })
       this.rulerLine(g, this.overlayLabel, o, end, accent)
       this.overlayLabel.text = formatDistance(this.page, cells * this.page.scale_number)
+    } else if (gesture.kind === 'fog') {
+      const s = gesture.start
+      const color = gesture.mode === 'reveal' ? canvasColors.turn : canvasColors.fog
+      g.rect(Math.min(s.x, cursor.x), Math.min(s.y, cursor.y), Math.abs(cursor.x - s.x), Math.abs(cursor.y - s.y))
+        .fill({ color, alpha: 0.25 })
+        .stroke({ width: 2 / z, color: accent })
+    } else if (this.polygon && this.store.tool.startsWith('fog-')) {
+      const pts = this.polygon
+      g.moveTo(pts[0], pts[1])
+      for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1])
+      g.lineTo(cursor.x, cursor.y)
+      g.stroke({ width: 2 / z, color: accent })
     } else if (this.polygon && this.store.tool === 'draw-polygon') {
       const pts = this.polygon
       g.moveTo(pts[0], pts[1])
@@ -847,6 +1075,26 @@ export class Engine {
       g.lineTo(cursor.x, cursor.y)
       g.stroke({ width: this.store.drawStyle.strokeWidth, color: this.store.drawStyle.stroke })
     }
+  }
+
+  /** A ruler through waypoints: the label is the total distance along the path. */
+  private rulerPath(g: Graphics, label: Text, path: Point[], color: string): void {
+    if (!this.page || path.length < 2) return
+    if (path.length === 2) return this.rulerLine(g, label, path[0], path[1], color)
+    const z = this.zoom
+    g.moveTo(path[0].x, path[0].y)
+    for (const pt of path.slice(1)) g.lineTo(pt.x, pt.y)
+    g.stroke({ width: 4 / z, color: canvasColors.outline, alpha: 0.6 })
+    g.moveTo(path[0].x, path[0].y)
+    for (const pt of path.slice(1)) g.lineTo(pt.x, pt.y)
+    g.stroke({ width: 2 / z, color })
+    for (const pt of path) g.circle(pt.x, pt.y, 4 / z).fill(color)
+    let total = 0
+    for (let i = 1; i < path.length; i++) total += measure(this.page, path[i - 1], path[i])
+    const end = path[path.length - 1]
+    label.text = formatDistance(this.page, total)
+    label.position.set(end.x, end.y)
+    label.scale.set(1 / z)
   }
 
   private rulerLine(g: Graphics, label: Text, a: Point, b: Point, color: string): void {
@@ -913,9 +1161,8 @@ export class Engine {
   }
 
   private drawRemoteRuler(r: RemoteRuler): void {
-    const { x1, y1, x2, y2 } = r.segment
     r.g.clear()
-    this.rulerLine(r.g, r.label, { x: x1, y: y1 }, { x: x2, y: y2 }, r.color)
+    this.rulerPath(r.g, r.label, segmentPath(r.segment), r.color)
   }
 
   /** Line widths and labels follow the zoom, so redraw them when it changes. */
@@ -955,11 +1202,26 @@ export class Engine {
     if (isTyping(e)) return
     const s = this.store
     if (e.code === 'Space') {
-      this.spaceHeld = true
       e.preventDefault()
+      const g = this.gesture
+      // While dragging a token or measuring, Space drops a waypoint instead of panning.
+      if (g.kind === 'drag' && g.moved) {
+        if (e.repeat) return
+        const lead = this.views.get(g.origins.keys().next().value ?? '')
+        if (lead) g.waypoints.push({ x: lead.root.x, y: lead.root.y })
+        this.drawOverlay()
+        return
+      }
+      if (g.kind === 'ruler' && g.end) {
+        if (!e.repeat) g.waypoints.push(g.end)
+        this.drawOverlay()
+        return
+      }
+      this.spaceHeld = true
       return
     }
     if (e.key === 'Escape') {
+      s.cancelTarget()
       this.polygon = null
       this.gesture = { kind: 'none' }
       s.setSelection([])
@@ -977,13 +1239,25 @@ export class Engine {
       const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
       const patches = s.selection
         .map((id) => s.objects.get(id))
-        .filter((o): o is MapObject => !!o && s.controls(o))
+        .filter((o): o is MapObject => !!o && s.controls(o) && !o.props.locked)
         .map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy }))
       if (patches.length) s.updateObjects(patches)
       e.preventDefault()
       return
     }
     const mod = e.ctrlKey || e.metaKey
+    // Ctrl+Z undo; Ctrl+Y or Ctrl+Shift+Z redo (server side, see on_undo).
+    if (mod && e.key.toLowerCase() === 'z') {
+      if (e.shiftKey) s.redo()
+      else s.undo()
+      e.preventDefault()
+      return
+    }
+    if (mod && e.key.toLowerCase() === 'y') {
+      s.redo()
+      e.preventDefault()
+      return
+    }
     if (mod && e.key.toLowerCase() === 'c') {
       this.clipboard = s.selection.map((id) => s.objects.get(id)).filter((o): o is MapObject => !!o)
       return
@@ -1005,13 +1279,18 @@ export class Engine {
       return
     }
     if (mod) return
-    const shortcuts: Record<string, Tool> = { v: 'select', r: 'ruler', d: 'draw-free', t: 'text' }
+    const shortcuts: Record<string, Tool> = { v: 'select', r: 'ruler', d: 'draw-free', t: 'text', e: 'eraser' }
     const tool = shortcuts[e.key.toLowerCase()]
     if (tool) s.tool = tool
   }
 
   private onKeyUp = (e: KeyboardEvent): void => {
     if (e.code === 'Space') this.spaceHeld = false
+  }
+
+  /** GPU texture limit: pictures larger than this are drawn as tiles (tests lower it). */
+  limitTextureSize(size: number): void {
+    setMaxTextureSize(size)
   }
 
   duplicateSelection(): void {
@@ -1151,8 +1430,14 @@ function fromLocal(o: MapObject, p: Point): Point {
   }
 }
 
-function contains(v: ObjectView, p: Point): boolean {
+function contains(v: ObjectView, p: Point, zoom = 1): boolean {
   const o = v.obj
+  if (o.kind === 'pin') {
+    // The drop above the tip, in screen pixels.
+    const dx = (p.x - o.x) * zoom
+    const dy = (p.y - o.y) * zoom
+    return Math.abs(dx) <= PIN_RADIUS + 2 && dy <= 2 && dy >= -PIN_HEAD_Y - PIN_RADIUS - 2
+  }
   if (o.kind === 'template') {
     return Math.hypot(p.x - o.x, p.y - o.y) <= Math.max(12, o.props.size ?? 0)
   }
@@ -1176,8 +1461,43 @@ function areaRadius(page: Page, o: Point, cursor: Point, snapped: boolean): { ce
   return { cells, size: (cells + (snapped ? 0.5 : 0)) * page.grid_size, end }
 }
 
-function segment(a: Point, b: Point): Segment {
-  return { x1: a.x, y1: a.y, x2: b.x, y2: b.y }
+/** A path as a shared measurement: its ends, and the waypoints between them. */
+function pathSegment(path: Point[]): Segment {
+  const a = path[0]
+  const b = path[path.length - 1]
+  const via = path.slice(1, -1).flatMap((pt) => [pt.x, pt.y])
+  return { x1: a.x, y1: a.y, x2: b.x, y2: b.y, ...(via.length && { via }) }
+}
+
+function segmentPath(s: Segment): Point[] {
+  const via: Point[] = []
+  for (let i = 0; i + 1 < (s.via?.length ?? 0); i += 2) via.push({ x: s.via![i], y: s.via![i + 1] })
+  return [{ x: s.x1, y: s.y1 }, ...via, { x: s.x2, y: s.y2 }]
+}
+
+/** The eraser touches a drawing: near its stroke for lines, inside it for shapes and text. */
+function touchesDrawing(v: ObjectView, p: Point, reach: number): boolean {
+  const o = v.obj
+  const pts: number[] | undefined = o.props.points
+  if (o.kind === 'path' && pts && pts.length >= 4 && o.props.shape !== 'polygon') {
+    const local = toLocal(o, p)
+    const tol = reach + (o.props.stroke_width ?? 4) / 2
+    for (let i = 0; i + 3 < pts.length; i += 2) {
+      if (distToSegment(local, pts[i], pts[i + 1], pts[i + 2], pts[i + 3]) <= tol) return true
+    }
+    return false
+  }
+  const local = toLocal(o, p)
+  const { w, h } = v.bounds()
+  return Math.abs(local.x) <= w / 2 + reach && Math.abs(local.y) <= h / 2 + reach
+}
+
+function distToSegment(p: Point, x1: number, y1: number, x2: number, y2: number): number {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const len = dx * dx + dy * dy
+  const t = len ? Math.max(0, Math.min(1, ((p.x - x1) * dx + (p.y - y1) * dy) / len)) : 0
+  return Math.hypot(p.x - (x1 + t * dx), p.y - (y1 + t * dy))
 }
 
 function isTyping(e: KeyboardEvent): boolean {

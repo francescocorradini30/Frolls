@@ -29,13 +29,18 @@ Frolls is a virtual tabletop for playing fantasy roleplaying games online, 5e co
 | Ping | press and hold on an empty spot (GM + Shift: brings everyone's view there) |
 | Move the map | middle or right mouse button, or Space + drag |
 | Zoom | mouse wheel |
-| Tools | `V` select, `H` hand, `R` ruler, `D` pencil, `T` text |
+| Tools | `V` select, `R` ruler, `D` pencil, `T` text |
+| Journal | 📖 tab: characters with avatar, bio (`[Name]` links), attributes and folders. The GM sets who plays each character; drag a character onto the map to place its linked token, or link a token from its settings. Players speak in chat with their character's name; the GM picks "As …" under the chat box |
+| Macros | ⚡ tab: your macros, run with a click, from the quick bar or with `#Name`. In any message: `@{selected\|hp}`, `@{target\|hp}` (then click the target), `%{Character\|Ability}`, `?{Bonus\|0}` (asked in one dialog), `&{template:default} {{name=Title}} {{Hit=[[1d20+5]]}}`, chat buttons `[Label](#Macro)`. Character abilities marked "token action" appear in the quick bar when one of its tokens is selected |
+| Undo / redo | `Ctrl+Z` / `Ctrl+Y` (or `Ctrl+Shift+Z`) on your own map changes, or the ↶ ↷ buttons; the GM can revert anyone's change from the 🕘 History tab |
 | Token | double-click = settings, right-click = menu, `Del` deletes, arrows move, `Ctrl+C/V/D` copy/paste/duplicate, `Alt` while dragging disables snapping |
 
 ## Coming soon
 
-Journal with characters and handouts, macros, 5e sheets for characters and NPCs, SRD compendium, rollable tables and card decks, accounts and multiple games.
+Handouts and journal permissions, 5e sheets for characters and NPCs with effects, durations and damage, SRD compendium, manual fog of war, rollable tables and card decks, accounts and multiple games.
 
 ## Legal notes
 
-Frolls is an independent product compatible with the fifth edition. It uses exclusively content from the System Reference Document 5.1 / 5.2, released under the [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/) license. It is not affiliated with or endorsed by Wizards of the Coast.
+Frolls is an independent product compatible with the fifth edition. It uses exclusively content from the System Reference Document 5.2, released under the [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/) license. It is not affiliated with or endorsed by Wizards of the Coast.
+
+This work includes material from the System Reference Document 5.2 ("SRD 5.2") by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode. The compendium data was structured by [Open5e](https://open5e.com) (`backend/scripts/import_srd.py`).

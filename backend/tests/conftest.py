@@ -42,3 +42,23 @@ def client() -> Iterator[TestClient]:
     server.__init__()
     with TestClient(app) as c:
         yield c
+
+
+class FixedDice:
+    """Every die shows the same face (capped at its size)."""
+
+    def __init__(self, face: int) -> None:
+        self.face = face
+
+    def randint(self, low: int, high: int) -> int:
+        return max(low, min(self.face, high))
+
+
+@pytest.fixture
+def dice(monkeypatch: pytest.MonkeyPatch) -> FixedDice:
+    """Rolls with known results: set `dice.face`."""
+    from app.dice import engine
+
+    fixed = FixedDice(10)
+    monkeypatch.setattr(engine, "_rng", fixed)
+    return fixed

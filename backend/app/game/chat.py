@@ -9,16 +9,26 @@ Turns raw chat input into a ChatDraft. Rules:
 - `/ooc msg`                       out of character
 - `/desc msg`                      GM narration (GM only)
 - `[[EXPR]]` anywhere in a message is rolled inline.
+- `1t[name]` draws from a rollable table, anywhere a roll is allowed.
+- `&{template:default} {{name=Title}} {{Key=Value}}` shows a card; values may hold
+  inline rolls. `&{noerror}` is dropped.
 """
 
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.dice import DiceError, RollResult, is_dice_expression, roll
+from app.dice import DiceError, RollResult, TableItem, TableTermResult, is_dice_expression, roll
+
+# Lowercase table name -> items: the tables the sender may roll.
+Tables = Mapping[str, Sequence[TableItem]]
 
 MAX_MESSAGE_LENGTH = 4000
-INLINE_RE = re.compile(r"\[\[(.+?)\]\]")
+# A table draw `t[name]` may sit inside: `[[1t[loot]]]`.
+INLINE_RE = re.compile(r"\[\[((?:t\[[^\]]*\]|[^\]])+?)\]\]", re.IGNORECASE)
+TEMPLATE_RE = re.compile(r"&\{template:([\w-]+)\}")
+FIELD_RE = re.compile(r"\{\{(.*?)\}\}", re.DOTALL)
 
 
 class ChatError(ValueError):
@@ -33,6 +43,8 @@ class ChatDraft:
     whisper_to: str | None = None  # player name or "gm", resolved by the server
     gm_only: bool = False
     inline: list[dict[str, Any]] = field(default_factory=list)
+    # Roll template card: {"name": "default", "title": str, "fields": [[key, value], ...]}
+    template: dict[str, Any] | None = None
 
 
 def roll_to_dict(result: RollResult) -> dict[str, Any]:
@@ -40,8 +52,19 @@ def roll_to_dict(result: RollResult) -> dict[str, Any]:
         "expression": result.expression,
         "total": result.total,
         "breakdown": result.breakdown,
+        "text": result.text,
         "terms": [
             {
+                "notation": t.notation,
+                "sides": "T",
+                "total": t.total,
+                "success_mode": False,
+                "dice": [],
+                "table": t.table,
+                "items": [{"name": i.name, "image": i.image} for i in t.items],
+            }
+            if isinstance(t, TableTermResult)
+            else {
                 "notation": t.notation,
                 "sides": t.sides,
                 "total": t.total,
@@ -63,9 +86,9 @@ def roll_to_dict(result: RollResult) -> dict[str, Any]:
     }
 
 
-def _roll(expr: str) -> dict[str, Any]:
+def _roll(expr: str, tables: Tables | None = None) -> dict[str, Any]:
     try:
-        return roll_to_dict(roll(expr))
+        return roll_to_dict(roll(expr, tables))
     except DiceError as e:
         raise ChatError(f"Invalid roll: {e}") from e
 
@@ -88,14 +111,39 @@ def _is_number_expr(expr: str) -> bool:
     return True
 
 
-def _inline_rolls(text: str) -> tuple[str, list[dict[str, Any]]]:
-    rolls: list[dict[str, Any]] = []
+def _inline_rolls(
+    text: str, rolls: list[dict[str, Any]] | None = None, tables: Tables | None = None
+) -> tuple[str, list[dict[str, Any]]]:
+    """Roll every [[EXPR]], replaced by a [[#n]] marker; `rolls` collects them."""
+    rolls = [] if rolls is None else rolls
 
     def replace(match: re.Match[str]) -> str:
-        rolls.append(_roll(match.group(1)))
+        rolls.append(_roll(match.group(1), tables))
         return f"[[#{len(rolls) - 1}]]"
 
     return INLINE_RE.sub(replace, text), rolls
+
+
+def _body(
+    text: str, tables: Tables | None = None
+) -> tuple[str, list[dict[str, Any]], dict[str, Any] | None]:
+    """Content, inline rolls and roll template of a message body."""
+    text = text.replace("&{noerror}", "").strip()
+    match = TEMPLATE_RE.search(text)
+    if match is None:
+        content, inline = _inline_rolls(text, tables=tables)
+        return content, inline, None
+    rolls: list[dict[str, Any]] = []
+    title = ""
+    fields: list[list[str]] = []
+    for raw in FIELD_RE.findall(text):
+        key, _, value = raw.partition("=")
+        value, _ = _inline_rolls(value.strip(), rolls, tables)
+        if key.strip().lower() == "name":
+            title = value
+        else:
+            fields.append([key.strip(), value])
+    return "", rolls, {"name": match.group(1), "title": title, "fields": fields}
 
 
 def _parse_whisper_target(rest: str) -> tuple[str, str]:
@@ -109,7 +157,7 @@ def _parse_whisper_target(rest: str) -> tuple[str, str]:
     return target, msg.strip()
 
 
-def parse(text: str, is_gm: bool) -> ChatDraft:
+def parse(text: str, is_gm: bool, tables: Tables | None = None) -> ChatDraft:
     text = text.strip()
     if not text:
         raise ChatError("Empty message")
@@ -118,9 +166,9 @@ def parse(text: str, is_gm: bool) -> ChatDraft:
 
     if not text.startswith("/"):
         if is_dice_expression(text):
-            return ChatDraft(kind="roll", roll=_roll(text))
-        content, inline = _inline_rolls(text)
-        return ChatDraft(kind="text", content=content, inline=inline)
+            return ChatDraft(kind="roll", roll=_roll(text, tables))
+        content, inline, template = _body(text, tables)
+        return ChatDraft(kind="text", content=content, inline=inline, template=template)
 
     command, _, rest = text[1:].partition(" ")
     command = command.lower()
@@ -131,7 +179,10 @@ def parse(text: str, is_gm: bool) -> ChatDraft:
             raise ChatError("Missing roll expression")
         expr, label = _split_roll_label(rest)
         return ChatDraft(
-            kind="roll", roll=_roll(expr), content=label, gm_only=command in ("gr", "gmroll")
+            kind="roll",
+            roll=_roll(expr, tables),
+            content=label,
+            gm_only=command in ("gr", "gmroll"),
         )
 
     if command in ("w", "whisper"):
@@ -139,20 +190,22 @@ def parse(text: str, is_gm: bool) -> ChatDraft:
         if not target or not msg:
             raise ChatError("Usage: /w NAME message")
         if is_dice_expression(msg):
-            return ChatDraft(kind="whisper", roll=_roll(msg), whisper_to=target)
-        content, inline = _inline_rolls(msg)
-        return ChatDraft(kind="whisper", content=content, inline=inline, whisper_to=target)
+            return ChatDraft(kind="whisper", roll=_roll(msg, tables), whisper_to=target)
+        content, inline, template = _body(msg, tables)
+        return ChatDraft(
+            kind="whisper", content=content, inline=inline, whisper_to=target, template=template
+        )
 
     if command in ("em", "me", "emote"):
         if not rest:
             raise ChatError("Usage: /em action")
-        content, inline = _inline_rolls(rest)
+        content, inline = _inline_rolls(rest, tables=tables)
         return ChatDraft(kind="emote", content=content, inline=inline)
 
     if command == "ooc":
         if not rest:
             raise ChatError("Usage: /ooc message")
-        content, inline = _inline_rolls(rest)
+        content, inline = _inline_rolls(rest, tables=tables)
         return ChatDraft(kind="ooc", content=content, inline=inline)
 
     if command == "desc":
@@ -160,7 +213,7 @@ def parse(text: str, is_gm: bool) -> ChatDraft:
             raise ChatError("Only the GM can use /desc")
         if not rest:
             raise ChatError("Usage: /desc text")
-        content, inline = _inline_rolls(rest)
-        return ChatDraft(kind="desc", content=content, inline=inline)
+        content, inline, template = _body(rest, tables)
+        return ChatDraft(kind="desc", content=content, inline=inline, template=template)
 
     raise ChatError(f"Unknown command: /{command}")

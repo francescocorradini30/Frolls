@@ -5,7 +5,7 @@
   import { BARS, DEFAULT_TOKEN_COLOR } from '../theme'
   import { STATUSES } from '../util/statuses'
   import type { StampResult, StoredStamp } from '../util/stamp'
-  import { pickFile, uploadImage } from '../util/upload'
+  import { pickFile, pickFiles, uploadImage } from '../util/upload'
   import TokenStamp from './TokenStamp.svelte'
 
   let { obj, onClose }: { obj: MapObject; onClose: () => void } = $props()
@@ -14,7 +14,7 @@
   const start = untrack(() => obj)
   const p = start.props
 
-  let tab = $state<'base' | 'bars' | 'status'>('base')
+  let tab = $state<'base' | 'bars' | 'status' | 'sides'>('base')
   let name = $state<string>(p.name ?? '')
   let image = $state<string>(p.image ?? '')
   let stamp = $state<StoredStamp | null>(p.stamp ?? null)
@@ -22,8 +22,12 @@
   let layer = $state<Layer>(start.layer)
   let controlledBy = $state<string[]>([...(p.controlled_by ?? [])])
   let gmNotes = $state<string>(p.gm_notes ?? '')
+  let represents = $state<string>(p.represents ?? '')
   let bars = $state<Bar[]>(BARS.map((b) => ({ value: null, max: null, ...(p[b.key] ?? {}) })))
   let statuses = $state<string[]>([...(p.statuses ?? [])])
+  // Multi-sided token: the pictures it can show (a card keeps its own two sides).
+  let sides = $state<string[]>([...(p.sides ?? [])])
+  const isCard = !!p.card
   let uploading = $state(false)
   // Picture being framed in the token stamp: a new file, or the original of the current image.
   let stamping = $state<{ source: File | string; initial: StoredStamp | null } | null>(null)
@@ -32,6 +36,22 @@
   const players = $derived(
     store.players.filter((pl) => !pl.is_gm).sort((a, b) => Number(b.online) - Number(a.online)),
   )
+
+  const characters = $derived([...store.characters].sort((a, b) => a.name.localeCompare(b.name)))
+
+  /** Linking a character: the token takes its name, its avatar if it has no picture,
+   *  and its player as controller if nobody controls it yet. */
+  function link(id: string) {
+    represents = id
+    const c = store.character(id)
+    if (!c) return
+    name = c.name
+    if (!image && c.avatar) {
+      image = c.avatar
+      stamp = null
+    }
+    if (c.player_id && !controlledBy.length) controlledBy = [c.player_id]
+  }
 
   function toggle(list: string[], id: string): string[] {
     return list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
@@ -72,6 +92,32 @@
     }
   }
 
+  async function addSides() {
+    const files = await pickFiles()
+    if (!files.length) return
+    uploading = true
+    try {
+      for (const f of files) sides = [...sides, await uploadImage(f)]
+    } catch (e) {
+      store.toast((e as Error).message)
+    } finally {
+      uploading = false
+    }
+  }
+
+  function showSide(url: string) {
+    image = url
+    stamp = null
+  }
+
+  function moveSide(i: number, by: number) {
+    const j = i + by
+    if (j < 0 || j >= sides.length) return
+    const next = [...sides]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    sides = next
+  }
+
   function num(v: unknown): number | null {
     if (v === null || v === undefined || v === '') return null
     const n = Number(v)
@@ -86,6 +132,11 @@
       color,
       statuses: statuses.length ? statuses : null,
     }
+    if (!isCard) {
+      const side = sides.indexOf(image)
+      props.sides = sides.length ? $state.snapshot(sides) : null
+      props.side = side >= 0 ? side : null
+    }
     bars.forEach((b, i) => {
       const value = num(b.value)
       const max = num(b.max)
@@ -94,6 +145,7 @@
     if (store.isGm) {
       props.controlled_by = controlledBy.length ? controlledBy : null
       props.gm_notes = gmNotes.trim() || null
+      if (isToken) props.represents = represents || null
     }
     const patch: Parameters<typeof store.updateObjects>[0][0] = { id: obj.id, props }
     if (store.isGm && layer !== obj.layer) patch.layer = layer
@@ -122,6 +174,7 @@
         <button class:active={tab === 'base'} onclick={() => (tab = 'base')}>Details</button>
         <button class:active={tab === 'bars'} onclick={() => (tab = 'bars')}>Bars</button>
         <button class:active={tab === 'status'} onclick={() => (tab = 'status')}>Statuses</button>
+        {#if !isCard}<button class:active={tab === 'sides'} onclick={() => (tab = 'sides')}>Sides</button>{/if}
       </nav>
     {/if}
 
@@ -140,6 +193,23 @@
         </div>
 
         <label class="field"><span>Name</span><input bind:value={name} maxlength="120" /></label>
+
+        {#if store.isGm && isToken}
+          <div class="field">
+            <span>Represents character</span>
+            <div class="row">
+              <select value={represents} onchange={(e) => link(e.currentTarget.value)} aria-label="Represents character">
+                <option value="">None</option>
+                {#each characters as c (c.id)}<option value={c.id}>{c.name}{c.archived ? ' (archived)' : ''}</option>{/each}
+              </select>
+              {#if store.character(represents)}
+                <button class="btn small" onclick={() => (store.openCharacterId = represents)}>Open journal</button>
+              {/if}
+            </div>
+          </div>
+        {:else if store.character(represents)}
+          <button class="btn small journal-link" onclick={() => (store.openCharacterId = represents)}>Open character journal</button>
+        {/if}
 
         {#if store.isGm}
           <label class="field">
@@ -189,6 +259,31 @@
             <input type="number" placeholder="max" bind:value={bar.max} aria-label={`${BARS[i].label} max`} />
           </div>
         {/each}
+      {:else if tab === 'sides'}
+        <p class="muted hint">
+          A multi-sided token switches between these pictures: a coin, a door open or shut, a creature that
+          changes shape. Right-click the token to pick a side or a random one.
+        </p>
+        <div class="sides">
+          {#each sides as side, i (i)}
+            <div class="side" class:current={side === image}>
+              <button class="side-pic" title="Show this side" aria-label={`Show side ${i + 1}`} onclick={() => showSide(side)}
+                style:background-image={`url(${side})`}></button>
+              <div class="side-tools">
+                <span>{i + 1}</span>
+                <button class="icon-btn" aria-label="Move left" onclick={() => moveSide(i, -1)}>‹</button>
+                <button class="icon-btn" aria-label="Move right" onclick={() => moveSide(i, 1)}>›</button>
+                <button class="icon-btn" aria-label={`Remove side ${i + 1}`} onclick={() => (sides = sides.filter((_, k) => k !== i))}>✕</button>
+              </div>
+            </div>
+          {/each}
+        </div>
+        <div class="row">
+          <button class="btn small" onclick={addSides} disabled={uploading}>{uploading ? 'Uploading…' : 'Upload sides'}</button>
+          {#if image && !sides.includes(image)}
+            <button class="btn small" onclick={() => (sides = [...sides, image])}>Add current image</button>
+          {/if}
+        </div>
       {:else}
         <div class="statuses">
           {#each STATUSES as s (s.id)}
@@ -212,6 +307,41 @@
 {/if}
 
 <style>
+  .hint {
+    margin: 0;
+    font-size: 0.8rem;
+  }
+  .sides {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 8px;
+  }
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+  }
+  .side.current {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .side-pic {
+    aspect-ratio: 1;
+    border: none;
+    border-radius: 6px;
+    background: var(--surface-3) center / contain no-repeat;
+    cursor: pointer;
+  }
+  .side-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
   .backdrop {
     position: fixed;
     inset: 0;
@@ -284,6 +414,18 @@
     flex-direction: column;
     gap: 6px;
     align-items: flex-start;
+  }
+  .row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .row select {
+    flex: 1;
+    min-width: 0;
+  }
+  .journal-link {
+    align-self: flex-start;
   }
   .chips {
     display: flex;

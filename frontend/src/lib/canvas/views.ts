@@ -15,6 +15,44 @@ const LABEL_STYLE = {
   stroke: { color: canvasColors.outline, width: 3 },
 }
 
+/** Largest texture the GPU takes (set by the engine); bigger pictures are cut into tiles. */
+let maxTextureSize = 4096
+
+export function setMaxTextureSize(size: number): void {
+  maxTextureSize = size
+}
+
+/** Tile textures of the pictures too big for the GPU, by URL: cut once, reused by every view. */
+const tileCache = new Map<string, { width: number; height: number; tiles: { x: number; y: number; tex: Texture }[] }>()
+
+/** Cut a picture larger than the GPU limit into tiles; null if it fits as it is. */
+function tilesOf(url: string, tex: Texture) {
+  const { width, height } = tex.source
+  if (width <= maxTextureSize && height <= maxTextureSize) return null
+  const cached = tileCache.get(url)
+  if (cached) return cached
+  const image = tex.source.resource as CanvasImageSource
+  const tiles = []
+  for (let y = 0; y < height; y += maxTextureSize) {
+    for (let x = 0; x < width; x += maxTextureSize) {
+      const w = Math.min(maxTextureSize, width - x)
+      const h = Math.min(maxTextureSize, height - y)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      canvas.getContext('2d')!.drawImage(image, x, y, w, h, 0, 0, w, h)
+      tiles.push({ x, y, tex: Texture.from(canvas) })
+    }
+  }
+  const entry = { width, height, tiles }
+  tileCache.set(url, entry)
+  return entry
+}
+
+/** Map pins, in screen pixels: radius of the head and height of its centre above the tip. */
+export const PIN_RADIUS = 15
+export const PIN_HEAD_Y = 30
+
 /** One renderable map object. Rebuilds itself from the MapObject on update. */
 /** Stacking key: spell areas always sit below tokens and other objects of their layer. */
 export function stackZ(obj: MapObject): number {
@@ -28,20 +66,32 @@ export class ObjectView {
   /** Stays upright above the object (name, bars, statuses). */
   private readonly hud = new Container()
   private readonly selectionBox = new Graphics()
+  private readonly turnRing = new Graphics()
   private sprite: Sprite | null = null
   private imageUrl: string | null = null
   obj: MapObject
 
   constructor(obj: MapObject, page: Page) {
     this.obj = obj
-    this.root.addChild(this.body, this.selectionBox, this.hud)
+    // Skipped by the renderer when off screen.
+    this.root.cullable = true
+    this.root.addChild(this.turnRing, this.body, this.selectionBox, this.hud)
     this.root.label = obj.id
     this.update(obj, page)
+  }
+
+  /** Pins keep the same size on screen: the engine sets 1 / zoom. */
+  private screenScale = 1
+
+  setScreenScale(scale: number): void {
+    this.screenScale = scale
+    if (this.obj.kind === 'pin') this.root.scale.set(scale)
   }
 
   update(obj: MapObject, page: Page): void {
     this.obj = obj
     this.root.position.set(obj.x, obj.y)
+    this.root.scale.set(obj.kind === 'pin' ? this.screenScale : 1)
     this.root.zIndex = stackZ(obj)
     this.body.rotation = (obj.rotation * Math.PI) / 180
     this.root.alpha = obj.layer === 'gm' ? 0.55 : 1
@@ -58,8 +108,23 @@ export class ObjectView {
     const g = this.selectionBox
     g.clear()
     if (!selected) return
+    if (this.obj.kind === 'pin') {
+      g.circle(0, -PIN_HEAD_Y, PIN_RADIUS + 5).stroke({ width: 2, color, alpha: 0.95 })
+      return
+    }
     const { w, h } = this.bounds()
     g.rect(-w / 2 - 3, -h / 2 - 3, w + 6, h + 6).stroke({ width: 2, color, alpha: 0.95 })
+  }
+
+  /** Ring under the token whose turn it is. */
+  setTurn(current: boolean): void {
+    const g = this.turnRing
+    g.clear()
+    if (!current) return
+    const { w, h } = this.bounds()
+    const r = Math.max(w, h) / 2 + 8
+    g.circle(0, 0, r + 8).fill({ color: canvasColors.turn, alpha: 0.22 })
+    g.circle(0, 0, r).stroke({ width: 6, color: canvasColors.turn, alpha: 0.95 })
   }
 
   /** Local-space bounds used for selection and hit testing. */
@@ -89,7 +154,29 @@ export class ObjectView {
         return this.drawText(o)
       case 'template':
         return this.drawTemplate(o)
+      case 'pin':
+        return this.drawPin(o)
     }
+  }
+
+  /** A map pin: a drop with its icon, the tip on the pinned point. Screen pixels (see setScreenScale). */
+  private drawPin(o: MapObject): void {
+    this.clearBody()
+    const color = o.props.color ?? canvasColors.accent
+    const r = PIN_RADIUS
+    const cy = -PIN_HEAD_Y
+    const shadow = new Graphics().ellipse(0, 0, r * 0.55, r * 0.22).fill({ color: canvasColors.outline, alpha: 0.35 })
+    const drop = new Graphics()
+      .moveTo(0, 0)
+      .lineTo(-r * 0.72, cy + r * 0.7)
+      .arc(0, cy, r, Math.PI * 0.75, Math.PI * 0.25)
+      .closePath()
+      .fill(color)
+      .stroke({ width: 2, color: canvasColors.tokenBorder, alpha: 0.9 })
+    const icon = new Text({ text: o.props.icon || '📍', style: { fontSize: r * 1.05 }, resolution: TEXT_RESOLUTION })
+    icon.anchor.set(0.5)
+    icon.position.set(0, cy)
+    this.body.addChild(shadow, drop, icon)
   }
 
   private clearBody(): void {
@@ -110,20 +197,26 @@ export class ObjectView {
       this.body.addChild(sprite)
       if (url !== this.imageUrl) {
         this.imageUrl = url
+        sprite.visible = true
         Assets.load<Texture>(url)
           .then((tex) => {
             if (this.imageUrl !== url || sprite.destroyed) return
+            const tiled = tilesOf(url, tex)
+            if (tiled) return this.showTiles(tiled)
             sprite.texture = tex
             sprite.width = this.obj.width
             sprite.height = this.obj.height
           })
           .catch(() => {})
+      } else if (tileCache.has(url)) {
+        this.showTiles(tileCache.get(url)!)
       }
       return
     }
     this.sprite?.destroy()
     this.sprite = null
     this.imageUrl = null
+    if (o.props.shape === 'card') return this.drawPlainCard(o)
     const r = Math.min(o.width, o.height) / 2
     const disc = new Graphics()
       .ellipse(0, 0, o.width / 2, o.height / 2)
@@ -136,6 +229,48 @@ export class ObjectView {
     })
     label.anchor.set(0.5)
     this.body.addChild(disc, label)
+  }
+
+  /** A picture too big for the GPU, drawn as tiles scaled to the object's size. */
+  private showTiles(t: { width: number; height: number; tiles: { x: number; y: number; tex: Texture }[] }): void {
+    if (this.sprite) this.sprite.visible = false
+    const o = this.obj
+    const group = new Container({ label: 'tiles' })
+    for (const tile of t.tiles) {
+      const s = new Sprite(tile.tex)
+      s.position.set(tile.x, tile.y)
+      group.addChild(s)
+    }
+    group.scale.set(o.width / t.width, o.height / t.height)
+    group.position.set(-o.width / 2, -o.height / 2)
+    this.body.addChild(group)
+  }
+
+  /** A card without a picture: its name on a light card, or a plain back when face down. */
+  private drawPlainCard(o: MapObject): void {
+    const faceDown = o.props.side === 1 || !o.props.name
+    const radius = Math.min(o.width, o.height) * 0.08
+    const card = new Graphics()
+      .roundRect(-o.width / 2, -o.height / 2, o.width, o.height, radius)
+      .fill(faceDown ? canvasColors.cardBack : canvasColors.cardFace)
+      .stroke({ width: Math.max(1.5, o.width * 0.03), color: canvasColors.tokenBorder, alpha: 0.9 })
+    this.body.addChild(card)
+    if (faceDown) return
+    const label = new Text({
+      text: o.props.name,
+      style: {
+        ...LABEL_STYLE,
+        fill: canvasColors.cardInk,
+        stroke: undefined,
+        fontSize: Math.max(8, o.width * 0.16),
+        wordWrap: true,
+        wordWrapWidth: o.width * 0.85,
+        align: 'center',
+      },
+      resolution: TEXT_RESOLUTION,
+    })
+    label.anchor.set(0.5)
+    this.body.addChild(label)
   }
 
   private drawPath(o: MapObject): void {
@@ -220,6 +355,15 @@ export class ObjectView {
 
   private drawHud(o: MapObject): void {
     for (const child of this.hud.removeChildren()) child.destroy()
+    if (o.kind === 'pin') {
+      if (o.props.title && o.props.show_title !== false) {
+        const label = new Text({ text: o.props.title, style: LABEL_STYLE, resolution: TEXT_RESOLUTION })
+        label.anchor.set(0.5, 0)
+        label.position.set(0, 4)
+        this.hud.addChild(label)
+      }
+      return
+    }
     if (o.kind !== 'token') return
     const w = o.width
     const h = o.height

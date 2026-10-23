@@ -76,6 +76,13 @@ export const canvasColors = {
   barTrack: palette.ink950,
   tokenBorder: palette.cream,
   template: palette.periwinkle,
+  /** Ring around the token whose turn it is. */
+  turn: palette.butter,
+  fog: palette.ink950,
+  /** Cards without a picture: face and back. */
+  cardFace: palette.lavender,
+  cardInk: palette.ink900,
+  cardBack: palette.periwinkle,
 } as const
 
 /** Colours a player can pick when joining. */

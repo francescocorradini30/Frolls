@@ -27,6 +27,7 @@
     { id: 'draw-ellipse', icon: '◯', label: 'Ellipse' },
     { id: 'draw-polygon', icon: '⬠', label: 'Polygon (click to add points, double-click to close)' },
     { id: 'text', icon: 'T', label: 'Text (T)' },
+    { id: 'eraser', icon: '⌫', label: 'Eraser: drag over drawings to delete them (E)' },
   ]
   const LAYERS: { id: Layer; icon: string; label: string }[] = [
     { id: 'map', icon: '🗺', label: 'Map layer (backgrounds and scenery)' },
@@ -34,7 +35,16 @@
     { id: 'gm', icon: '👁', label: 'GM layer (hidden from players)' },
   ]
 
-  let open = $state<'draw' | null>(null)
+  const FOG: { id: Tool; icon: string; label: string }[] = [
+    { id: 'fog-reveal', icon: '▭', label: 'Reveal a rectangle' },
+    { id: 'fog-hide', icon: '▬', label: 'Hide a rectangle' },
+    { id: 'fog-reveal-poly', icon: '⬠', label: 'Reveal a polygon (click the points, double-click to close)' },
+    { id: 'fog-hide-poly', icon: '⬟', label: 'Hide a polygon (click the points, double-click to close)' },
+  ]
+
+  let open = $state<'draw' | 'fog' | null>(null)
+  const fogActive = $derived(FOG.some((t) => t.id === store.tool))
+  const fogOn = $derived(!!store.page?.fog?.enabled)
 
   const drawActive = $derived(DRAW.find((t) => t.id === store.tool))
 </script>
@@ -96,6 +106,22 @@
     onclick={() => (store.tool = 'template-circle')}>◎</button
   >
 
+  <hr />
+  <button
+    class="tool"
+    disabled={!store.undoLabel}
+    title={store.undoLabel ? `Undo: ${store.undoLabel} (Ctrl+Z)` : 'Nothing to undo'}
+    aria-label="Undo"
+    onclick={() => store.undo()}>↶</button
+  >
+  <button
+    class="tool"
+    disabled={!store.redoLabel}
+    title={store.redoLabel ? `Redo: ${store.redoLabel} (Ctrl+Y)` : 'Nothing to redo'}
+    aria-label="Redo"
+    onclick={() => store.redo()}>↷</button
+  >
+
   {#if store.isGm}
     <hr />
     {#each LAYERS as l (l.id)}
@@ -103,7 +129,40 @@
         >{l.icon}</button
       >
     {/each}
+    <div class="group">
+      <button
+        class="tool"
+        class:active={fogActive}
+        class:fog-on={fogOn}
+        title="Fog of war"
+        aria-label="Fog of war"
+        onclick={(e) => {
+          e.stopPropagation()
+          open = open === 'fog' ? null : 'fog'
+        }}>🌫</button
+      >
+      {#if open === 'fog'}
+        <div class="flyout panel" role="presentation" onclick={(e) => e.stopPropagation()}>
+          {#each FOG as t (t.id)}
+            <button class="tool" class:active={store.tool === t.id} title={t.label} aria-label={t.label}
+              onclick={() => (store.tool = t.id)}>{t.icon}</button>
+          {/each}
+          <div class="style">
+            <label class="fill"><input type="checkbox" checked={fogOn} onchange={(e) => store.setFog(e.currentTarget.checked)} /> fog on this page</label>
+            <button class="btn small" onclick={() => store.resetFog('reveal')}>Reveal all</button>
+            <button class="btn small" onclick={() => store.resetFog('hide')}>Hide all</button>
+          </div>
+        </div>
+      {/if}
+    </div>
     <hr />
+    <button
+      class="tool"
+      class:active={store.tool === 'pin'}
+      title="Map pin: click on the map to place one"
+      aria-label="Map pin"
+      onclick={() => (store.tool = 'pin')}>📍</button
+    >
     <button class="tool" title="New token" onclick={onAddToken}>⊕</button>
     <button class="tool" title="Upload image (token or map, depending on the layer)" onclick={onUploadImage}>🖼</button>
   {/if}
@@ -138,12 +197,19 @@
     font-size: 17px;
     color: var(--text);
   }
-  .tool:hover {
+  .tool:hover:not(:disabled) {
     background: var(--surface-3);
+  }
+  .tool:disabled {
+    opacity: 0.35;
+    cursor: default;
   }
   .tool.active {
     background: color-mix(in srgb, var(--accent) 22%, transparent);
     border-color: var(--accent);
+  }
+  .fog-on {
+    box-shadow: inset 0 0 0 1px var(--accent-2);
   }
   .layer.active {
     background: color-mix(in srgb, var(--gm) 22%, transparent);

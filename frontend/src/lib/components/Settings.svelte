@@ -80,6 +80,18 @@
         {MEASUREMENTS.find((m) => m.value === store.measurement)?.cell}. Switching systems converts the page scales
         (5 ft = 1.5 m, 1 mi = 1.5 km) for all players.
       </p>
+      <label class="field">
+        <span>Monsters' hit points, for players</span>
+        <select
+          value={store.game?.settings.npc_hp ?? 'status'}
+          onchange={(e) => store.send({ type: 'game.settings', npc_hp: e.currentTarget.value as 'hidden' | 'status' | 'full' })}
+        >
+          <option value="hidden">Hidden</option>
+          <option value="status">Only how hurt they look</option>
+          <option value="full">Numbers</option>
+        </select>
+      </label>
+      <p class="hint muted">Tokens that no player controls. With "Only how hurt they look" players see the bar in quarters, never the numbers.</p>
     {/if}
 
     <button type="button" class="btn danger leave" onclick={onLeave}>Leave game</button>

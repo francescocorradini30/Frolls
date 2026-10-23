@@ -6,7 +6,7 @@
   function dieClass(term: RollTerm, d: Die): string {
     if (d.rerolled || !d.kept) return 'dropped'
     if (term.success_mode) return d.success ? 'crit' : d.failure ? 'fumble' : ''
-    if (term.sides === 'F') return ''
+    if (typeof term.sides !== 'number') return ''
     if (d.value >= term.sides) return 'crit'
     if (d.value === 1) return 'fumble'
     return ''
@@ -27,11 +27,16 @@
         {#each term.dice as d, di (di)}
           <span class="die {dieClass(term, d)}" class:exploded={d.exploded}>{d.value}</span>
         {/each}
+        {#each term.items ?? [] as item, ii (ii)}
+          <span class="item">
+            {#if item.image}<img src={item.image} alt="" />{/if}{item.name}
+          </span>
+        {/each}
       </span>
     {/each}
   </div>
-  <div class="total">
-    {fmt(roll.total)}
+  <div class="total" class:text={!!roll.text}>
+    {roll.text ?? fmt(roll.total)}
     {#if successMode}<small>{roll.total === 1 ? 'success' : 'successes'}</small>{/if}
   </div>
 </div>
@@ -76,6 +81,27 @@
     background: var(--surface-3);
     font-weight: 700;
     font-size: 0.85rem;
+  }
+  .item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px 2px 2px;
+    border-radius: 6px;
+    background: var(--surface-3);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .item img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+  .total.text {
+    font-size: 1.05rem;
+    max-width: 140px;
+    overflow-wrap: anywhere;
   }
   .die.crit {
     background: color-mix(in srgb, var(--success) 30%, var(--surface-3));
